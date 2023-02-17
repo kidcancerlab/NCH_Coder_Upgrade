@@ -14,6 +14,11 @@ library(reactablefmtr)
 library(patchwork)
 
 theme_set(theme_classic())
+
+# Workaround for reactable not rendering in knitted document
+# reactable <- function(...) {
+#   htmltools::tagList(reactable::reactable(...))
+# }
 ```
 
 ## Import and reorganize the registration data
@@ -65,7 +70,7 @@ reg$Cluster[reg$Cluster == "Yes - other cluster (OSU OSC or other)"] <- "Yes-oth
 
 Process the data to generate lists of students enrolled in each course and lists of experienced coders willing to mentor.
 
-```{r pressure, echo=FALSE}
+```{r rosters, results='asis'}
 roster <- lapply(seq_along(sessions), function(s) {
     students <- reg %>%
         filter(grepl(sessions[s], Participant)) %>%
@@ -77,10 +82,10 @@ roster <- lapply(seq_along(sessions), function(s) {
 })
 
 for(s in seq_along(sessions)) {
-    t <- reactable(roster[[s]]$students, pagination = F) %>%
+    t1 <- reactable(roster[[s]]$students, pagination = F) %>%
         add_title(paste("Participant Roster - ", sessions[s], "(",
             length(roster[[s]]$students$Name), ")"))
-    print(t)
+    print(t1)
     p1 <- as.data.frame(table(roster[[s]]$students$Skill)) %>%
         ggplot(aes(factor(Var1, level = c(
                 "Noob",
@@ -120,11 +125,11 @@ for(s in seq_along(sessions)) {
                 axis.text.x = element_text(angle = 60, hjust = 1))
     p4 <- p1 | p2 | p3
     print(p4 + plot_annotation(title = paste(sessions[s], "session")))
-    t <- reactable(roster[[s]]$mentors, pagination = F) %>%
+    t2 <- reactable(roster[[s]]$mentors, pagination = F) %>%
         add_title(paste("Mentor List - ", sessions[s], "(",
             length(roster[[s]]$mentors$Name), ")"))
-    print(t)
+    print(t2)
 }
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
