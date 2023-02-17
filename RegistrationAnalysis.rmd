@@ -1,0 +1,94 @@
+---
+title: "SCRGOT 2023 Coder Upgrade Registration and Planning"
+author: "Ryan Roberts"
+date: "2/15/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(reactable)
+library(reactablefmtr)
+```
+
+## Import and reorganize the registration data
+
+Data from the Microsoft Forms registration process have been dowloaded as xlsx and converted to csv for import. This chunk will load data, discard unnecessary elements, simplify labels, and create vectors needed for downstream processes.
+
+```{r import_data}
+reg <- read.csv("CoderUpgradeRegistration.csv", header = T) %>%
+    as_tibble() %>%
+    select(-ID, -Start.time, -Completion.time, -Email, -Name,
+        -The..tentative..schedule)
+
+colnames(reg) <- c(
+        "Name",
+        "Email",
+        "In_or_Ex",
+        "Skill",
+        "Mentor",
+        "Participant",
+        "Social",
+        "Dietary",
+        "Laptop",
+        "Cluster"
+    )
+
+sessions <- c(
+    "Basics of R",
+    "Intro to scRNA-seq",
+    "Intro to Seurat",
+    "Combining single cell datasets",
+    "Differential expression analysis",
+    "Under the hood",
+    "Speeding it up",
+    "Cell-cell interaction analysis",
+    "Multiomic",
+    "RNA velocity and pseudotime"
+)
+
+reg$Skill["Total noob"] <- "Noob"
+```
+
+## Generate class rosters
+
+Process the data to generate lists of students enrolled in each course and lists of experienced coders willing to mentor.
+
+```{r pressure, echo=FALSE}
+roster <- lapply(seq_along(sessions), function(s) {
+    students <- reg %>%
+        filter(grepl(sessions[s], Participant)) %>%
+        select(Name, Email, In_or_Ex, Skill, Laptop, Cluster)
+    mentors <- reg %>%
+        filter(grepl(sessions[s], Mentor)) %>%
+        select(Name, Email, In_or_Ex, Skill)
+    return(list(students = students, mentors = mentors))
+})
+
+
+
+for(s in seq_along(sessions)) {
+    t <- reactable(roster[[s]]$students, pagination = F) %>%
+        add_title(paste("Participant Roster - ", sessions[s], "(",
+            length(roster[[s]]$students$Name), ")"))
+    print(t)
+    p <- list()
+    as.data.frame(table(roster[[s]]$students$Skill)) %>%
+        ggplot(aes(factor(Var1, level = c(
+                "Total noob",
+                "Beginner comfortable with the basics",
+                "Intermediate with a few advanced skills",
+                "Expert who could teach all of the beginner topics")),
+            Freq)) +
+            geom_bar(stat = "identity")
+
+    t <- reactable(roster[[s]]$mentors, pagination = F) %>%
+        add_title(paste("Mentor List - ", sessions[s], "(",
+            length(roster[[s]]$mentors$Name), ")"))
+    print(t)
+}
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
