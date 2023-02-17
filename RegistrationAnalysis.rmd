@@ -11,6 +11,9 @@ library(tidyverse)
 library(ggplot2)
 library(reactable)
 library(reactablefmtr)
+library(patchwork)
+
+theme_set(theme_classic())
 ```
 
 ## Import and reorganize the registration data
@@ -49,7 +52,13 @@ sessions <- c(
     "RNA velocity and pseudotime"
 )
 
-reg$Skill["Total noob"] <- "Noob"
+reg$Skill[reg$Skill == "Total noob"] <- "Noob"
+reg$Skill[reg$Skill == "Beginner comfortable with the basics"] <- "Beginner"
+reg$Skill[reg$Skill == "Intermediate with a few advanced skills"] <- "Intermediate"
+reg$Skill[reg$Skill == "Expert who could teach all of the beginner topics"] <- "Expert"
+
+reg$Cluster[reg$Cluster == "Yes - NCH cluster (Franklin)"] <- "Yes-NCH"
+reg$Cluster[reg$Cluster == "Yes - other cluster (OSU OSC or other)"] <- "Yes-other"
 ```
 
 ## Generate class rosters
@@ -67,23 +76,50 @@ roster <- lapply(seq_along(sessions), function(s) {
     return(list(students = students, mentors = mentors))
 })
 
-
-
 for(s in seq_along(sessions)) {
     t <- reactable(roster[[s]]$students, pagination = F) %>%
         add_title(paste("Participant Roster - ", sessions[s], "(",
             length(roster[[s]]$students$Name), ")"))
     print(t)
-    p <- list()
-    as.data.frame(table(roster[[s]]$students$Skill)) %>%
+    p1 <- as.data.frame(table(roster[[s]]$students$Skill)) %>%
         ggplot(aes(factor(Var1, level = c(
-                "Total noob",
-                "Beginner comfortable with the basics",
-                "Intermediate with a few advanced skills",
-                "Expert who could teach all of the beginner topics")),
-            Freq)) +
-            geom_bar(stat = "identity")
-
+                "Noob",
+                "Beginner",
+                "Intermediate",
+                "Expert")),
+            Freq, fill = Var1)) +
+            geom_bar(stat = "identity") +
+            scale_fill_manual(values = c("#D43F3AFF", "#EEA236FF",
+                "#357EBDFF", "#5CB85CFF")) +
+            theme(axis.title = element_blank(),
+                legend.position = "none",
+                axis.text.x = element_text(angle = 60, hjust = 1))
+    p2 <- as.data.frame(table(roster[[s]]$students$Laptop)) %>%
+        ggplot(aes(factor(Var1, level = c(
+                "Yes",
+                "No",
+                "Maybe")),
+            Freq, fill = Var1)) +
+            geom_bar(stat = "identity") +
+            scale_fill_manual(values = c("#D43F3AFF", "#EEA236FF",
+                "#357EBDFF", "#5CB85CFF")) +
+            theme(axis.title = element_blank(),
+                legend.position = "none",
+                axis.text.x = element_text(angle = 60, hjust = 1))
+    p3 <- as.data.frame(table(roster[[s]]$students$Cluster)) %>%
+        ggplot(aes(factor(Var1, level = c(
+                "Yes-NCH",
+                "Yes-other",
+                "No")),
+            Freq, fill = Var1)) +
+            geom_bar(stat = "identity") +
+            scale_fill_manual(values = c("#D43F3AFF", "#EEA236FF",
+                "#357EBDFF", "#5CB85CFF")) +
+            theme(axis.title = element_blank(),
+                legend.position = "none",
+                axis.text.x = element_text(angle = 60, hjust = 1))
+    p4 <- p1 | p2 | p3
+    print(p4 + plot_annotation(title = paste(sessions[s], "session")))
     t <- reactable(roster[[s]]$mentors, pagination = F) %>%
         add_title(paste("Mentor List - ", sessions[s], "(",
             length(roster[[s]]$mentors$Name), ")"))
