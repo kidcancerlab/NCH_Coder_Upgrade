@@ -14,11 +14,6 @@ library(reactablefmtr)
 library(patchwork)
 
 theme_set(theme_classic())
-
-# Workaround for reactable not rendering in knitted document
-# reactable <- function(...) {
-#   htmltools::tagList(reactable::reactable(...))
-# }
 ```
 
 ## Import and reorganize the registration data
@@ -64,6 +59,72 @@ reg$Skill[reg$Skill == "Expert who could teach all of the beginner topics"] <- "
 
 reg$Cluster[reg$Cluster == "Yes - NCH cluster (Franklin)"] <- "Yes-NCH"
 reg$Cluster[reg$Cluster == "Yes - other cluster (OSU OSC or other)"] <- "Yes-other"
+
+reg$In_or_Ex[reg$In_or_Ex == "Internal (I have an NCH login)"] <- "Internal"
+reg$In_or_Ex[reg$In_or_Ex == "External (I do not have an NCH login)"] <- "External"
+
+```
+
+## Enrollment analysis
+
+Provide general statistics and characteristics of enrollees
+
+```{r enrollment}
+p1 <- as.data.frame(table(reg$Skill)) %>%
+    ggplot(aes(factor(Var1, level = c(
+            "Noob",
+            "Beginner",
+            "Intermediate",
+            "Expert")),
+        Freq, fill = Var1)) +
+        geom_bar(stat = "identity") +
+        scale_fill_manual(values = c("#D43F3AFF", "#EEA236FF",
+            "#357EBDFF", "#5CB85CFF")) +
+        ggtitle("Skill levels") +
+        theme(axis.title = element_blank(),
+            legend.position = "none",
+            axis.text.x = element_text(angle = 60, hjust = 1))
+p2 <- as.data.frame(table(reg$Laptop)) %>%
+    ggplot(aes(factor(Var1, level = c(
+            "Yes",
+            "No",
+            "Maybe")),
+        Freq, fill = Var1)) +
+        geom_bar(stat = "identity") +
+        scale_fill_manual(values = c("#D43F3AFF", "#EEA236FF",
+            "#357EBDFF", "#5CB85CFF")) +
+        ggtitle("Laptop") +
+        theme(axis.title = element_blank(),
+            legend.position = "none",
+            axis.text.x = element_text(angle = 60, hjust = 1))
+p3 <- as.data.frame(table(reg$Cluster)) %>%
+    ggplot(aes(factor(Var1, level = c(
+            "Yes-NCH",
+            "Yes-other",
+            "No")),
+        Freq, fill = Var1)) +
+        geom_bar(stat = "identity") +
+        scale_fill_manual(values = c("#D43F3AFF", "#EEA236FF",
+            "#357EBDFF", "#5CB85CFF")) +
+        ggtitle("Cluster access") +
+        theme(axis.title = element_blank(),
+            legend.position = "none",
+            axis.text.x = element_text(angle = 60, hjust = 1))
+p4 <- as.data.frame(table(reg$In_or_Ex)) %>%
+    ggplot(aes(factor(Var1, level = c(
+            "Internal",
+            "External")),
+        Freq, fill = Var1)) +
+        geom_bar(stat = "identity") +
+        scale_fill_manual(values = c("#D43F3AFF", "#EEA236FF",
+            "#357EBDFF", "#5CB85CFF")) +
+        ggtitle("NCH Internal vs External") +
+        theme(axis.title = element_blank(),
+            legend.position = "none",
+            axis.text.x = element_text(angle = 60, hjust = 1))
+
+p5 <- p1 | p2 | p3 | p4
+print(p5 + plot_annotation(title = "Enrollment Overview"))
 ```
 
 ## Generate class rosters
