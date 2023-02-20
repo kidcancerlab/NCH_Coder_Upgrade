@@ -9,8 +9,6 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggplot2)
-library(reactable)
-library(reactablefmtr)
 library(patchwork)
 
 theme_set(theme_classic())
@@ -142,11 +140,15 @@ roster <- lapply(seq_along(sessions), function(s) {
     return(list(students = students, mentors = mentors))
 })
 
+if(!dir.exists("Rosters")) {
+  dir.create("Rosters")
+}
+
 for(s in seq_along(sessions)) {
-    t1 <- reactable(roster[[s]]$students, pagination = F) %>%
-        add_title(paste("Participant Roster - ", sessions[s], "(",
-            length(roster[[s]]$students$Name), ")"))
-    print(t1)
+    write.csv(roster[[s]]$students,
+        paste0("Rosters/", sessions[s], "-participants.csv"))
+    write.csv(roster[[s]]$mentors,
+        paste0("Rosters/", sessions[s], "-mentors.csv"))
     p1 <- as.data.frame(table(roster[[s]]$students$Skill)) %>%
         ggplot(aes(factor(Var1, level = c(
                 "Noob",
@@ -157,6 +159,7 @@ for(s in seq_along(sessions)) {
             geom_bar(stat = "identity") +
             scale_fill_manual(values = c("#D43F3AFF", "#EEA236FF",
                 "#357EBDFF", "#5CB85CFF")) +
+            ggtitle("Experience") +
             theme(axis.title = element_blank(),
                 legend.position = "none",
                 axis.text.x = element_text(angle = 60, hjust = 1))
@@ -169,6 +172,7 @@ for(s in seq_along(sessions)) {
             geom_bar(stat = "identity") +
             scale_fill_manual(values = c("#D43F3AFF", "#EEA236FF",
                 "#357EBDFF", "#5CB85CFF")) +
+            ggtitle("Laptop") +
             theme(axis.title = element_blank(),
                 legend.position = "none",
                 axis.text.x = element_text(angle = 60, hjust = 1))
@@ -181,15 +185,16 @@ for(s in seq_along(sessions)) {
             geom_bar(stat = "identity") +
             scale_fill_manual(values = c("#D43F3AFF", "#EEA236FF",
                 "#357EBDFF", "#5CB85CFF")) +
+            ggtitle("Cluster access") +
             theme(axis.title = element_blank(),
                 legend.position = "none",
                 axis.text.x = element_text(angle = 60, hjust = 1))
     p4 <- p1 | p2 | p3
-    print(p4 + plot_annotation(title = paste(sessions[s], "session")))
-    t2 <- reactable(roster[[s]]$mentors, pagination = F) %>%
-        add_title(paste("Mentor List - ", sessions[s], "(",
-            length(roster[[s]]$mentors$Name), ")"))
-    print(t2)
+    ggsave(paste0("Rosters/", sessions[s], ".png"),
+        p4,
+        device = "png",
+        width = 8,
+        height = 3)
 }
 
 ```
