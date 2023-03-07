@@ -10,119 +10,44 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggplot2)
 library(patchwork)
+library(rrrSingleCellUtils)
+library(Seurat)
+library(monocle3)
 
 theme_set(theme_classic())
 ```
 
-## Import and reorganize the registration data
+## Import a merged bone tumor object 
 
-Data from the Microsoft Forms registration process have been dowloaded as xlsx and converted to csv for import. This chunk will load data, discard unnecessary elements, simplify labels, and create vectors needed for downstream processes.
+This object contains tumor cells isolated from a collection of clinical specimens sequenced using a 3'-capture, microfluidic partitioning approach (10x). The data have already been processed, including isolation/sublustering of tumor cells (other cell types have been filtered out), normalization, scaling, FindNeighbors, FindClusters, etc. The associated metadata contain some potentially useful annotations:
+    - $src: a study ID representing the original source (patient) that the tumor was taken from
+    - $type: location of the tumor when removed from the patient (Primary or Metastasis)
+    - $path: the pathology classification of the tumor (Conventional, Chondroblastic, Telangiectatic, etc.)
+    - $gse: the GEO/SRA accession number where the raw data is stored
+
+Start by loading the data and visualizing the appearance/clustering as processed previously.
 
 ```{r import_data}
-reg <- read.csv("CoderUpgradeRegistration.csv", header = T) %>%
-    as_tibble() %>%
-    select(-ID, -Start.time, -Completion.time, -Email, -Name,
-        -The..tentative..schedule)
+# Load the Seurat object into the namespace as "scdata"
+sc_data <- qs::qread("osteoshark.qs")
 
-colnames(reg) <- c(
-        "Name",
-        "Email",
-        "In_or_Ex",
-        "Skill",
-        "Mentor",
-        "Participant",
-        "Social",
-        "Dietary",
-        "Laptop",
-        "Cluster"
-    )
-
-sessions <- c(
-    "Basics of R",
-    "Intro to scRNA-seq",
-    "Intro to Seurat",
-    "Combining single cell datasets",
-    "Differential expression analysis",
-    "Under the hood",
-    "Speeding it up",
-    "Cell-cell interaction analysis",
-    "Multiomic",
-    "RNA velocity and pseudotime"
-)
-
-reg$Skill[reg$Skill == "Total noob"] <- "Noob"
-reg$Skill[reg$Skill == "Beginner comfortable with the basics"] <- "Beginner"
-reg$Skill[reg$Skill == "Intermediate with a few advanced skills"] <- "Intermediate"
-reg$Skill[reg$Skill == "Expert who could teach all of the beginner topics"] <- "Expert"
-
-reg$Cluster[reg$Cluster == "Yes - NCH cluster (Franklin)"] <- "Yes-NCH"
-reg$Cluster[reg$Cluster == "Yes - other cluster (OSU OSC or other)"] <- "Yes-other"
-
-reg$In_or_Ex[reg$In_or_Ex == "Internal (I have an NCH login)"] <- "Internal"
-reg$In_or_Ex[reg$In_or_Ex == "External (I do not have an NCH login)"] <- "External"
-
+# Plot the data as it has been processed
+r_dim_plot(sc_data, "Starting Processed Data")
 ```
 
-## Enrollment analysis
+## Practice 1: Basic pseudotime analysis and visualization 
 
-Provide general statistics and characteristics of enrollees
+***
 
 ```{r enrollment}
-p1 <- as.data.frame(table(reg$Skill)) %>%
-    ggplot(aes(factor(Var1, level = c(
-            "Noob",
-            "Beginner",
-            "Intermediate",
-            "Expert")),
-        Freq, fill = Var1)) +
-        geom_bar(stat = "identity") +
-        scale_fill_manual(values = c("#D43F3AFF", "#EEA236FF",
-            "#357EBDFF", "#5CB85CFF")) +
-        ggtitle("Skill levels") +
-        theme(axis.title = element_blank(),
-            legend.position = "none",
-            axis.text.x = element_text(angle = 60, hjust = 1))
-p2 <- as.data.frame(table(reg$Laptop)) %>%
-    ggplot(aes(factor(Var1, level = c(
-            "Yes",
-            "No",
-            "Maybe")),
-        Freq, fill = Var1)) +
-        geom_bar(stat = "identity") +
-        scale_fill_manual(values = c("#D43F3AFF", "#EEA236FF",
-            "#357EBDFF", "#5CB85CFF")) +
-        ggtitle("Laptop") +
-        theme(axis.title = element_blank(),
-            legend.position = "none",
-            axis.text.x = element_text(angle = 60, hjust = 1))
-p3 <- as.data.frame(table(reg$Cluster)) %>%
-    ggplot(aes(factor(Var1, level = c(
-            "Yes-NCH",
-            "Yes-other",
-            "No")),
-        Freq, fill = Var1)) +
-        geom_bar(stat = "identity") +
-        scale_fill_manual(values = c("#D43F3AFF", "#EEA236FF",
-            "#357EBDFF", "#5CB85CFF")) +
-        ggtitle("Cluster access") +
-        theme(axis.title = element_blank(),
-            legend.position = "none",
-            axis.text.x = element_text(angle = 60, hjust = 1))
-p4 <- as.data.frame(table(reg$In_or_Ex)) %>%
-    ggplot(aes(factor(Var1, level = c(
-            "Internal",
-            "External")),
-        Freq, fill = Var1)) +
-        geom_bar(stat = "identity") +
-        scale_fill_manual(values = c("#D43F3AFF", "#EEA236FF",
-            "#357EBDFF", "#5CB85CFF")) +
-        ggtitle("NCH Internal vs External") +
-        theme(axis.title = element_blank(),
-            legend.position = "none",
-            axis.text.x = element_text(angle = 60, hjust = 1))
+# Convert the Seurat object to a SingleCellExperiment object
+cds_data <- SeuratWrappers::as.cell_data_set(sc_data, group.by = "assignment") %>%
+    preprocess_cds(num_dim = 30) %>%
+    align_cds(alignment_group = "src") %>%
+    reduce_dimension()
 
-p5 <- p1 | p2 | p3 | p4
-print(p5 + plot_annotation(title = "Enrollment Overview"))
+plot_cells(cds_data)
+
 ```
 
 ## Generate class rosters
@@ -130,72 +55,6 @@ print(p5 + plot_annotation(title = "Enrollment Overview"))
 Process the data to generate lists of students enrolled in each course and lists of experienced coders willing to mentor.
 
 ```{r rosters, results='asis'}
-roster <- lapply(seq_along(sessions), function(s) {
-    students <- reg %>%
-        filter(grepl(sessions[s], Participant)) %>%
-        select(Name, Email, In_or_Ex, Skill, Laptop, Cluster)
-    mentors <- reg %>%
-        filter(grepl(sessions[s], Mentor)) %>%
-        select(Name, Email, In_or_Ex, Skill)
-    return(list(students = students, mentors = mentors))
-})
-
-if(!dir.exists("Rosters")) {
-  dir.create("Rosters")
-}
-
-for(s in seq_along(sessions)) {
-    write.csv(roster[[s]]$students,
-        paste0("Rosters/", sessions[s], "-participants.csv"))
-    write.csv(roster[[s]]$mentors,
-        paste0("Rosters/", sessions[s], "-mentors.csv"))
-    p1 <- as.data.frame(table(roster[[s]]$students$Skill)) %>%
-        ggplot(aes(factor(Var1, level = c(
-                "Noob",
-                "Beginner",
-                "Intermediate",
-                "Expert")),
-            Freq, fill = Var1)) +
-            geom_bar(stat = "identity") +
-            scale_fill_manual(values = c("#D43F3AFF", "#EEA236FF",
-                "#357EBDFF", "#5CB85CFF")) +
-            ggtitle("Experience") +
-            theme(axis.title = element_blank(),
-                legend.position = "none",
-                axis.text.x = element_text(angle = 60, hjust = 1))
-    p2 <- as.data.frame(table(roster[[s]]$students$Laptop)) %>%
-        ggplot(aes(factor(Var1, level = c(
-                "Yes",
-                "No",
-                "Maybe")),
-            Freq, fill = Var1)) +
-            geom_bar(stat = "identity") +
-            scale_fill_manual(values = c("#D43F3AFF", "#EEA236FF",
-                "#357EBDFF", "#5CB85CFF")) +
-            ggtitle("Laptop") +
-            theme(axis.title = element_blank(),
-                legend.position = "none",
-                axis.text.x = element_text(angle = 60, hjust = 1))
-    p3 <- as.data.frame(table(roster[[s]]$students$Cluster)) %>%
-        ggplot(aes(factor(Var1, level = c(
-                "Yes-NCH",
-                "Yes-other",
-                "No")),
-            Freq, fill = Var1)) +
-            geom_bar(stat = "identity") +
-            scale_fill_manual(values = c("#D43F3AFF", "#EEA236FF",
-                "#357EBDFF", "#5CB85CFF")) +
-            ggtitle("Cluster access") +
-            theme(axis.title = element_blank(),
-                legend.position = "none",
-                axis.text.x = element_text(angle = 60, hjust = 1))
-    p4 <- p1 | p2 | p3
-    ggsave(paste0("Rosters/", sessions[s], ".png"),
-        p4,
-        device = "png",
-        width = 8,
-        height = 3)
-}
 
 ```
 
