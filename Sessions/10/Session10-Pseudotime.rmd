@@ -24,6 +24,8 @@ This object contains tumor cells isolated from a collection of clinical specimen
     - $type: location of the tumor when removed from the patient (Primary or Metastasis)
     - $path: the pathology classification of the tumor (Conventional, Chondroblastic, Telangiectatic, etc.)
     - $gse: the GEO/SRA accession number where the raw data is stored
+    - $assignment: the final tumor cell subset assigment from the previous analysis
+    - $partition: a higher-level set of clustering data ("clusters of clusters") that is used by Monocle during the pseudotime determination process.
 
 Start by loading the data and visualizing the appearance/clustering as processed previously.
 
@@ -38,15 +40,50 @@ r_dim_plot(sc_data, "Starting Processed Data")
 ## Practice 1: Basic pseudotime analysis and visualization 
 
 ***
+Since pseudotime analysis will be performed in Monocle, we must first convert our beloved Seurat object into an object class that Monocle can use.
+
+The following online book provides a nice reference for understanding the SingleCellExperiment object. While Monocle uses a technically different object class called "cell_data_set", this is essentially just a SingleCellExperiment object with some additional slots added to it. All of the functions that can be used with SingleCellExperiment can also be used with cell_data_set.
+
+https://bioconductor.org/books/3.13/OSCA.intro/the-singlecellexperiment-class.html 
+
+To convert a Seurat object to a cell_data_set object, you have a few options. The first extracts specific pieces of data from your seurat object to create three different elements that can then be used to create a new cell_data_set object from scratch. This method give the most flexibility, and I encourage you to try it, but for most purposes, the "as.cell_data_set" function from the SeuratWrappers package will work just fine. It automates the process to extract most of the useful data (and metadata). 
+
+This "as.cell_data_set" function does have a nice feature for transferring the clustering and partitioning data directly into the new object. To take advantage of this feature, you simply need to create two metadata elements within your Seurat object named "monocle3_clusters" and "monocle3_partitions"  that contain the cell-level cluster and partition assignments. If these are present when you run the as.cell_data_set function, they will be automatically recognized and handled without further input.
+
+To prepare for pseudotime analysis:
+1. Create the monocle3_clusters and monocle3_partitions metadata elements from the existing assignment and partition variables.
+2. Create a new cell_data_set object by converting the sc_data Seurat object.
+3. Explore the cell_data_set object to ensure that appropriate metadata, assays, and dimensional reductions have been included in the conversion. (Hint: make use of the colData, reducedDims, and assayNames functions from the SingleCellExperiment and SummarizedExperiment packages).
+3. Plot the UMAP that transferred to the cell_data_set object to ensure that you kept your embeddings. (Hint: Monocle uses a function called plot_cells).
+4. Perform the pseudotime analysis using learn_graph from Monocle3.
 
 ```{r enrollment}
-# Convert the Seurat object to a SingleCellExperiment object
-cds_data <- SeuratWrappers::as.cell_data_set(sc_data, group.by = "assignment") %>%
+# Add metadata to carry over the clustering information to the new object
+sc_data$monocle3_clusters <- sc_data$assignment
+sc_data$monocle3_partitions <- "p1"
+
+# Convert the Seurat object to a Monocle SingleCellExperiment object
+cds_data <- SeuratWrappers::as.cell_data_set(sc_data)
+
+# View the transferred metadata, dimensional reductions, and assays
+as_tibble(colData(cds_data))
+reducedDims(cds_data)
+assayNames(cds_data)
+
+# Calculate the pseudotime/trajectories
+cds_data <- cluster_cells(cds_data) %>%
+    learn_graph(use_partition = F)
+plot_cells(cds_data)
+
+# Do it with Monocle-generated processing
+cds_data <- cds_data %>%
     preprocess_cds(num_dim = 30) %>%
     align_cds(alignment_group = "src") %>%
-    reduce_dimension()
-
-plot_cells(cds_data)
+    reduce_dimension() %>%
+    cluster_cells() %>%
+    learn_graph(use_partition = FALSE)
+plot_cells(cds_data,
+    color_cells_by = "assignment")
 
 ```
 
@@ -55,6 +92,14 @@ plot_cells(cds_data)
 Process the data to generate lists of students enrolled in each course and lists of experienced coders willing to mentor.
 
 ```{r rosters, results='asis'}
-
+sc_data <- RenameIdents(sc_data,
+    `Growth - ribogenesis` = "Growth",
+    `Growth - translation` = "Growth",
+    `Osteogenic` = "Osteogenic",
+    `Growth - cycling` = "Cycling",
+    `Basal` = "Basal",
+    `Growth - transcription` = "Growth",
+    `Inflammatory` = "Inflammatory"
+)
 ```
 
