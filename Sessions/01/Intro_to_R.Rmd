@@ -1,0 +1,1029 @@
+---
+title: "Intro to R 2022 day 1"
+author: "Matt Cannon"
+date: '2022-10-01'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Day 1
+
+RStudio overview
+  Projects
+
+Rmd format
+  ctrl+alt+i to create R chunk
+
+What's a variable?
+
+What's a function?
+  Arguments
+
+Reading function documentation
+
+## Functions for today
+
+### read.delim()
+```{r readAfile}
+westernQuant <- read.delim("intro_to_R_2022/westernQuant.txt", header = TRUE)
+```
+
+
+### summary()
+```{r summary}
+mtcars <- mtcars
+
+my_name <- "Matt"
+
+mtcars = mtcars
+summary(mtcars)
+```
+
+### plot()
+```{r plot}
+plot(mtcars$mpg, mtcars$cyl)
+
+plot(as.factor(mtcars$cyl), mtcars$mpg)
+```
+
+### boxplot()
+```{r}
+
+```
+
+### png()/pdf()
+```{r saveAplot}
+png(filename = "bob.png")
+plot(1, 1)
+dev.off()
+```
+
+### t.test()
+```{r ttest}
+t.test(1:10, y = c(7:20))
+t.test(extra ~ group, data = sleep)
+```
+
+## Activity
+
+### Read in data
+Use read.delim()
+```{r readData}
+
+```
+
+### Summarize the data.frame
+Use summary()
+```{r summaryWestern}
+
+```
+
+### Test for group differences
+Use t.test() function
+```{r testDiff}
+
+```
+
+### Barplots
+Use barplot()
+```{r plots}
+
+```
+
+### I'm super fast
+Try out wilcox.test()
+
+
+
+# Day 2
+
+## General stuff
+
+## How to make an Rmd file
+
+## packages
+```{r}
+#install.packages("tidyverse", Ncpus = 8)
+library(tidyverse)
+
+# Backup plan if you run into lots of errors there...
+# By the way, any text that starts with a "#" is a comment and not executed
+#install.packages(c("dplyr", "ggplot2"))
+#library(dplyr)
+#library(ggplot2)
+```
+
+### Subsetting a data.frame with [ ]
+data_frame[row(s), column(s)]
+  empty means everything
+
+```{r}
+# first row, first column (just one element)
+mtcars[1, 1]
+# First row, all columns
+mtcars[1, ]
+# First column, all rows
+mtcars[, 1]
+mtcars$mpg
+# First ten rows, all columns
+mtcars[c(1:10), ]
+```
+
+## Functions for today's activity
+
+### mean
+```{r mean}
+one_big_number <- c(1, 2, 4, 5, 10000000000)
+big_mean <- mean(one_big_number)
+big_mean
+
+small_mean <- mean(c(2, 3, 4, 10))
+small_mean
+```
+
+Many of these functions can get angry about missing data (`NA`).
+
+Include na.rm = TRUE as an argument to ignore missing data
+
+#### This doesn't work
+```{r dontruns, eval=FALSE}
+mean(c(1, 3, 4, NA, 34))
+```
+
+#### This works
+```{r runs}
+mean(c(1, 3, 4, NA, 34), na.rm = TRUE)
+```
+
+### median
+```{r median}
+median(one_big_number)
+
+mtcars <- mtcars
+median(mtcars$mpg)
+```
+
+### min/max
+```{r minmax}
+min(mtcars$mpg)
+
+max(one_big_number)
+```
+
+### sum
+```{r some}
+sum(one_big_number)
+sum(c(1, 1, 1, 1, 1, 1))
+```
+
+### standard deviation
+```{r sd}
+sd(one_big_number)
+mpg_sd <- sd(mtcars$mpg)
+```
+
+### filter
+Filter is a function inside the dplyr package that works on dataframes or tibbles
+```{r filter}
+mtcars <- mtcars
+
+filter(mtcars, mpg > 30)
+
+# and
+filter(mtcars, mpg > 30 & wt < 2)
+
+# or
+filter(mtcars, mpg > 30 | wt < 2)
+```
+
+### select
+Pick (or exclude) columns from a dataframe or tibble
+
+`|>` is a pipe - it passes data from one function to the next
+    That way you don't have to nest functions (((((((())))))))
+    
+head() returns the fist six elements
+```{r select}
+select(mtcars, mpg, disp)
+head(select(mtcars, -mpg, -disp))
+select(mtcars, -mpg, -disp) |> head()
+select(mtcars, !mpg, !disp) |> head(n = 4)
+```
+
+### histogram
+rnorm samples numbers from a normal distribution
+```{r hist}
+hist(rnorm(1000, mean = 200, sd = 20), n = 100)
+```
+
+### aov
+```{r anova}
+aov(mpg ~ disp + wt, data = mtcars)
+
+anova_summary <- summary(aov(mpg ~ disp + wt, data = mtcars))
+anova_summary
+```
+
+### table
+count combinations
+```{r countStuff}
+table(c("cat a", "cat a", "cat a", "cat b", "cat b", "cat b"),
+      c(1, 1, 2, 2, 2, 2))
+
+table(mtcars$cyl, mtcars$vs)
+```
+
+## Activity
+
+### Read in and check out the Titanic data
+```{r}
+
+```
+
+### Make variables that contain the Mean/median/min/max of age/fare
+```{r}
+
+```
+
+### Use filter to make two new dataframe variables with just male and female only and then calculate the mean/median values for age and fare
+Basically, calculate the mean/median age and fare for men vs women
+```{r}
+
+```
+
+### Make a histogram of the age all passengers
+```{r}
+
+```
+
+### Make another histogram for only passengers who survived
+
+## If you're super fast
+
+### Use `aov()` to test which factors influenced who survived the titanic disaster
+```{r}
+
+```
+
+### Use table() to compare how many women vs men survived
+```{r}
+
+```
+
+
+# Day 3
+
+## General stuff
+
+### Common error messages
+```{r, eval=FALSE}
+mean(bob)
+#Error in mean(bob) : object 'bob' not found
+```
+R is looking for a variable named bob, but it doesn't exist
+-   Either make it
+-   Check spelling/capitalization
+-   You forgot to put quotes around a character string
+
+```{r, eval=FALSE}
+arbleGarble(mtcars)
+#Error in arbleGarble(mtcars) : could not find function "arbleGarble"
+```
+R is trying to use the function `arbleGarble()`, but it doesn't exist
+-   Either load in the library that has it
+    -   (or use `coolLib::arbleGarble()`)
+-   Check spelling/capitalization
+
+```{r, eval=FALSE}
+hist(mtcars$mpg, n = 20
+# +
+((((((1))))))
+```
+R thinks you have unfinished business here
+-   Hit escape to cancel the command
+-   Most likely you're missing a parenthesis or a quotation mark somewhere
+-   rainbow brackets!
+
+### googling error messages
+
+### googling "R how do I…"
+
+---
+
+## Functions for today's activity
+
+### cbind, rbind
+attach two data.frames either side to side or top to bottom
+rbind will arrange column names
+cbind just puts things together without checking order
+  Generally a bad idea to cbind unless you're very careful
+```{r}
+efficient <-
+  mtcars %>%
+  filter(mpg > 30)
+
+gas_guzzlers <-
+  mtcars %>%
+  filter(mpg < 14.5)
+
+rbind(efficient, gas_guzzlers)
+
+# This is total nonsense, but R does it anyways
+test <- 
+  cbind(efficient, gas_guzzlers)
+```
+
+### merge
+merge() will attach two data.frames side to side, but match data in shared columns
+-   by default, does an inner join
+-   use all, all.x or all.y to specify other join types
+
+https://www.datasciencemadesimple.com/wp-content/uploads/2017/06/merge-in-R-2.jpg?ezimgfmt=rs:535x142/rscb1/ng:webp/ngcb1
+```{r}
+band_members
+band_instruments
+merge(band_members, band_instruments)
+merge(band_members, band_instruments, all = TRUE)
+```
+
+### mutate
+Add a new column or change an existing one
+```{r}
+km_per_mi <- 1.60934
+
+mtcars %>%
+  mutate(kpg = mpg * km_per_mi)
+
+mtcars %>%
+  mutate(mpg = mpg * km_per_mi)
+```
+
+### summarize() and group_by()
+group() silently divides up rows by categories
+summarize() data within groups in a dataframe
+Makes a new column and drops all columns not in group_by() or created by summarize()
+```{r}
+mtcars %>%
+  group_by(cyl) %>%
+  summarize(mean_mpg = mean(mpg))
+
+starwars %>%
+  group_by(homeworld, species) %>%
+  summarize(mean_height = mean(height),
+            max_mass = max(mass))
+```
+
+### t()
+Rotate a dataframe (or matrix) 90 degrees
+Also turns the data into a matrix, so we re-convert it using as.data.frame()
+```{r}
+rotated_cars <-
+  t(mtcars) %>% # |>
+  as.data.frame()
+```
+
+### pivot_longer()
+wide data vs long data
+"tidy" data - https://www.youtube.com/watch?v=K-ss_ag2k9E explanation starts ~ 6 min in
+https://epirhandbook.com/en/images/pivoting/pivot_longer_new.png
+```{r}
+# wide data
+relig_income
+
+# long data
+long_data <-
+  relig_income %>%
+  pivot_longer(!religion,
+               names_to = "income",
+               values_to = "count")
+
+# Make it wider
+wide_again <-
+  long_data %>%
+  pivot_wider(names_from = "income",
+              values_from = "count")
+```
+
+### Write a table out to a text file
+```{r}
+write.table(wide_again,
+            file = "exampleOutput.txt",
+            quote = FALSE,
+            sep = "\t",
+            row.names = FALSE)
+
+write_tsv(wide_again,
+          file = "exampleOutputAlso.txt")
+```
+
+## Activity
+
+### Read in patientGroups.txt and exercise.txt
+patientGroups.txt is patient #, treatment groups and final blood glucose measurements apatientGroups.txt is patient #, treatment groups and final blood glucose measurementspatientGroups.txt is patient #, treatment groups and final blood glucose measurementspatientGroups.txt is patient #, treatment groups and final blood glucose measurementspatientGroups.txt is patient #, treatment groups and final blood glucose measurementspatientGroups.txt is patient #, treatment groups and final blood glucose measurementspatientGroups.txt is patient #, treatment groups and final blood glucose measurements
+exercise.txt is the how many minutes each patient exercised across five days
+```{r}
+
+```
+
+
+### Combine the datasets into a single data.frame
+```{r}
+
+```
+
+### Pivot the data to long form
+Columns should be patient, day, exercise_min, glucose
+```{r}
+
+```
+
+### Save the pivoted data.frame to a text file with write.table() or write_tsv()
+```{r}
+
+```
+
+### Make a new column where glucose is multiplied by 1000
+```{r}
+
+```
+
+### Calculate the average daily minutes of exercise per patient
+```{r}
+
+```
+
+## If you’re super fast
+
+### Plot glucose levels for each group (treated/control)
+```{r}
+
+```
+
+### Test if glucose levels are statistically different between groups
+```{r}
+
+```
+
+### Plot daily exercise minutes per group
+```{r}
+
+```
+
+### Test if exercise minutes is statistically different between groups
+```{r}
+
+```
+
+
+
+# Day 4
+
+## General stuff
+
+### What is a loop?
+A loop is instructions for R to do things 
+
+### why use a loop?
+
+```{r}
+plot(1)
+plot(2)
+plot(2)
+plot(3)
+plot(4)
+plot(5)
+plot(6)
+```
+
+## Functions for today's activity
+
+### Lists
+List of data
+Each bit can be named
+Can have diverse data types
+```{r}
+bunch_o_stuff <-
+  list(first = 1,
+       some_data = mtcars,
+       small_matrix = matrix(c(1, 2, 1, 2), nrow = 2),
+       dogs = c("fido", "toby"))
+
+bunch_o_stuff$first
+bunch_o_stuff$small_matrix
+names(bunch_o_stuff)
+```
+
+### if () {}
+if ( test condition ) {
+  do this stuff if test condition == TRUE
+}
+```{r}
+bobs_age <- 10
+
+bobs_age > 80
+
+if (bobs_age > 80) {
+  print("Bob is probably losing hair.")
+}
+```
+
+#### When to use an if () loop
+
+### if/else
+```{r}
+darrins_age <- 15
+
+darrins_age > 80
+
+if (darrins_age > 80) {
+  print("Darrin is probably losing hair.")
+} else {
+  print("Darrin has a full head of lucious hair.")
+}
+
+## Can test multiple conditions with else if ()
+if (darrins_age > 80) {
+  print("Darrin is probably losing hair.")
+  print("other stuff")
+} else if (darrins_age > 50) {
+  print("Darrin has might be losing some hair.")
+} else {
+  print("Darrin has lots of hair.")
+}
+```
+
+### while () {}
+while (this evaluates to true) {
+  do this stuff
+}
+```{r}
+bettys_age <- 1
+
+while (bettys_age < 100) {
+  bettys_age <- bettys_age + 1
+  print(paste("Betty ages by a year and is now", bettys_age))
+}
+print("Betty died. :'-(")
+
+rand_num <- rnorm(1, sd = 0.5)
+tries <- 1
+while (rand_num < 0.999) {
+  print(paste(rand_num, "I tried to find a number greater than 0.999", tries, "times!"))
+  rand_num <- rnorm(1, sd = 0.5)
+  tries <- tries + 1
+}
+```
+
+#### Example of an infinite loop
+while condition can never evaluate to FALSE
+```{r}
+bettys_age <- 1
+while (bettys_age > 0) {
+  bettys_age <- bettys_age + 1
+  if (bettys_age > 1000) {
+    print("holy moly")
+  }
+  print(paste("Betty is a vampire and can never die. She is now", bettys_age))
+}
+```
+
+#### When to use a while loop
+
+### for () {}
+for (variable_name in list/vector of things) {
+  do this using this iteration of variable_name
+}
+```{r}
+list_of_friends <- c("Bob", "Jack", "Jill")
+#list_of_friends <- list(friend1 = "bob", friend2 = "mary")
+
+for (friend in list_of_friends) {
+  print(paste("I gave", friend, "a present."))
+}
+
+print(current_friend)
+```
+
+#### When to use a for loop
+
+### as.character, etc…
+if you have one thing and you want it to be something else, use as......
+```{r}
+as.character(1)
+as.numeric("1")
+as.logical(c(1, 0, 2))
+as.integer(1.2)
+as.Date("1983-02-08")
+```
+
+### colnames/rownames
+Get row or column names for a data.frame
+```{r}
+rownames(mtcars)
+colnames(mtcars)
+```
+
+
+## Activity
+
+### Get the starwars data and look at it
+library(tidyverse) # load the tidyverse library
+starwars <- starwars # to get data
+
+
+### Write a for loop using over the “starwars” column names
+Inside the loop, if the column contains numeric data, make a histogram of it
+Otherwise, use table() to get counts
+
+is.numeric()
+column_name <- "height"
+starwars[[column_name]] # same as starwars$height
+
+## If you’re super fast:
+### Write a while loop to count the sum of all numbers whose squared value is less than 1,234,567
+
+1^2 < 1,234,567   # add 1 to sum total
+2^2 < 1,234,567   # add 2 to sum total
+3^2 < 1,234,567   # add 3 to sum total
+.
+.
+.
+X^2 > 1,234,567   # stop here
+
+Help someone who is struggling (loops can be confusing)
+
+
+# Day 5
+
+## General stuff
+
+### geoms as layers
+https://ggplot2.tidyverse.org/reference/
+
+## Functions for today's activity, also for reference
+
+### ggplot
+ggplot(data_frame_here, aes(x = x_here, y = y_here, other_stuff)) +
+layer_1 +
+layer_2 +
+layer_3 +
+. +
+. +
+. +
+modify_the_plot_somehow
+
+#### geom_point() ##############################################################
+Add a scatterplot layer to the plot
+```{r}
+ggplot(mtcars,
+       aes(x = hp,
+           y = carb)) +
+  geom_point()
+
+# Set the overall look of the plot - I like the white background better than gray
+theme_set(theme_bw())
+theme_update(plot.title = element_text(hjust = 0.5))
+
+ggplot(mtcars,
+       aes(x = hp,
+           y = carb)) +
+  geom_point() +
+  theme_bw()
+```
+
+#### aes(fill/color/shape/size) ################################################
+Change colors/shapes/etc
+
+If you put the argument outside of aes()
+
+-   applies to everything in that layer
+-   does not show up in the legend
+
+If you put it inside aes()
+
+-   Applies to parts of the layer
+-   Shows up in legend
+
+If it is in the aes() call inside of ggplot() `ggplot(aes(...))`
+
+-   It applies to all layers
+-   Unless that layer overwrites it
+
+```{r}
+mtcars %>%
+  ggplot(aes(x = as.factor(cyl),
+             y = hp)) +
+  geom_boxplot(color = "red",
+               fill = "blue",
+               size = 4)
+
+ggplot(mtcars,
+       aes(x = hp,
+           y = carb,
+           color = as.factor(vs),
+           shape = as.factor(gear),
+           size = disp)) +
+  geom_point()
+```
+
+#### geom_histogram()
+Better looking than hist()
+Specify how many bars to show with `bins`
+```{r}
+hist(storms$pressure, n = 200)
+
+ggplot(storms,
+       aes(x = pressure)) +
+  geom_histogram(bins = 200)
+```
+
+#### geom_density()
+Smooth your data out
+This can actually hide some of the nuance in your data
+```{r}
+ggplot(storms,
+       aes(x = pressure,
+           fill = category)) +
+  # alpha sets transparency -- 0 is clear, 1 is opaque
+  geom_density(alpha = 0.1, adjust = 0.5) +
+  # The brewer color palettes are pretty, and "Set2" is color-blind friendly
+  scale_color_brewer(palette = "Set2")
+```
+
+#### geom_col() ################################################################
+Add a barplot layer to the plot
+```{r}
+mtcars %>%
+  rownames_to_column("car_make") %>%
+  mutate(car_make = str_remove(car_make," .+")) %>%
+  ggplot(aes(x = car_make, y = hp)) +
+  geom_col(color = "red") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  ggtitle("this is a title") +
+  theme_update(plot.title = element_text(hjust = 0.5))
+
+mtcars %>%
+  rownames_to_column("car_make") %>%
+  ggplot(aes(y = car_make, x = hp)) +
+  geom_col()
+```
+
+#### geom_errorbar() ###########################################################
+Add error bars as a layer to plot
+```{r}
+summarized_hp <-
+  mtcars %>%
+  group_by(cyl) %>%
+  summarize(mean_hp = mean(hp),
+            sd_hp = sd(hp))
+
+summarized_hp
+
+ggplot(summarized_hp,
+       aes(x = as.factor(cyl), y = mean_hp)) +
+  geom_col() +
+  geom_errorbar(aes(ymin = mean_hp - sd_hp,
+                    ymax = mean_hp + sd_hp,
+                    xmin = 2,
+                    xmax = 2))
+
+# This has error bars in the back since that layer was added first!
+ggplot(summarized_hp,
+       aes(x = as.factor(cyl), y = mean_hp)) +
+  geom_errorbar(aes(ymin = mean_hp - sd_hp,
+                    ymax = mean_hp + sd_hp),
+                color = "red") +
+  geom_bar(stat = "identity") +
+  geom_point(color = "blue")
+```
+
+#### geom_jitter()
+Drop-in replacement for geom_point()
+Adds noise in x and y directions by default so you can see individual points
+```{r}
+ggplot(summarized_hp,
+       aes(x = as.factor(cyl), y = mean_hp)) +
+  geom_col() +
+  geom_errorbar(aes(ymin = mean_hp - sd_hp,
+                    ymax = mean_hp + sd_hp)) +
+  geom_jitter(data = mtcars,
+              aes(x = as.factor(cyl),
+                  y = hp),
+              color = "red", height = 0)
+```
+
+#### ggbeeswarm package
+Adds noise in x direction and pulls things to the center to make it look nicer than jitter
+```{r}
+ggplot(summarized_hp,
+       aes(x = as.factor(cyl), y = mean_hp)) +
+  geom_col() +
+  geom_errorbar(aes(ymin = mean_hp - sd_hp,
+                    ymax = mean_hp + sd_hp)) +
+  ggbeeswarm::geom_beeswarm(data = mtcars,
+                            aes(x = as.factor(cyl),
+                                y = hp),
+                            color = "red")
+
+matt_swarm <- function(...) {
+  ggbeeswarm::geom_beeswarm(...)
+}
+```
+
+#### geom_boxplot() ############################################################
+Boxplots!
+```{r}
+mtcars %>%
+  ggplot(aes(x = as.factor(cyl), y = hp)) +
+  #geom_boxplot() +
+  geom_violin(adjust = 1) +
+  ggbeeswarm::geom_beeswarm()
+
+
+```
+
+#### geom_smooth
+Add a regression line to your plot
+Can specify the type of regression with `method`
+Can remove gray confidence interval with `se = FALSE`
+```{r}
+ggplot(mtcars,
+       aes(x = mpg,
+           y = disp)) +
+  geom_point() +
+  geom_smooth()
+```
+
+#### Use multiple datasets in the same plot
+Contents of the columns used as axes have to match
+Each geom using it's own data needs to have "data = " in it
+```{r}
+ggplot(summarized_hp,
+       aes(x = as.factor(cyl),
+           y = mean_hp)) +
+  geom_col() +
+  geom_errorbar(aes(ymin = mean_hp - sd_hp,
+                    ymax = mean_hp + sd_hp),
+                width = 0.5) +
+  geom_point(data = mtcars,
+             aes(x = as.factor(cyl),
+                 y = hp),
+             color = "red")
+```
+
+#### labs()
+Add labels
+```{r}
+ggplot(mtcars) +
+  geom_point(aes(x = hp, y = disp)) +
+  labs(x = "X label goes here",
+       y = "Y label goes here",
+       title = "This is a title",
+       subtitle = "Subtitle!",
+       caption = "Cannon et al, 2034!",
+       tag = "A")
+```
+
+#### facet_wrap() ##############################################################
+```{r}
+dplyr::storms
+
+ggplot(dplyr::storms,
+       aes(x = pressure)) +
+  geom_histogram(bins = 100) +
+  facet_wrap(~ category + status)
+
+ggplot(dplyr::storms,
+       aes(x = pressure)) +
+  geom_histogram(bins = 100) +
+  facet_wrap(~ category, scales = "free_y")
+
+ggplot(dplyr::storms,
+       aes(x = pressure)) +
+  geom_histogram(bins = 100) +
+  facet_wrap(~ category,
+             nrow = 1,
+             scales = "free_y")
+```
+
+#### theme()
+A good guide to what theme elements are what:
+https://henrywang.nl/ggplot2-theme-elements-demonstration/
+
+You can change just about any aspect of how the plot looks with theme()
+You'll have to look up how to change each specific bit
+```{r}
+ggplot(storms,
+       aes(x = pressure,
+           fill = category)) +
+  # alpha sets transparency - 0 is clear, 1 is opaque
+  geom_density(alpha = 0.5) +
+  # The brewer color palettes are pretty, and "Set2" is color-blind friendly
+  scale_color_brewer(palette = "Set2") +
+  theme(legend.position = c(0.2, 0.9),
+        legend.direction = "horizontal",
+        legend.key.width = unit(2, "cm"),
+        legend.title = element_text(face = "bold"),
+        strip.background = element_rect(color = "white", fill = "white"),
+        strip.text.x = element_text(size = 30, face = "bold"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.line.x = element_line(color = "black"),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())
+```
+
+### ggsave()
+```{r}
+ggsave("examplePlot.png",
+       width = 10,
+       height = 8)
+
+plot_in_variable <-
+  ggplot(dplyr::storms,
+         aes(x = pressure)) +
+  geom_histogram(bins = 100) +
+  facet_wrap(~ category)
+
+# ggsave will get the plot size from how big your "plot" windows is in the right pane if you don't specify it!!!!!
+ggsave("anotherExamplePlot.png",
+       plot = plot_in_variable)
+```
+
+### heatmap() ##################################################################
+If you like heatmaps also check out the pheatmap package
+```{r}
+heatmap(as.matrix(mtcars))
+
+# Scaling the categories instead
+heatmap(as.matrix(mtcars), scale = "column")
+pheatmap::pheatmap(as.matrix(mtcars))
+```
+
+### PCA
+```{r}
+mtcars <- mtcars
+
+pca_raw <- prcomp(mtcars, scale = TRUE)
+
+?prcomp
+
+# The output of prcomp is a list
+# The element named "x" contains the actual principle components
+# Though, it needs to be converted from a matrix to a dataframe for ggplot
+pc_values <- pca_raw$x %>%
+  as.data.frame() %>%
+  rownames_to_column("car_make")
+
+ggplot(pc_values, aes(x = PC1, y = PC2)) +
+  geom_point() +
+  ggrepel::geom_text_repel(aes(label = car_make))
+```
+
+## Activity
+
+## Recreate plots from paper
+
+Data is from https://doi.org/10.1371/journal.pbio.2005756
+
+Najafov A, Zervantonakis IK, Mookhtiar AK, Greninger P, March RJ, Egan RK, et al. (2018) BRAF and AXL oncogenes drive RIPK3 expression loss in cancer. PLoS Biol 16(8): e2005756. https://doi.org/10.1371/journal.pbio.2005756
+
+I downloaded their figure data and made it easier to import:
+-   Fig1A_partial.txt
+-   Fig1C.txt
+-   Fig2F.txt
+-   Fig3F.txt
+
+#### Figure 1A – geom_boxplot()
+```{r}
+
+```
+
+#### Figure 1C – heatmap()
+```{r}
+
+```
+
+#### Figure 2F – geom_point()
+```{r}
+
+```
+
+#### Figure 3F – geom_col
+use geom_errorbars()
+and facet_wrap() to split the plots by cell_line
+```{r}
+
+```
+
+## If you’re super fast:
+Keep going, do the rest 🙃
+
+Download the data from the supplemental data here:
+
+https://doi.org/10.1371/journal.pbio.2005756.s001
+
