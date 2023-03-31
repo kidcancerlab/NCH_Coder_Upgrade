@@ -89,25 +89,19 @@ g <- parallel::mclapply(c(200, 300, 400, 500), function(s) {
 (g[[1]] | g[[2]]) / (g[[3]] | g[[4]])
 
 # Choose ncenter = 300 -- it picks up the inflammatory cluster as a leaf
-g <- list()
-g <- parallel::mclapply(c(200, 500, 1000, 2000), function(s) {
-    p <- cluster_cells(cds_obj) %>%
-        learn_graph(use_partition = FALSE,
-        learn_graph_control = list(ncenter = s)) %>%
-        plot_cells(graph_label_size = 5) +
-        ggtitle(paste("ncenter =", s))
-        coord_fixed()
-    return(p)
-}, mc.cores = 4)
-(g[[1]] | g[[2]]) / (g[[3]] | g[[4]])
+cds_obj <- cluster_cells(cds_obj) %>%
+    learn_graph(use_partition = FALSE,
+    learn_graph_control = list(ncenter = 300))
 
-# Plot cells colored by pesudotime (have to order first)
+# Plot cells colored by pesudotime (have to order first [interactive])
 cds_obj <- order_cells(cds_obj,
     reduction_method = "UMAP")
 plot_cells(cds_obj,
     color_cells_by = "pseudotime",
     cell_size = 0.75,
-    graph_label_size = 5) +
+    graph_label_size = 5,
+    trajectory_graph_segment_size = 1.5) +
+    ggtitle("Osteoshark connected with pseudotime") +
     coord_fixed()
 
 # Do it with Monocle-generated processing
