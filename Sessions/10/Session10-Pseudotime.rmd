@@ -13,6 +13,7 @@ library(patchwork)
 library(rrrSingleCellUtils)
 library(Seurat)
 library(monocle3)
+library(parallel)
 
 theme_set(theme_classic())
 ```
@@ -31,13 +32,13 @@ Start by loading the data and visualizing the appearance/clustering as processed
 
 ```{r import_data}
 # Load the Seurat object into the namespace as "scdata"
-sc_data <- qs::qread("osteoshark.qs")
+load("osteoshark.RData")
 
 # Plot the data as it has been processed
-r_dim_plot(sc_data, "Starting Processed Data")
+r_dim_plot(seurat_obj, "Starting Processed Data")
 ```
 
-## Practice 1: Basic pseudotime analysis and visualization 
+## Practice 1: Basic pseudotime analysis and visualization (monocle3)
 
 ***
 Since pseudotime analysis will be performed in Monocle, we must first convert our beloved Seurat object into an object class that Monocle can use.
@@ -52,47 +53,86 @@ This "as.cell_data_set" function does have a nice feature for transferring the c
 
 To prepare for pseudotime analysis:
 1. Create the monocle3_clusters and monocle3_partitions metadata elements from the existing assignment and partition variables.
-2. Create a new cell_data_set object by converting the sc_data Seurat object.
+2. Create a new cell_data_set object by converting the seurat_obj Seurat object.
 3. Explore the cell_data_set object to ensure that appropriate metadata, assays, and dimensional reductions have been included in the conversion. (Hint: make use of the colData, reducedDims, and assayNames functions from the SingleCellExperiment and SummarizedExperiment packages).
 3. Plot the UMAP that transferred to the cell_data_set object to ensure that you kept your embeddings. (Hint: Monocle uses a function called plot_cells).
 4. Perform the pseudotime analysis using learn_graph from Monocle3.
+5. Order the cells by identifying a root node (order_cells function).
+6. Plot the pseudotime graph coloring each cell by pseudotime from the chosen root.
+7. BONUS competition for the most beautiful pseudotime visual: upload your best plot of the pseudotime graph to the *** folder on the CoderUpgrade OneDrive.
 
 ```{r enrollment}
 # Add metadata to carry over the clustering information to the new object
-sc_data$monocle3_clusters <- sc_data$assignment
-sc_data$monocle3_partitions <- "p1"
+seurat_obj$monocle3_clusters <- seurat_obj$assignment
+seurat_obj$monocle3_partitions <- "p1"
 
-# Convert the Seurat object to a Monocle SingleCellExperiment object
-cds_data <- SeuratWrappers::as.cell_data_set(sc_data)
+# Convert the Seurat object to a Monocle (cell_data_set) object
+cds_obj <- SeuratWrappers::as.cell_data_set(seurat_obj)
 
 # View the transferred metadata, dimensional reductions, and assays
-as_tibble(colData(cds_data))
-reducedDims(cds_data)
-assayNames(cds_data)
+as_tibble(colData(cds_obj))
+reducedDims(cds_obj)
+assayNames(cds_obj)
 
-# Calculate the pseudotime/trajectories
-cds_data <- cluster_cells(cds_data) %>%
-    learn_graph(use_partition = F)
-plot_cells(cds_data)
+# Calculate the pseudotime/trajectories, then
+# Test different parameters for ncenter ("resolution" of the trajectory graph)
+g <- list()
+g <- parallel::mclapply(c(200, 300, 400, 500), function(s) {
+    p <- cluster_cells(cds_obj) %>%
+        learn_graph(use_partition = FALSE,
+        learn_graph_control = list(ncenter = s)) %>%
+        plot_cells(graph_label_size = 5) +
+        ggtitle(paste("ncenter =", s)) +
+        coord_fixed()
+    return(p)
+}, mc.cores = 4)
+(g[[1]] | g[[2]]) / (g[[3]] | g[[4]])
+
+# Choose ncenter = 300 -- it picks up the inflammatory cluster as a leaf
+g <- list()
+g <- parallel::mclapply(c(200, 500, 1000, 2000), function(s) {
+    p <- cluster_cells(cds_obj) %>%
+        learn_graph(use_partition = FALSE,
+        learn_graph_control = list(ncenter = s)) %>%
+        plot_cells(graph_label_size = 5) +
+        ggtitle(paste("ncenter =", s))
+        coord_fixed()
+    return(p)
+}, mc.cores = 4)
+(g[[1]] | g[[2]]) / (g[[3]] | g[[4]])
+
+# Plot cells colored by pesudotime (have to order first)
+cds_obj <- order_cells(cds_obj,
+    reduction_method = "UMAP")
+plot_cells(cds_obj,
+    color_cells_by = "pseudotime",
+    cell_size = 0.75,
+    graph_label_size = 5) +
+    coord_fixed()
 
 # Do it with Monocle-generated processing
-cds_data <- cds_data %>%
+cds_obj <- cds_obj %>%
     preprocess_cds(num_dim = 30) %>%
     align_cds(alignment_group = "src") %>%
     reduce_dimension() %>%
     cluster_cells() %>%
-    learn_graph(use_partition = FALSE)
-plot_cells(cds_data,
+    learn_graph(use_partition = FALSE, minimal_branch_len = 5)
+plot_cells(cds_obj,
     color_cells_by = "assignment")
+```
+
+## Practice 2: Identify genes associated with branch-to-leaf transitions
+
+```{r}
 
 ```
 
-## Generate class rosters
+## Practice 3: Trajectory analysis with slingshot
 
 Process the data to generate lists of students enrolled in each course and lists of experienced coders willing to mentor.
 
 ```{r rosters, results='asis'}
-sc_data <- RenameIdents(sc_data,
+seurat_obj <- RenameIdents(seurat_obj,
     `Growth - ribogenesis` = "Growth",
     `Growth - translation` = "Growth",
     `Osteogenic` = "Osteogenic",
