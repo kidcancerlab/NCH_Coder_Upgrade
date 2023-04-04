@@ -13,7 +13,12 @@ library(patchwork)
 library(rrrSingleCellUtils)
 library(Seurat)
 library(monocle3)
+library(slingshot)
 library(parallel)
+
+# Required to access the libraries needed for the 'units' package to function
+# (Monocle dependency)
+system("ml UDUNITS")
 
 theme_set(theme_classic())
 ```
@@ -31,7 +36,7 @@ This object contains tumor cells isolated from a collection of clinical specimen
 Start by loading the data and visualizing the appearance/clustering as processed previously.
 
 ```{r import_data}
-# Load the Seurat object into the namespace as "scdata"
+# Load the Seurat object into the namespace as 'scdata'
 load("osteoshark.RData")
 
 # Plot the data as it has been processed
@@ -51,15 +56,19 @@ To convert a Seurat object to a cell_data_set object, you have a few options. Th
 
 This "as.cell_data_set" function does have a nice feature for transferring the clustering and partitioning data directly into the new object. To take advantage of this feature, you simply need to create two metadata elements within your Seurat object named "monocle3_clusters" and "monocle3_partitions"  that contain the cell-level cluster and partition assignments. If these are present when you run the as.cell_data_set function, they will be automatically recognized and handled without further input.
 
+(For the workflow below, the monocle3 documentation on the Trapnell lab website is a pretty good reference: https://cole-trapnell-lab.github.io/monocle3/docs/trajectories/)
+
 To prepare for pseudotime analysis:
 1. Create the monocle3_clusters and monocle3_partitions metadata elements from the existing assignment and partition variables.
 2. Create a new cell_data_set object by converting the seurat_obj Seurat object.
 3. Explore the cell_data_set object to ensure that appropriate metadata, assays, and dimensional reductions have been included in the conversion. (Hint: make use of the colData, reducedDims, and assayNames functions from the SingleCellExperiment and SummarizedExperiment packages).
-3. Plot the UMAP that transferred to the cell_data_set object to ensure that you kept your embeddings. (Hint: Monocle uses a function called plot_cells).
-4. Perform the pseudotime analysis using learn_graph from Monocle3.
-5. Order the cells by identifying a root node (order_cells function).
-6. Plot the pseudotime graph coloring each cell by pseudotime from the chosen root.
-7. BONUS competition for the most beautiful pseudotime visual: upload your best plot of the pseudotime graph to the *** folder on the CoderUpgrade OneDrive.
+4. Plot the UMAP that transferred to the cell_data_set object to ensure that you kept your embeddings. (Hint: Monocle uses a function called plot_cells).
+5. Perform the pseudotime analysis using learn_graph from Monocle3.
+6. Order the cells by identifying a root node (order_cells function).
+7. Plot the pseudotime graph coloring each cell by pseudotime from the chosen root.
+8. BONUS. There are many parameters that can be tweaked to optimize the pseudotime analysis. One of the most helpful/commonly adjusted is the ncenter parameter, which adjusts the number of centroids used to compare changes in expression over time. You can think of this as the "resolution" of the assay. Write a loop or an apply-function statement to examine the effects of different values for ncenter on the resulting graph. (HINT: Use values in the range of 50-2000. This is also a great problem to leverage your skills in parallel processing. For a bonus-bonus, benchmark the time savings you get from parallel processing.)
+9. BONUS. Compete for the most beautiful pseudotime visual: upload your best plot of the pseudotime graph to the "***" folder on the CoderUpgrade OneDrive.
+10. BONUS. See how results compare if you let monocle3 perform the clustering and processing. Do you get similar results?
 
 ```{r enrollment}
 # Add metadata to carry over the clustering information to the new object
@@ -117,23 +126,74 @@ plot_cells(cds_obj,
 
 ## Practice 2: Identify genes associated with branch-to-leaf transitions
 
-```{r}
+Now, perform a differential expression analysis with your favorite trajectory to identify genes that vary at the branch pointes and that define the leaves across pseudotime. This is called a "graph autocorrelation analysis" in the world of Monocle.
 
+1. Using a cell_data_set object generated above, find genes whose expression differentiates branches and leaves from each other (use graph_test from monocle3). Be sure to specify "neighbor_graph" as "principal_graph", or it will default to the knn method, which will give you degs between clusters (the default behavior).
+2. Explore the resulting data frame. This shows how each gene within your object vary across the trajectory while being similar within spatially-nearby cells (Moran's I).
+3. 
+2. Pick a leaf or two of interest.
+3. Explore the genes that distinguish those leaves from each other. Pick 2-4 genes of interest. Find at least one gene whose expression is lost over the trajectory.
+4. Plot those genes of interest visually on the UMAP to show how expression changes over time. 
+
+
+```{r}
+# Create a data frame containing genes that differentiate branches and leaves
+# from each other
+pseudo_degs <- graph_test(cds_obj,
+    neighbor_graph = "principal_graph",
+    cores = 4)
+head(pseudo_degs, n = 20)
+head(pseudo_degs %>% arrange(-morans_I), n = 20)
+
+# Fix the rownames created in the conversion process by seuratWrappers
+rowData(cds_obj)$gene_name <- rownames(cds_obj)
+rowData(cds_obj)$gene_short_name <- rowData(cds_obj)$gene_name
+
+# Plot a few selected genes from the DEG onto the trajectory
+plot_genes <- pseudo_degs %>%
+    arrange(-morans_I) %>%
+    head(n = 16) %>%
+    rownames()
+
+p <- plot_cells(cds_obj,
+    genes = plot_genes,
+    cell_size = 1,
+    cell_stroke = 0,
+    label_branch_points = FALSE,
+    label_leaves = FALSE,
+    trajectory_graph_segment_size = 0.75)
+
+# Select genes of interest from the graph_test and perform reverse
+# UMAP embedding/clustering *** in progress
+genes_of_interest <- pseudo_degs %>%
+    filter(q_value < 0.05) %>%
+    filter(morans_I > 0.1) %>%
+    rownames()
+cds_subset <- tibble(cell = rownames(colData(cds_obj)),
+    cell_group = colData(cds_obj)$cell.type)
+expression_modules <- find_gene_modules(
+    cds_obj[genes_of_interest, ],
+    resolution = c(10^seq(-6, -1)))
 ```
 
 ## Practice 3: Trajectory analysis with slingshot
 
-Process the data to generate lists of students enrolled in each course and lists of experienced coders willing to mentor.
+***
+
+A helpful reference to understand the workflow is the vignette included with the slingshot package in the bioconductor repository: https://bioconductor.org/packages/devel/bioc/vignettes/slingshot/inst/doc/vignette.html.
 
 ```{r rosters, results='asis'}
-seurat_obj <- RenameIdents(seurat_obj,
-    `Growth - ribogenesis` = "Growth",
-    `Growth - translation` = "Growth",
-    `Osteogenic` = "Osteogenic",
-    `Growth - cycling` = "Cycling",
-    `Basal` = "Basal",
-    `Growth - transcription` = "Growth",
-    `Inflammatory` = "Inflammatory"
-)
+# Break down the Seurat object for input into the slingshot pipe
+seurat_umap <- seurat_obj@reductions$umap@cell.embeddings
+seurat_labels <- seurat_obj$assignment
+seurat_variable <- seurat_obj@assays$RNA@var.features
+seurat_counts <- GetAssayData(seurat_obj, "counts") %>%
+    as.data.frame() %>%
+    filter(rownames(seurat_counts) %in% seurat_variable)
+
+sce_obj <- as.SingleCellExperiment(seurat_obj)
+
+# Input these data elements into the slingshot algorithm
+sce_obj <- slingshot(sce_obj, )
 ```
 
