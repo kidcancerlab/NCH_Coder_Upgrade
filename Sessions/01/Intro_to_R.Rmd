@@ -1,7 +1,8 @@
 ---
-title: "Intro to R 2022 day 1"
+title: "Intro to R 2023"
 author: "Matt Cannon"
-date: '2022-10-01'
+edits: "Luda Popova"
+date: '2032-04-10'
 output: html_document
 ---
 
@@ -24,55 +25,130 @@ What's a function?
 
 Reading function documentation
 
-
 ## Basic variable types 
 
-# string
+Emphasize that "=" or "<-" is an assignment operator
 
+### String 
+
+```{r}
 my_name <- "Matt" 
+```
 
-# numeric
+### Numeric
 
+```{r}
 count = 10 
+```
 
-# boolean 
+### Boolean 
+
+```{r}
 bool = TRUE
+
 bool = FALSE
+```
 
-# factor
-# Got the info from here https://r4ds.had.co.nz/factors.html#:~:text=In%20R%2C%20factors%20are%20used,to%20work%20with%20than%20characters.
+### Factors. In R, factors are used to work with categorical variables, variables that have a fixed and known set of possible values. They are also useful when you want to display character vectors in a non-alphabetical order (https://r4ds.had.co.nz/factors.html#:~:text=In%20R%2C%20factors%20are%20used,to%20work%20with%20than%20characters)
 
+```{r}
 months <- c("Dec", "Apr", "Jan", "Mar")
+
 sort(months)
 
 months_factor = factor(months, level = c("Jan", "Mar", "Apr", "Dec"))
+
 sort(months_factor)
+```
+As you can see, you can join multiple variables by using c(var1, var2)
 
-# Use the following to check the type of variable
+### Use the following to check the type of variable, e.g trying to add up variables that are not of the same class may not work
+
+```{r}
 class(variable)
-
-# As you can see, you can join multiple variables by using c(var1, var2)
-
-
-
-
+```
 
 ## Functions for today
 
+### sort() and class() from examples above are functions. Functions are sets of statements that are designed to perform a specific task (https://www.tutorialspoint.com/r/r_functions.htm). Functions have arguments, which the user can pass to them. In R, there are a lot of in-built functions. Some examples of in-built fuctions include mean(), max(), sum(), min() (https://www.tutorialspoint.com/r/r_functions.htm). Also, in R users can define their own functions, but we won't go over this in this session. 
+
+```{r}
+numbers = c(1,2,3,4,5)
+min(numbers)
+max(numbers)
+sum(numbers)
+mean(numbers)
+```
+
+## It's impossible (and not necessary) to know all the functions and/or their arguments. 
+
+```{r}
+help(min)
+help(max)
+help(sum)
+help(mean)
+```
+
+# Activity one 
+
+## Create two character, numerical, and two boolean variables. 
+
+## Knowing that "+" adds 
+
+## Create a set of factor variables , specifying the correct order. 
+
+## Knowing that ,    
+
+
+
+# Part 2 -- ??? 
+
+## Data are usually available to us in form of larger files, i.e. not single variables. There are functions in R that enable us to read in files. 
+
 ### read.delim()
+
 ```{r readAfile}
 westernQuant <- read.delim("intro_to_R_2022/westernQuant.txt", header = TRUE)
 ```
+### Another useful function is read.csv()
 
+## Once we read in the file, we can use functions to get useful information about the file 
 
 ### summary()
+
+### Mtcars is a data frame (https://www.tutorialspoint.com/r/r_data_frames.htm)
+
+A data frame is a table or a two-dimensional array-like structure in which each column contains values of one variable and each row contains one set of values from each column.
+
+The following are the characteristics of a data frame.
+
+The column names should be non-empty.
+The row names should be unique.
+The data stored in a data frame can be of numeric, factor or character type.
+Each column should contain same number of data items.
+
 ```{r summary}
 mtcars <- mtcars
 
-my_name <- "Matt"
-
 mtcars = mtcars
+
 summary(mtcars)
+```
+
+### Subsetting a data.frame with [ ]
+data_frame[row(s), column(s)]
+  empty means everything
+
+```{r}
+# first row, first column (just one element)
+mtcars[1, 1]
+# First row, all columns
+mtcars[1, ]
+# First column, all rows
+mtcars[, 1]
+mtcars$mpg
+# First ten rows, all columns
+mtcars[c(1:10), ]
 ```
 
 ### plot()
@@ -82,23 +158,7 @@ plot(mtcars$mpg, mtcars$cyl)
 plot(as.factor(mtcars$cyl), mtcars$mpg)
 ```
 
-### boxplot()
-```{r}
 
-```
-
-### png()/pdf()
-```{r saveAplot}
-png(filename = "bob.png")
-plot(1, 1)
-dev.off()
-```
-
-### t.test()
-```{r ttest}
-t.test(1:10, y = c(7:20))
-t.test(extra ~ group, data = sleep)
-```
 
 ## Activity
 
@@ -131,13 +191,23 @@ Try out wilcox.test()
 
 
 
-# Day 2
+
+# Part 3
 
 ## General stuff
 
 ## How to make an Rmd file
 
-## packages
+## packages -- what is a package? 
+# R packages are a collection of R functions, complied code and sample data.  
+#https://www.tutorialspoint.com/r/r_packages.htm. Packages are usually created to address a very specific need in data analysis. 
+
+## Tidyverse is a very useful collection of packages
+#The tidyverse is an opinionated collection of R packages designed for data science. All packages share an underlying design philosophy, grammar, and #data structures.
+#https://www.tidyverse.org/
+
+### Packages need to be installed and loaded into the session before they can be used
+
 ```{r}
 #install.packages("tidyverse", Ncpus = 8)
 library(tidyverse)
@@ -149,21 +219,7 @@ library(tidyverse)
 #library(ggplot2)
 ```
 
-### Subsetting a data.frame with [ ]
-data_frame[row(s), column(s)]
-  empty means everything
 
-```{r}
-# first row, first column (just one element)
-mtcars[1, 1]
-# First row, all columns
-mtcars[1, ]
-# First column, all rows
-mtcars[, 1]
-mtcars$mpg
-# First ten rows, all columns
-mtcars[c(1:10), ]
-```
 
 ## Functions for today's activity
 
@@ -191,83 +247,7 @@ mean(c(1, 3, 4, NA, 34))
 mean(c(1, 3, 4, NA, 34), na.rm = TRUE)
 ```
 
-### median
-```{r median}
-median(one_big_number)
 
-mtcars <- mtcars
-median(mtcars$mpg)
-```
-
-### min/max
-```{r minmax}
-min(mtcars$mpg)
-
-max(one_big_number)
-```
-
-### sum
-```{r some}
-sum(one_big_number)
-sum(c(1, 1, 1, 1, 1, 1))
-```
-
-### standard deviation
-```{r sd}
-sd(one_big_number)
-mpg_sd <- sd(mtcars$mpg)
-```
-
-### filter
-Filter is a function inside the dplyr package that works on dataframes or tibbles
-```{r filter}
-mtcars <- mtcars
-
-filter(mtcars, mpg > 30)
-
-# and
-filter(mtcars, mpg > 30 & wt < 2)
-
-# or
-filter(mtcars, mpg > 30 | wt < 2)
-```
-
-### select
-Pick (or exclude) columns from a dataframe or tibble
-
-`|>` is a pipe - it passes data from one function to the next
-    That way you don't have to nest functions (((((((())))))))
-    
-head() returns the fist six elements
-```{r select}
-select(mtcars, mpg, disp)
-head(select(mtcars, -mpg, -disp))
-select(mtcars, -mpg, -disp) |> head()
-select(mtcars, !mpg, !disp) |> head(n = 4)
-```
-
-### histogram
-rnorm samples numbers from a normal distribution
-```{r hist}
-hist(rnorm(1000, mean = 200, sd = 20), n = 100)
-```
-
-### aov
-```{r anova}
-aov(mpg ~ disp + wt, data = mtcars)
-
-anova_summary <- summary(aov(mpg ~ disp + wt, data = mtcars))
-anova_summary
-```
-
-### table
-count combinations
-```{r countStuff}
-table(c("cat a", "cat a", "cat a", "cat b", "cat b", "cat b"),
-      c(1, 1, 2, 2, 2, 2))
-
-table(mtcars$cyl, mtcars$vs)
-```
 
 ## Activity
 
@@ -512,186 +492,12 @@ Columns should be patient, day, exercise_min, glucose
 
 
 
-# Day 4
+
+
+# Part 4 
 
 ## General stuff
-
-### What is a loop?
-A loop is instructions for R to do things 
-
-### why use a loop?
-
-```{r}
-plot(1)
-plot(2)
-plot(2)
-plot(3)
-plot(4)
-plot(5)
-plot(6)
-```
-
-## Functions for today's activity
-
-### Lists
-List of data
-Each bit can be named
-Can have diverse data types
-```{r}
-bunch_o_stuff <-
-  list(first = 1,
-       some_data = mtcars,
-       small_matrix = matrix(c(1, 2, 1, 2), nrow = 2),
-       dogs = c("fido", "toby"))
-
-bunch_o_stuff$first
-bunch_o_stuff$small_matrix
-names(bunch_o_stuff)
-```
-
-### if () {}
-if ( test condition ) {
-  do this stuff if test condition == TRUE
-}
-```{r}
-bobs_age <- 10
-
-bobs_age > 80
-
-if (bobs_age > 80) {
-  print("Bob is probably losing hair.")
-}
-```
-
-#### When to use an if () loop
-
-### if/else
-```{r}
-darrins_age <- 15
-
-darrins_age > 80
-
-if (darrins_age > 80) {
-  print("Darrin is probably losing hair.")
-} else {
-  print("Darrin has a full head of lucious hair.")
-}
-
-## Can test multiple conditions with else if ()
-if (darrins_age > 80) {
-  print("Darrin is probably losing hair.")
-  print("other stuff")
-} else if (darrins_age > 50) {
-  print("Darrin has might be losing some hair.")
-} else {
-  print("Darrin has lots of hair.")
-}
-```
-
-### while () {}
-while (this evaluates to true) {
-  do this stuff
-}
-```{r}
-bettys_age <- 1
-
-while (bettys_age < 100) {
-  bettys_age <- bettys_age + 1
-  print(paste("Betty ages by a year and is now", bettys_age))
-}
-print("Betty died. :'-(")
-
-rand_num <- rnorm(1, sd = 0.5)
-tries <- 1
-while (rand_num < 0.999) {
-  print(paste(rand_num, "I tried to find a number greater than 0.999", tries, "times!"))
-  rand_num <- rnorm(1, sd = 0.5)
-  tries <- tries + 1
-}
-```
-
-#### Example of an infinite loop
-while condition can never evaluate to FALSE
-```{r}
-bettys_age <- 1
-while (bettys_age > 0) {
-  bettys_age <- bettys_age + 1
-  if (bettys_age > 1000) {
-    print("holy moly")
-  }
-  print(paste("Betty is a vampire and can never die. She is now", bettys_age))
-}
-```
-
-#### When to use a while loop
-
-### for () {}
-for (variable_name in list/vector of things) {
-  do this using this iteration of variable_name
-}
-```{r}
-list_of_friends <- c("Bob", "Jack", "Jill")
-#list_of_friends <- list(friend1 = "bob", friend2 = "mary")
-
-for (friend in list_of_friends) {
-  print(paste("I gave", friend, "a present."))
-}
-
-print(current_friend)
-```
-
-#### When to use a for loop
-
-### as.character, etc…
-if you have one thing and you want it to be something else, use as......
-```{r}
-as.character(1)
-as.numeric("1")
-as.logical(c(1, 0, 2))
-as.integer(1.2)
-as.Date("1983-02-08")
-```
-
-### colnames/rownames
-Get row or column names for a data.frame
-```{r}
-rownames(mtcars)
-colnames(mtcars)
-```
-
-
-## Activity
-
-### Get the starwars data and look at it
-library(tidyverse) # load the tidyverse library
-starwars <- starwars # to get data
-
-
-### Write a for loop using over the “starwars” column names
-Inside the loop, if the column contains numeric data, make a histogram of it
-Otherwise, use table() to get counts
-
-is.numeric()
-column_name <- "height"
-starwars[[column_name]] # same as starwars$height
-
-## If you’re super fast:
-### Write a while loop to count the sum of all numbers whose squared value is less than 1,234,567
-
-1^2 < 1,234,567   # add 1 to sum total
-2^2 < 1,234,567   # add 2 to sum total
-3^2 < 1,234,567   # add 3 to sum total
-.
-.
-.
-X^2 > 1,234,567   # stop here
-
-Help someone who is struggling (loops can be confusing)
-
-
-# Day 5
-
-## General stuff
+## GGplot
 
 ### geoms as layers
 https://ggplot2.tidyverse.org/reference/
