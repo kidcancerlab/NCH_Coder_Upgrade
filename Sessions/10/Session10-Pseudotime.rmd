@@ -30,7 +30,7 @@ This object contains tumor cells isolated from a collection of clinical specimen
     - $type: location of the tumor when removed from the patient (Primary or Metastasis)
     - $path: the pathology classification of the tumor (Conventional, Chondroblastic, Telangiectatic, etc.)
     - $gse: the GEO/SRA accession number where the raw data is stored
-    - $assignment: the final tumor cell subset assigment from the previous analysis
+    - $assignment: the tumor cell subset (cluster) assigment from the previous analysis
     - $partition: a higher-level set of clustering data ("clusters of clusters") that is used by Monocle during the pseudotime determination process.
 
 Start by loading the data and visualizing the appearance/clustering as processed previously.
@@ -45,7 +45,6 @@ r_dim_plot(seurat_obj, "Starting Processed Data")
 
 ## Practice 1: Basic pseudotime analysis and visualization (monocle3)
 
-***
 Since pseudotime analysis will be performed in Monocle, we must first convert our beloved Seurat object into an object class that Monocle can use.
 
 The following online book provides a nice reference for understanding the SingleCellExperiment object. While Monocle uses a technically different object class called "cell_data_set", this is essentially just a SingleCellExperiment object with some additional slots added to it. All of the functions that can be used with SingleCellExperiment can also be used with cell_data_set.
