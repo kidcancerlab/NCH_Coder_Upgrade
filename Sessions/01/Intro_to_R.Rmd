@@ -9,9 +9,9 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Day 1
+# Part 1
 
-RStudio overview
+RStudio overview, R studio layout 
   Projects
 
 Rmd format
@@ -23,6 +23,39 @@ What's a function?
   Arguments
 
 Reading function documentation
+
+
+## Basic variable types 
+
+# string
+
+my_name <- "Matt" 
+
+# numeric
+
+count = 10 
+
+# boolean 
+bool = TRUE
+bool = FALSE
+
+# factor
+# Got the info from here https://r4ds.had.co.nz/factors.html#:~:text=In%20R%2C%20factors%20are%20used,to%20work%20with%20than%20characters.
+
+months <- c("Dec", "Apr", "Jan", "Mar")
+sort(months)
+
+months_factor = factor(months, level = c("Jan", "Mar", "Apr", "Dec"))
+sort(months_factor)
+
+# Use the following to check the type of variable
+class(variable)
+
+# As you can see, you can join multiple variables by using c(var1, var2)
+
+
+
+
 
 ## Functions for today
 
