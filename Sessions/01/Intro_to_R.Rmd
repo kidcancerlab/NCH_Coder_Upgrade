@@ -15,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 RStudio overview, R studio layout 
   Projects
 
-Rmd format, how to create a Rmd file
+Rmd format, how to create a Rmd file, avoid dots in file names, preferable use underscores or dashes
   ctrl+alt+i to create R chunk
 
 What's a variable?
@@ -92,13 +92,21 @@ help(mean)
 
 # Activity one 
 
-Create two character, numerical, and two boolean variables. 
+Create a new Rmd file and name it "Activity_1.Rmd" 
 
-Knowing that "+" adds 
+Create two numerical variables containing numbers 5 and 10. 
 
-Create a set of factor variables , specifying the correct order. 
++, -, /, and * work like regular arithmetic operators in R. Add your two numerical variables together. 
 
-Knowing that ,    
+Create two character variables containing values "5" and "10", respectively. Make sure to wrap the variables in quotes. 
+
+This time, multiply your two character variables together, observe the error message. 
+
+Using help(as.numeric), try to fix the error message. 
+
+Create a set of factor variables containing the following values: , Specify the correct order. 
+
+Use sort() function to make sure everything worked. 
 
 
 # Part 2 
@@ -116,6 +124,7 @@ westernQuant <- read.delim("intro_to_R_2022/westernQuant.txt", header = TRUE)
 ```{r}
 data = read.csv("filepath.csv", header = TRUE)
 ```
+
 -- Not sure how to tie together the reading in a file and using the in-built mtcars dataset. -- One thought -- save the mtcars dataset as a .delim file and replace some of the values with NAs to incorporate Matt's idea to show that functions won't work on NA-containing data
 
 ### Mtcars is a data frame (https://www.tutorialspoint.com/r/r_data_frames.htm)
@@ -194,7 +203,37 @@ plot(mtcars$mpg, mtcars$cyl)
 plot(as.factor(mtcars$cyl), mtcars$mpg)
 ```
 
+## Other useful functions 
 
+### cbind, rbind
+attach two data.frames either side to side or top to bottom
+rbind will arrange column names
+cbind just puts things together without checking order
+  Generally a bad idea to cbind unless you're very careful
+```{r}
+efficient <-
+  mtcars %>%
+  filter(mpg > 30)
+
+gas_guzzlers <-
+  mtcars %>%
+  filter(mpg < 14.5)
+
+rbind(efficient, gas_guzzlers)
+
+# This is total nonsense, but R does it anyways
+test <- 
+  cbind(efficient, gas_guzzlers)
+```
+
+### t()
+Rotate a dataframe (or matrix) 90 degrees
+Also turns the data into a matrix, so we re-convert it using as.data.frame()
+```{r}
+rotated_cars <-
+  t(mtcars) %>% # |>
+  as.data.frame()
+```
 
 ## Activity 2
 
@@ -236,8 +275,10 @@ Try out wilcox.test()
 #https://www.tutorialspoint.com/r/r_packages.htm. Packages are usually created to address a very specific need in data analysis. 
 
 ## Tidyverse is a very useful collection of packages
-#The tidyverse is an opinionated collection of R packages designed for data science. All packages share an underlying design philosophy, grammar, and #data structures.
+#The tidyverse is an opinionated collection of R packages designed for data science (includes ggplot2, dplyr, and other ones). All packages share an underlying design philosophy, grammar, and #data structures.
 #https://www.tidyverse.org/
+
+## Include cheat sheet link
 
 ### Packages need to be installed and loaded into the session before they can be used
 
@@ -252,18 +293,10 @@ library(tidyverse)
 #library(ggplot2)
 ```
 
-### merge
-merge() will attach two data.frames side to side, but match data in shared columns
--   by default, does an inner join
--   use all, all.x or all.y to specify other join types
+Tidyverse packages use the pipe operator %>%
 
-https://www.datasciencemadesimple.com/wp-content/uploads/2017/06/merge-in-R-2.jpg?ezimgfmt=rs:535x142/rscb1/ng:webp/ngcb1
-```{r}
-band_members
-band_instruments
-merge(band_members, band_instruments)
-merge(band_members, band_instruments, all = TRUE)
-```
+### join -- left_join, inner_join, right_join, outer_join, anti_join
+
 
 ### mutate
 Add a new column or change an existing one
@@ -272,15 +305,45 @@ km_per_mi <- 1.60934
 
 mtcars %>%
   mutate(kpg = mpg * km_per_mi)
+```
+
+### select
+```{r}
+mtcars %>%
+  select(cyl)
+  
+mtcars %>%
+  select(cyl, everything())
+```
+
+### rename
+```{r}
+mtcars %>% 
+  rename(Cyl = cyl)
+```
+
+### arrange
+```{r}
+mtcars %>%
+  arrange(mpg)
+  
+head(mtcars)
+
+tail(mtcars)
 
 mtcars %>%
-  mutate(mpg = mpg * km_per_mi)
+  arrange(- mpg)
+  
+head(mtcars)
+
+tail(mtcars)
 ```
 
 ### summarize() and group_by()
 group() silently divides up rows by categories
 summarize() data within groups in a dataframe
 Makes a new column and drops all columns not in group_by() or created by summarize()
+
 ```{r}
 mtcars %>%
   group_by(cyl) %>%
@@ -292,14 +355,6 @@ starwars %>%
             max_mass = max(mass))
 ```
 
-### t()
-Rotate a dataframe (or matrix) 90 degrees
-Also turns the data into a matrix, so we re-convert it using as.data.frame()
-```{r}
-rotated_cars <-
-  t(mtcars) %>% # |>
-  as.data.frame()
-```
 
 ### pivot_longer()
 wide data vs long data
@@ -333,6 +388,8 @@ write.table(wide_again,
 
 write_tsv(wide_again,
           file = "exampleOutputAlso.txt")
+          
+??? write.csv()
 ```
 
 
@@ -418,26 +475,7 @@ R thinks you have unfinished business here
 
 ## Functions for today's activity
 
-### cbind, rbind
-attach two data.frames either side to side or top to bottom
-rbind will arrange column names
-cbind just puts things together without checking order
-  Generally a bad idea to cbind unless you're very careful
-```{r}
-efficient <-
-  mtcars %>%
-  filter(mpg > 30)
 
-gas_guzzlers <-
-  mtcars %>%
-  filter(mpg < 14.5)
-
-rbind(efficient, gas_guzzlers)
-
-# This is total nonsense, but R does it anyways
-test <- 
-  cbind(efficient, gas_guzzlers)
-```
 
 
 
