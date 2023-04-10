@@ -15,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 RStudio overview, R studio layout 
   Projects
 
-Rmd format
+Rmd format, how to create a Rmd file
   ctrl+alt+i to create R chunk
 
 What's a variable?
@@ -27,7 +27,7 @@ Reading function documentation
 
 ## Basic variable types 
 
-Emphasize that "=" or "<-" is an assignment operator
+"=" or "<-" is an assignment operator
 
 ### String 
 
@@ -60,6 +60,7 @@ months_factor = factor(months, level = c("Jan", "Mar", "Apr", "Dec"))
 
 sort(months_factor)
 ```
+
 As you can see, you can join multiple variables by using c(var1, var2)
 
 ### Use the following to check the type of variable, e.g trying to add up variables that are not of the same class may not work
@@ -91,17 +92,16 @@ help(mean)
 
 # Activity one 
 
-## Create two character, numerical, and two boolean variables. 
+Create two character, numerical, and two boolean variables. 
 
-## Knowing that "+" adds 
+Knowing that "+" adds 
 
-## Create a set of factor variables , specifying the correct order. 
+Create a set of factor variables , specifying the correct order. 
 
-## Knowing that ,    
+Knowing that ,    
 
 
-
-# Part 2 -- ??? 
+# Part 2 
 
 ## Data are usually available to us in form of larger files, i.e. not single variables. There are functions in R that enable us to read in files. 
 
@@ -110,11 +110,13 @@ help(mean)
 ```{r readAfile}
 westernQuant <- read.delim("intro_to_R_2022/westernQuant.txt", header = TRUE)
 ```
+
 ### Another useful function is read.csv()
 
-## Once we read in the file, we can use functions to get useful information about the file 
-
-### summary()
+```{r}
+data = read.csv("filepath.csv", header = TRUE)
+```
+-- Not sure how to tie together the reading in a file and using the in-built mtcars dataset. -- One thought -- save the mtcars dataset as a .delim file and replace some of the values with NAs to incorporate Matt's idea to show that functions won't work on NA-containing data
 
 ### Mtcars is a data frame (https://www.tutorialspoint.com/r/r_data_frames.htm)
 
@@ -127,12 +129,12 @@ The row names should be unique.
 The data stored in a data frame can be of numeric, factor or character type.
 Each column should contain same number of data items.
 
-```{r summary}
-mtcars <- mtcars
+## Once we read in the file, we can manipulate the data it contains. 
 
-mtcars = mtcars
+### Accessing values in a column 
 
-summary(mtcars)
+```{r}
+mtcars$cyl
 ```
 
 ### Subsetting a data.frame with [ ]
@@ -151,7 +153,41 @@ mtcars$mpg
 mtcars[c(1:10), ]
 ```
 
-### plot()
+### We can also use functions to manipulate the data
+
+### summary()
+
+```{r summary}
+summary(mtcars)
+```
+
+### We can use the functions from above
+
+```{r}
+min(mtcars$cyl)
+
+max(mtcars$mpg)
+
+mean(mtcars$disp)
+```
+---------------------------
+Many of these functions can get angry about missing data (`NA`).
+
+Include na.rm = TRUE as an argument to ignore missing data
+
+#### This doesn't work
+```{r dontruns, eval=FALSE}
+mean(c(1, 3, 4, NA, 34))
+```
+
+#### This works
+```{r runs}
+mean(c(1, 3, 4, NA, 34), na.rm = TRUE)
+```
+----------------------------
+
+### We can use finction to make visualizations, e.g. plot()
+
 ```{r plot}
 plot(mtcars$mpg, mtcars$cyl)
 
@@ -160,8 +196,9 @@ plot(as.factor(mtcars$cyl), mtcars$mpg)
 
 
 
-## Activity
+## Activity 2
 
+### Use read.csv to read in a 
 ### Read in data
 Use read.delim()
 ```{r readData}
@@ -194,10 +231,6 @@ Try out wilcox.test()
 
 # Part 3
 
-## General stuff
-
-## How to make an Rmd file
-
 ## packages -- what is a package? 
 # R packages are a collection of R functions, complied code and sample data.  
 #https://www.tutorialspoint.com/r/r_packages.htm. Packages are usually created to address a very specific need in data analysis. 
@@ -219,33 +252,90 @@ library(tidyverse)
 #library(ggplot2)
 ```
 
+### merge
+merge() will attach two data.frames side to side, but match data in shared columns
+-   by default, does an inner join
+-   use all, all.x or all.y to specify other join types
 
-
-## Functions for today's activity
-
-### mean
-```{r mean}
-one_big_number <- c(1, 2, 4, 5, 10000000000)
-big_mean <- mean(one_big_number)
-big_mean
-
-small_mean <- mean(c(2, 3, 4, 10))
-small_mean
+https://www.datasciencemadesimple.com/wp-content/uploads/2017/06/merge-in-R-2.jpg?ezimgfmt=rs:535x142/rscb1/ng:webp/ngcb1
+```{r}
+band_members
+band_instruments
+merge(band_members, band_instruments)
+merge(band_members, band_instruments, all = TRUE)
 ```
 
-Many of these functions can get angry about missing data (`NA`).
+### mutate
+Add a new column or change an existing one
+```{r}
+km_per_mi <- 1.60934
 
-Include na.rm = TRUE as an argument to ignore missing data
+mtcars %>%
+  mutate(kpg = mpg * km_per_mi)
 
-#### This doesn't work
-```{r dontruns, eval=FALSE}
-mean(c(1, 3, 4, NA, 34))
+mtcars %>%
+  mutate(mpg = mpg * km_per_mi)
 ```
 
-#### This works
-```{r runs}
-mean(c(1, 3, 4, NA, 34), na.rm = TRUE)
+### summarize() and group_by()
+group() silently divides up rows by categories
+summarize() data within groups in a dataframe
+Makes a new column and drops all columns not in group_by() or created by summarize()
+```{r}
+mtcars %>%
+  group_by(cyl) %>%
+  summarize(mean_mpg = mean(mpg))
+
+starwars %>%
+  group_by(homeworld, species) %>%
+  summarize(mean_height = mean(height),
+            max_mass = max(mass))
 ```
+
+### t()
+Rotate a dataframe (or matrix) 90 degrees
+Also turns the data into a matrix, so we re-convert it using as.data.frame()
+```{r}
+rotated_cars <-
+  t(mtcars) %>% # |>
+  as.data.frame()
+```
+
+### pivot_longer()
+wide data vs long data
+"tidy" data - https://www.youtube.com/watch?v=K-ss_ag2k9E explanation starts ~ 6 min in
+https://epirhandbook.com/en/images/pivoting/pivot_longer_new.png
+```{r}
+# wide data
+relig_income
+
+# long data
+long_data <-
+  relig_income %>%
+  pivot_longer(!religion,
+               names_to = "income",
+               values_to = "count")
+
+# Make it wider
+wide_again <-
+  long_data %>%
+  pivot_wider(names_from = "income",
+              values_from = "count")
+```
+
+### Write a table out to a text file
+```{r}
+write.table(wide_again,
+            file = "exampleOutput.txt",
+            quote = FALSE,
+            sep = "\t",
+            row.names = FALSE)
+
+write_tsv(wide_again,
+          file = "exampleOutputAlso.txt")
+```
+
+
 
 
 
@@ -349,88 +439,7 @@ test <-
   cbind(efficient, gas_guzzlers)
 ```
 
-### merge
-merge() will attach two data.frames side to side, but match data in shared columns
--   by default, does an inner join
--   use all, all.x or all.y to specify other join types
 
-https://www.datasciencemadesimple.com/wp-content/uploads/2017/06/merge-in-R-2.jpg?ezimgfmt=rs:535x142/rscb1/ng:webp/ngcb1
-```{r}
-band_members
-band_instruments
-merge(band_members, band_instruments)
-merge(band_members, band_instruments, all = TRUE)
-```
-
-### mutate
-Add a new column or change an existing one
-```{r}
-km_per_mi <- 1.60934
-
-mtcars %>%
-  mutate(kpg = mpg * km_per_mi)
-
-mtcars %>%
-  mutate(mpg = mpg * km_per_mi)
-```
-
-### summarize() and group_by()
-group() silently divides up rows by categories
-summarize() data within groups in a dataframe
-Makes a new column and drops all columns not in group_by() or created by summarize()
-```{r}
-mtcars %>%
-  group_by(cyl) %>%
-  summarize(mean_mpg = mean(mpg))
-
-starwars %>%
-  group_by(homeworld, species) %>%
-  summarize(mean_height = mean(height),
-            max_mass = max(mass))
-```
-
-### t()
-Rotate a dataframe (or matrix) 90 degrees
-Also turns the data into a matrix, so we re-convert it using as.data.frame()
-```{r}
-rotated_cars <-
-  t(mtcars) %>% # |>
-  as.data.frame()
-```
-
-### pivot_longer()
-wide data vs long data
-"tidy" data - https://www.youtube.com/watch?v=K-ss_ag2k9E explanation starts ~ 6 min in
-https://epirhandbook.com/en/images/pivoting/pivot_longer_new.png
-```{r}
-# wide data
-relig_income
-
-# long data
-long_data <-
-  relig_income %>%
-  pivot_longer(!religion,
-               names_to = "income",
-               values_to = "count")
-
-# Make it wider
-wide_again <-
-  long_data %>%
-  pivot_wider(names_from = "income",
-              values_from = "count")
-```
-
-### Write a table out to a text file
-```{r}
-write.table(wide_again,
-            file = "exampleOutput.txt",
-            quote = FALSE,
-            sep = "\t",
-            row.names = FALSE)
-
-write_tsv(wide_again,
-          file = "exampleOutputAlso.txt")
-```
 
 ## Activity
 
@@ -497,6 +506,7 @@ Columns should be patient, day, exercise_min, glucose
 # Part 4 
 
 ## General stuff
+
 ## GGplot
 
 ### geoms as layers
@@ -793,35 +803,8 @@ ggsave("anotherExamplePlot.png",
        plot = plot_in_variable)
 ```
 
-### heatmap() ##################################################################
-If you like heatmaps also check out the pheatmap package
-```{r}
-heatmap(as.matrix(mtcars))
-
-# Scaling the categories instead
-heatmap(as.matrix(mtcars), scale = "column")
-pheatmap::pheatmap(as.matrix(mtcars))
-```
-
-### PCA
-```{r}
-mtcars <- mtcars
-
-pca_raw <- prcomp(mtcars, scale = TRUE)
-
-?prcomp
-
-# The output of prcomp is a list
-# The element named "x" contains the actual principle components
-# Though, it needs to be converted from a matrix to a dataframe for ggplot
-pc_values <- pca_raw$x %>%
-  as.data.frame() %>%
-  rownames_to_column("car_make")
-
-ggplot(pc_values, aes(x = PC1, y = PC2)) +
-  geom_point() +
-  ggrepel::geom_text_repel(aes(label = car_make))
-```
+### Include pdf() and png()
+### dev.off()
 
 ## Activity
 
