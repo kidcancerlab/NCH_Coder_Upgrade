@@ -36,7 +36,7 @@ This object contains tumor cells isolated from a collection of clinical specimen
 Start by loading the data and visualizing the appearance/clustering as processed previously.
 
 ```{r import_data}
-# Load the Seurat object into the namespace as 'scdata'
+# Load the Seurat object into the namespace
 load("osteoshark.RData")
 
 # Plot the data as it has been processed
