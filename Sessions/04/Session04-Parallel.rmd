@@ -24,8 +24,13 @@ Depending on what environment you are using, you will have either the number of 
 You can test to see how many computing cores are available in this session by running the command below:
 
 ```{r}
-# Running this function will tell you how many cpu cores you currently have available
+# Run this function to see how many cpu cores you currently have available
 parallel::detectCores()
+
+# JUST KIDDING! Be careful to distinguish hardware cores from those
+# that have been allotted to you through the scheduler (slurm)
+# This function respects the scheduler:
+parallelly::availableCores()
 ```
 
 *NOTE: The procedures we will use in this exercise will only work if R is running in a Mac/UNIX/Linux environment. This is because the most efficient (and embarrasingly easy to implement) solutions for multi-core computing in R rely on a process called "forking", which Windows doesn't support. You're OK if you're working on a Windows machine to remote into the cluster, or if you're using a local windows machine to pass commands to a remote Linux machine (like in VSCode). If you need to run multi-core on a Windows machine, check out solutions like the doParallel package.
@@ -70,12 +75,8 @@ We will create a list of Seurat objects containing your chosen datasets. We will
 5. Determine how much time is saved by running the processes in parallel.
 6. BONUS. Want to see how all of this is happening by monitoring the processes running on the cluster in real time? Open a separate shell running on the same node and run "top". Then, set the process in motion and observe how your code utilizes the different cores.
 7. Now repeat this procedure to create a function that will process your Seurat objects (NormalizeData, FindVariableFeatures, ScaleData, RunPCA, FindNeighbors, FindClusters, RunUMAP), then plot the UMAPs. How much time do you save with this step by running it parallel?
-8. BONUS. Copy your code to a second block and restructure it so that the data loading and processing operations occur in a single parallel computing operation, rather than two separate parallel computing operations. Embed a series of timestamps to benchmark the two approaches and compare the results. Does combining the two operations increase efficiency? Why or why not?
-
-***A NOTE ABOUT COMPUTATIONAL STEWARDSHIP***
-For the purposes of this course, we are performing parallel computing operations using an interactive session, to which we've assigned several computing resources. Generally, this is a very inefficient way to utilize resources, because you are really only using all of the requested CPUs for brief bursts of activity. The rest of the time, those cores sit idle while you write your code, but are not available for others to use. Leaving idle sessions like this running for long periods of time is poor form on a resource that is free to you (like Franklin) and a good way to spend a lot of money on computing power that you're not actually using. 
-
-While interactive sessions like this can be helpful for development and debugging, they should generally be avoided. Also, when using an interactive session requesting multiple computing nodes, you should try to limit the number of nodes requested to those that you actually need and limit the time that you maintain the allocation (ie, close the session when you are done).
+8. BONUS. Restructure your code so that the data loading and processing operations occur in a single parallel computing operation, rather than two separate parallel computing operations. Embed a series of timestamps to benchmark the two approaches and compare the results. Does combining the two operations increase efficiency? Why or why not?
+9. BONUS. Are the data objects created using the serial and the parallel processing approaches identical? Why or why not? (see https://pat-s.me/reproducibility-when-going-parallel/ for some helpful information)
 
 ```{r parallel-1}
 # Create a function to process matrices to a Seurat object
@@ -96,133 +97,81 @@ geo_data_2 <- geo_data %>%
     split(1:nrow(geo_data)) %>%
     `names<-`(geo_data$id)
 
-
 # Set the start time
+message("Starting serial processing for loading/creating Seurat objects...")
 t <- c(Sys.time())
 
 # Map the function onto the list of vectors
-tumors_list <- lapply(geo_data_2, create_seurat)
+tumors_serial <- lapply(geo_data_2, create_seurat)
 
 # Set the completion time for above and start time for below
+message("Moving on to parallel processing for loading/creating Seurat objects...")
 t[2] <- Sys.time()
 
 # Now repeat the function using mclapply
-tumors_list <- mclapply(geo_data_2, create_seurat, mc.cores = 8L)
+tumors_parallel <- mclapply(geo_data_2, create_seurat, mc.cores = 10L)
 
 # Mark completion time for the parallel operation and calculate processing
+message("Done.")
 t[3] <- Sys.time()
-print(paste("Serial processing time:", t[2] - t[1], "seconds"))
-print(paste("Parallel processing time:", t[3] - t[2], "seconds"))
+print(paste("Serial processing time:",
+    difftime(t[2], t[1], units = "secs"),
+    "seconds"))
+print(paste("Parallel processing time:",
+    difftime(t[3], t[2], units = "secs"),
+    "seconds"))
+
+# Test to see of the two results are the same
+print("Are the objects the same?")
+identical(tumors_serial, tumors_parallel)
+
+# Create a function to process from normalize to umap
+process_seurat <- function(x) {
+    x <- x %>%
+        NormalizeData(verbose = FALSE) %>%
+        FindVariableFeatures(verbose = FALSE) %>%
+        ScaleData(verbose = FALSE) %>%
+        RunPCA(verbose = FALSE) %>%
+        FindNeighbors(verbose = FALSE) %>%
+        FindClusters(verbose = FALSE) %>%
+        RunUMAP(dims = 1:20, verbose = FALSE)
+    return(x)
+}
+
+# Set the time for starting the serial processing
+message("Starting serial processing of the Seurat objects...")
+t[4] <- Sys.time()
+
+# Map the function to the list of Seurat objects using lapply
+tumors_serial <- lapply(tumors_serial, process_seurat)
+
+# Mark completion of the previous operation and start of the next
+message("Starting parallel processing of the Seurat objects...")
+t[5] <- Sys.time()
+
+# Map the function using mclapply
+tumors_parallel <- mclapply(tumors_serial, process_seurat, mc.cores = 10L)
+
+# Mark completion and calculate times
+message("Done.")
+t[6] <- Sys.time()
+print(paste("Serial processing time:",
+    difftime(t[5], t[4], units = "secs"),
+    "seconds"))
+print(paste("Parallel processing time:",
+    difftime(t[6], t[5], units = "secs"),
+    "seconds"))
 
 
 ```
 
 ## Practice 2: Identify genes associated with branch-to-leaf transitions
 
-Now, perform a differential expression analysis with your favorite trajectory to identify genes that vary at the branch pointes and that define the leaves across pseudotime. This is called a "graph autocorrelation analysis" in the world of Monocle.
+***A NOTE ABOUT COMPUTATIONAL STEWARDSHIP***
+For the purposes of this course, we are performing parallel computing operations using an interactive session, to which we've assigned several computing resources. Generally, this is a very inefficient way to utilize resources, because you are really only using all of the requested CPUs for brief bursts of activity. The rest of the time, those cores sit idle while you write your code, but are not available for others to use. Leaving idle sessions like this running for long periods of time is poor form on a resource that is free to you (like Franklin) and a good way to spend a lot of money on computing power that you're not actually using. 
 
-1. Using a cell_data_set object generated above, find genes whose expression differentiates branches and leaves from each other (use graph_test from monocle3). Be sure to specify "neighbor_graph" as "principal_graph", or it will default to the knn method, which will give you degs between clusters (the default behavior).
-2. Explore the resulting data frame. This shows how each gene within your object vary across the trajectory while being similar within spatially-nearby cells (Moran's I).
-3. 
-2. Pick a leaf or two of interest.
-3. Explore the genes that distinguish those leaves from each other. Pick 2-4 genes of interest. Find at least one gene whose expression is lost over the trajectory.
-4. Plot those genes of interest visually on the UMAP to show how expression changes over time. 
+While interactive sessions like this can be helpful for development and debugging, they should generally be avoided. Also, when using an interactive session requesting multiple computing nodes, you should try to limit the number of nodes requested to those that you actually need and limit the time that you maintain the allocation (ie, close the session when you are done).
 
-
-```{r}
-# Create a data frame containing genes that differentiate branches and leaves
-# from each other
-pseudo_degs <- graph_test(cds_obj,
-    neighbor_graph = "principal_graph",
-    cores = 4)
-head(pseudo_degs, n = 20)
-head(pseudo_degs %>% arrange(-morans_I), n = 20)
-
-# Fix the rownames created in the conversion process by seuratWrappers
-rowData(cds_obj)$gene_name <- rownames(cds_obj)
-rowData(cds_obj)$gene_short_name <- rowData(cds_obj)$gene_name
-
-# Plot a few selected genes from the DEG onto the trajectory
-plot_genes <- pseudo_degs %>%
-    arrange(-morans_I) %>%
-    head(n = 16) %>%
-    rownames()
-
-p <- plot_cells(cds_obj,
-    genes = plot_genes,
-    cell_size = 1,
-    cell_stroke = 0,
-    label_branch_points = FALSE,
-    label_leaves = FALSE,
-    trajectory_graph_segment_size = 0.75)
-
-# Select genes of interest from the graph_test and perform reverse
-# UMAP embedding/clustering *** in progress
-genes_of_interest <- pseudo_degs %>%
-    filter(q_value < 0.05) %>%
-    filter(morans_I > 0.1) %>%
-    rownames()
-cds_subset <- tibble(cell = rownames(colData(cds_obj)),
-    cell_group = colData(cds_obj)$cell.type)
-expression_modules <- find_gene_modules(
-    cds_obj[genes_of_interest, ],
-    resolution = c(10^seq(-6, -1)))
-```
-
-## Practice 3: Trajectory analysis with slingshot
-
-***
-
-A helpful reference to understand the workflow is the vignette included with the slingshot package in the bioconductor repository: https://bioconductor.org/packages/devel/bioc/vignettes/slingshot/inst/doc/vignette.html.
-
-```{r rosters, results='asis'}
-# Create a singleCellExperiment object from the Seurat object
-sce_obj <- as.SingleCellExperiment(seurat_obj)
-
-# Use this data object to perform trajectory analysis using the
-# slingshot algorithm
-sce_obj <- slingshot(sce_obj,
-    clusterLabels = "assignment",
-    reducedDim = "UMAP",
-    start.clus = "Growth - ribogenesis")
-
-# Plot the initial trajectory
-plot(reducedDims(sce_obj)$UMAP,
-    col = plot_cols[colData(sce_obj)$ident],
-    asp = 1,
-    pch = 16)
-lines(SlingshotDataSet(sce_obj), lwd = 2, col = "gray40")
-
-# Plot using ggplot
-# Extract relevant data into data frames first
-sce_df <- data.frame(reducedDims(sce_obj)$UMAP,
-    ident = colData(sce_obj)$ident)
-
-# Plot the minimum spanning tree generated by slingshot
-sce_mst <- slingMST(sce_obj, as.df = TRUE)
-ggplot(sce_df, aes(x = UMAP_1, y = UMAP_2)) +
-    geom_point(aes(color = ident)) +
-    geom_point(data = sce_mst,
-        size = 3,
-        color = "gray40") +
-    geom_path(data = sce_mst %>% arrange(Order),
-        aes(group = Lineage),
-        size = 1.5,
-        color = "gray40") +
-    scale_color_manual(values = plot_cols) +
-    coord_fixed()
-
-# Plot the slingshot-generated trajectories
-sce_curves <- slingCurves(sce_obj, as.df = TRUE)
-ggplot(sce_df, aes(x = UMAP_1, y = UMAP_2)) +
-    geom_point(aes(color = ident)) +
-    geom_path(data = sce_curves,
-        aes(group = Lineage),
-        size = 2,
-        color = "gray40") +
-    scale_color_manual(values = plot_cols) +
-    coord_fixed()
-```
 
 ## Discussion of pseudotime analysis/trajectory inference
 
