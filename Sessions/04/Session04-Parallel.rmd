@@ -81,7 +81,7 @@ We will create a list of Seurat objects containing your chosen datasets. We will
 ```{r parallel-1}
 # Create a function to process matrices to a Seurat object
 create_seurat <- function(x) {
-    tenx_load_qc(
+    x <- tenx_load_qc(
         path_10x = paste0(
             "PrimaryTumor/",
             x$gse, "/",
@@ -89,6 +89,7 @@ create_seurat <- function(x) {
         violin_plot = FALSE,
         sample_name = x$id
     )
+    return(x)
 }
 
 # Split the tibble into a list of vectors
@@ -162,16 +163,70 @@ print(paste("Parallel processing time:",
     difftime(t[6], t[5], units = "secs"),
     "seconds"))
 
+# Are these two objects identical?
+print("Are these two objects identical?")
+identical(tumors_serial, tumors_parallel)
 
+# Compare jobs run within a single operation
+single_op <- function(x) {
+    message("One of the processes is starting...")
+    create_seurat(x)
+    message("One of the processes is transitioning to the second stage...")
+    process_seurat(x)
+    message("One of the processes has completed.")
+    return(x)
+}
+
+message("Starting the combined creating/processing approach...")
+t[7] <- Sys.time()
+
+tumors_parallel_2 <- mclapply(geo_data_2, single_op, mc.cores = 10L)
+
+t[8] <- Sys.time()
+
+print(paste("Total time for create, then process:",
+    difftime(t[3], t[2], units = "secs") + difftime(t[6], t[5], units = "secs"),
+    "seconds"))
+print(paste("Total time for create + process in a single step:",
+    difftime(t[8], t[7], units = "secs"),
+    "seconds"))
 ```
 
-## Practice 2: Identify genes associated with branch-to-leaf transitions
+## Practice 2: Be a good doobie (time permitting)
 
 ***A NOTE ABOUT COMPUTATIONAL STEWARDSHIP***
 For the purposes of this course, we are performing parallel computing operations using an interactive session, to which we've assigned several computing resources. Generally, this is a very inefficient way to utilize resources, because you are really only using all of the requested CPUs for brief bursts of activity. The rest of the time, those cores sit idle while you write your code, but are not available for others to use. Leaving idle sessions like this running for long periods of time is poor form on a resource that is free to you (like Franklin) and a good way to spend a lot of money on computing power that you're not actually using. 
 
 While interactive sessions like this can be helpful for development and debugging, they should generally be avoided. Also, when using an interactive session requesting multiple computing nodes, you should try to limit the number of nodes requested to those that you actually need and limit the time that you maintain the allocation (ie, close the session when you are done).
 
+So, is there a way to be more efficient AND be a good citizen of our cyberspace?
+
+YES! Here are some options:
+1. Break your code down into sections that can be run as batch submissions through slurm.
+2. Automate the above using the rslurm package. Run your interactive session on a single core (only requesting a single core in your srun or salloc interactive session scheduling request).
+3. Find a middle ground. Requesting 3 cores will still speed up your data-intense operations about 3-fold, but leaves a lot more computing resources for others. (Or costs a lot less if you're paying for your wall hours.)
+
+```{r parallel-slurm-r}
+# Run the same block of code above as a slurm batch submission using rslurm
+library(rslurm)
+
+# Mark completion of the previous operation and start of the next
+message("Starting parallel processing of the Seurat objects...")
+t[9] <- Sys.time()
+
+# Map the function using mclapply
+tumors_parallel <- slurm_map(tumors_serial, process_seurat, mc.cores = 10L)
+
+# Mark completion and calculate times
+message("Done.")
+t[10] <- Sys.time()
+print(paste("Parallel processing time - mclapply:",
+    difftime(t[5], t[4], units = "secs"),
+    "seconds"))
+print(paste("Parallel processing time - slurm_map:",
+    difftime(t[6], t[5], units = "secs"),
+    "seconds"))
+```
 
 ## Discussion of pseudotime analysis/trajectory inference
 
