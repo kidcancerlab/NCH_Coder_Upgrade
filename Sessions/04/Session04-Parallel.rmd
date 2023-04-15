@@ -169,11 +169,11 @@ identical(tumors_serial, tumors_parallel)
 
 # Compare jobs run within a single operation
 single_op <- function(x) {
-    message("One of the processes is starting...")
-    create_seurat(x)
-    message("One of the processes is transitioning to the second stage...")
-    process_seurat(x)
-    message("One of the processes has completed.")
+    id <- x$id
+    message(paste(id, "is starting..."))
+    x <- create_seurat(x) %>%
+        process_seurat()
+    message(paste(id, "has completed."))
     return(x)
 }
 
@@ -205,6 +205,9 @@ YES! Here are some options:
 1. Break your code down into sections that can be run as batch submissions through slurm.
 2. Automate the above using the rslurm package. Run your interactive session on a single core (only requesting a single core in your srun or salloc interactive session scheduling request).
 3. Find a middle ground. Requesting 3 cores will still speed up your data-intense operations about 3-fold, but leaves a lot more computing resources for others. (Or costs a lot less if you're paying for your wall hours.)
+4. Make sure you turn things on and off to reduce your footprint. Use srun ... R to start your R sessions
+
+Try one of these potential solutions above and see how it affects performace using benchmarks.
 
 ```{r parallel-slurm-r}
 # Run the same block of code above as a slurm batch submission using rslurm
@@ -214,8 +217,14 @@ library(rslurm)
 message("Starting parallel processing of the Seurat objects...")
 t[9] <- Sys.time()
 
-# Map the function using mclapply
-tumors_parallel <- slurm_map(tumors_serial, process_seurat, mc.cores = 10L)
+# Map the function using slurm_map
+slurm_job <- slurm_map(tumors_serial,
+    process_seurat,
+    nodes = 1,
+    cpus_per_node = length(tumors_serial))
+tumors_parallel_3 <- get_slurm_out(slurm_job,
+    outtype = "raw",
+    wait = TRUE)
 
 # Mark completion and calculate times
 message("Done.")
