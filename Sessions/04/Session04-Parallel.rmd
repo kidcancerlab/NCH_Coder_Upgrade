@@ -107,7 +107,7 @@ tumors_list <- lapply(geo_data_2, create_seurat)
 t[2] <- Sys.time()
 
 # Now repeat the function using mclapply
-tumors_list <- mclapply(geo_data_2, create_seurat)
+tumors_list <- mclapply(geo_data_2, create_seurat, mc.cores = 8L)
 
 # Mark completion time for the parallel operation and calculate processing
 t[3] <- Sys.time()
