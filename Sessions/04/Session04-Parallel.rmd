@@ -1,0 +1,296 @@
+---
+title: "SCRGOT 2023 Coder Upgrade Session 04 - Speeding things up with parallel processing"
+author: "Ryan Roberts"
+date: "4/15/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(patchwork)
+library(rrrSingleCellUtils)
+library(Seurat)
+library(parallel)
+
+theme_set(theme_classic())
+```
+
+## Before we begin, ensure a cluster allocation appropriate for parallel processing
+
+Depending on what environment you are using, you will have either the number of cores that are physically on your local machine (computing locally) or the number of cores assigned to you by the management device (computing remotely on a cluster). For instance, when using slurm on the Franklin cluster, you will need to specify the number of cores requested by using the "-c ##" option when executing the srun or salloc command you used to launch this session. For the purposes of this exercise, we recommend requesting 5-10 cores (or using a local machine that has several cores available). 
+
+You can test to see how many computing cores are available in this session by running the command below:
+
+```{r}
+# Running this function will tell you how many cpu cores you currently have available
+parallel::detectCores()
+```
+
+*NOTE: The procedures we will use in this exercise will only work if R is running in a Mac/UNIX/Linux environment. This is because the most efficient (and embarrasingly easy to implement) solutions for multi-core computing in R rely on a process called "forking", which Windows doesn't support. You're OK if you're working on a Windows machine to remote into the cluster, or if you're using a local windows machine to pass commands to a remote Linux machine (like in VSCode). If you need to run multi-core on a Windows machine, check out solutions like the doParallel package.
+
+## Examine the data
+
+The "PrimaryTumor" folder contains several single cell datasets downloaded from two different GEO entries. The names of the next level folders (GSEXXXXXX) are the GEO accession IDs. Within these are a series of folders named by the sample ID reported in the publication, each containing the three barcodes/features/matrix files produced by a cellranger alignment. The tibble created below consolidates key data elements associated with each sample.
+
+The samples used to create these datasets were tumors taken from individuals diagnosed with a type of bone tumor (osteosarcoma). Osteosarcoma has several different histologic subtypes (the "path" element below). Primary tumors form in bones, while the lungs are the most common site of metastasis (the "type" argument). There was no additional processing/sorting of the tumor samples before sequencing, so the datasets contain both tumor cells and the surrounding stromal and immune components. The "nCount" column contains a simple pre-determined qc cutoff to reduce doublets.
+
+Within these data are opportunites to address several different scientific questions. Think of some question that you might ask of such data, then select the datasets that you'd use to answer it (for this exercise, ideally 6-10 datasets). Delete or comment out the rows that you won't use, then run the code to create the tibble.
+
+```{r define_data}
+geo_data <- tribble(
+    ~gse, ~id, ~nCount, ~path, ~type,
+    "GSE152048", "BC5", 18000, "Conventional", "Primary",
+    "GSE152048", "BC6", 25000, "Conventional", "Primary",
+    "GSE152048", "BC10", 25000, "Conventional", "Lung Met",
+    "GSE152048", "BC11", 30000, "Conventional", "Primary",
+    "GSE152048", "BC16", 70000, "Conventional", "Primary",
+    "GSE152048", "BC17", 40000, "Chondroblastic", "Lung Met",
+    "GSE152048", "BC20", 70000, "Chondroblastic", "Primary",
+    "GSE152048", "BC21", 50000, "Intraosseous", "Primary",
+    "GSE152048", "BC22", 50000, "Chondroblastic", "Primary",
+    "GSE162454", "OS_1", 50000, "Conventional", "Primary",
+    "GSE162454", "OS_2", 45000, "Conventional", "Primary",
+    "GSE162454", "OS_3", 23000, "Conventional", "Primary",
+    "GSE162454", "OS_4", 50000, "Conventional", "Primary",
+    "GSE162454", "OS_5", 50000, "Conventional", "Primary",
+    "GSE162454", "OS_6", 45000, "Conventional", "Primary"
+)
+mclapply()
+```
+
+## Practice 1: Simple parallelization with mclapply (from the parallel package)
+
+We will create a list of Seurat objects containing your chosen datasets. We will start by loading and processing the objects 
+
+
+1. Create a function that will utilize the variables from the tibble you created to convert the data matrices found in the "PrimaryTumor" folder into Seurat objects, subsetting for nCount_RNA < $path as a super basic QC. HINT: feel free to use the tenx_load_qc function from rrrSingleCellUtils to streamline the process.
+2. Now map the data from the tibble into the function using lapply to create a list of Seurat objects.
+3. Then wrap this code with a pair of system timestamps [Sys.time()] and calculate the difference to document the time it takes to perform the operation.
+4. Once you have this working, copy that block of code and paste it at the end of the chunk. Then, simply change the "lapply" command to "mclapply" and add the mc.cores argument, with the number of cores set to those you requested in your session.
+5. Determine how much time is saved by running the processes in parallel.
+6. BONUS. Want to see how all of this is happening by monitoring the processes running on the cluster in real time? Open a separate shell running on the same node and run "top". Then, set the process in motion and observe how your code utilizes the different cores.
+7. Now repeat this procedure to create a function that will process your Seurat objects (NormalizeData, FindVariableFeatures, ScaleData, RunPCA, FindNeighbors, FindClusters, RunUMAP), then plot the UMAPs. How much time do you save with this step by running it parallel?
+8. BONUS. Copy your code to a second block and restructure it so that the data loading and processing operations occur in a single parallel computing operation, rather than two separate parallel computing operations. Embed a series of timestamps to benchmark the two approaches and compare the results. Does combining the two operations increase efficiency? Why or why not?
+
+***A NOTE ABOUT COMPUTATIONAL STEWARDSHIP***
+For the purposes of this course, we are performing parallel computing operations using an interactive session, to which we've assigned several computing resources. Generally, this is a very inefficient way to utilize resources, because you are really only using all of the requested CPUs for brief bursts of activity. The rest of the time, those cores sit idle while you write your code, but are not available for others to use. Leaving idle sessions like this running for long periods of time is poor form on a resource that is free to you (like Franklin) and a good way to spend a lot of money on computing power that you're not actually using. 
+
+While interactive sessions like this can be helpful for development and debugging, they should generally be avoided. Also, when using an interactive session requesting multiple computing nodes, you should try to limit the number of nodes requested to those that you actually need and limit the time that you maintain the allocation (ie, close the session when you are done).
+
+```{r enrollment}
+# Add metadata to carry over the clustering information to the new object
+seurat_obj$monocle3_clusters <- seurat_obj$assignment
+seurat_obj$monocle3_partitions <- "p1"
+
+# Convert the Seurat object to a Monocle (cell_data_set) object
+cds_obj <- SeuratWrappers::as.cell_data_set(seurat_obj)
+
+# View the transferred metadata, dimensional reductions, and assays
+as_tibble(colData(cds_obj))
+reducedDims(cds_obj)
+assayNames(cds_obj)
+
+# Calculate the pseudotime/trajectories, then
+# Test different parameters for ncenter ("resolution" of the trajectory graph)
+g <- list()
+g <- parallel::mclapply(c(200, 300, 400, 500), function(s) {
+    p <- cluster_cells(cds_obj) %>%
+        learn_graph(use_partition = FALSE,
+        learn_graph_control = list(ncenter = s)) %>%
+        plot_cells(graph_label_size = 5) +
+        ggtitle(paste("ncenter =", s)) +
+        coord_fixed()
+    return(p)
+}, mc.cores = 4)
+(g[[1]] | g[[2]]) / (g[[3]] | g[[4]])
+
+# Choose ncenter = 300 -- it picks up the inflammatory cluster as a leaf
+cds_obj <- cluster_cells(cds_obj) %>%
+    learn_graph(use_partition = FALSE,
+    learn_graph_control = list(ncenter = 300))
+
+# Plot cells colored by pesudotime (have to order first [interactive])
+cds_obj <- order_cells(cds_obj,
+    reduction_method = "UMAP")
+plot_cells(cds_obj,
+    color_cells_by = "pseudotime",
+    cell_size = 0.75,
+    graph_label_size = 5,
+    trajectory_graph_segment_size = 1.5) +
+    ggtitle("Osteoshark connected with pseudotime") +
+    coord_fixed()
+
+# Do it with Monocle-generated processing
+cds_obj <- cds_obj %>%
+    preprocess_cds(num_dim = 30) %>%
+    align_cds(alignment_group = "src") %>%
+    reduce_dimension() %>%
+    cluster_cells() %>%
+    learn_graph(use_partition = FALSE)
+plot_cells(cds_obj,
+    color_cells_by = "assignment")
+```
+
+## Practice 2: Identify genes associated with branch-to-leaf transitions
+
+Now, perform a differential expression analysis with your favorite trajectory to identify genes that vary at the branch pointes and that define the leaves across pseudotime. This is called a "graph autocorrelation analysis" in the world of Monocle.
+
+1. Using a cell_data_set object generated above, find genes whose expression differentiates branches and leaves from each other (use graph_test from monocle3). Be sure to specify "neighbor_graph" as "principal_graph", or it will default to the knn method, which will give you degs between clusters (the default behavior).
+2. Explore the resulting data frame. This shows how each gene within your object vary across the trajectory while being similar within spatially-nearby cells (Moran's I).
+3. 
+2. Pick a leaf or two of interest.
+3. Explore the genes that distinguish those leaves from each other. Pick 2-4 genes of interest. Find at least one gene whose expression is lost over the trajectory.
+4. Plot those genes of interest visually on the UMAP to show how expression changes over time. 
+
+
+```{r}
+# Create a data frame containing genes that differentiate branches and leaves
+# from each other
+pseudo_degs <- graph_test(cds_obj,
+    neighbor_graph = "principal_graph",
+    cores = 4)
+head(pseudo_degs, n = 20)
+head(pseudo_degs %>% arrange(-morans_I), n = 20)
+
+# Fix the rownames created in the conversion process by seuratWrappers
+rowData(cds_obj)$gene_name <- rownames(cds_obj)
+rowData(cds_obj)$gene_short_name <- rowData(cds_obj)$gene_name
+
+# Plot a few selected genes from the DEG onto the trajectory
+plot_genes <- pseudo_degs %>%
+    arrange(-morans_I) %>%
+    head(n = 16) %>%
+    rownames()
+
+p <- plot_cells(cds_obj,
+    genes = plot_genes,
+    cell_size = 1,
+    cell_stroke = 0,
+    label_branch_points = FALSE,
+    label_leaves = FALSE,
+    trajectory_graph_segment_size = 0.75)
+
+# Select genes of interest from the graph_test and perform reverse
+# UMAP embedding/clustering *** in progress
+genes_of_interest <- pseudo_degs %>%
+    filter(q_value < 0.05) %>%
+    filter(morans_I > 0.1) %>%
+    rownames()
+cds_subset <- tibble(cell = rownames(colData(cds_obj)),
+    cell_group = colData(cds_obj)$cell.type)
+expression_modules <- find_gene_modules(
+    cds_obj[genes_of_interest, ],
+    resolution = c(10^seq(-6, -1)))
+```
+
+## Practice 3: Trajectory analysis with slingshot
+
+***
+
+A helpful reference to understand the workflow is the vignette included with the slingshot package in the bioconductor repository: https://bioconductor.org/packages/devel/bioc/vignettes/slingshot/inst/doc/vignette.html.
+
+```{r rosters, results='asis'}
+# Create a singleCellExperiment object from the Seurat object
+sce_obj <- as.SingleCellExperiment(seurat_obj)
+
+# Use this data object to perform trajectory analysis using the
+# slingshot algorithm
+sce_obj <- slingshot(sce_obj,
+    clusterLabels = "assignment",
+    reducedDim = "UMAP",
+    start.clus = "Growth - ribogenesis")
+
+# Plot the initial trajectory
+plot(reducedDims(sce_obj)$UMAP,
+    col = plot_cols[colData(sce_obj)$ident],
+    asp = 1,
+    pch = 16)
+lines(SlingshotDataSet(sce_obj), lwd = 2, col = "gray40")
+
+# Plot using ggplot
+# Extract relevant data into data frames first
+sce_df <- data.frame(reducedDims(sce_obj)$UMAP,
+    ident = colData(sce_obj)$ident)
+
+# Plot the minimum spanning tree generated by slingshot
+sce_mst <- slingMST(sce_obj, as.df = TRUE)
+ggplot(sce_df, aes(x = UMAP_1, y = UMAP_2)) +
+    geom_point(aes(color = ident)) +
+    geom_point(data = sce_mst,
+        size = 3,
+        color = "gray40") +
+    geom_path(data = sce_mst %>% arrange(Order),
+        aes(group = Lineage),
+        size = 1.5,
+        color = "gray40") +
+    scale_color_manual(values = plot_cols) +
+    coord_fixed()
+
+# Plot the slingshot-generated trajectories
+sce_curves <- slingCurves(sce_obj, as.df = TRUE)
+ggplot(sce_df, aes(x = UMAP_1, y = UMAP_2)) +
+    geom_point(aes(color = ident)) +
+    geom_path(data = sce_curves,
+        aes(group = Lineage),
+        size = 2,
+        color = "gray40") +
+    scale_color_manual(values = plot_cols) +
+    coord_fixed()
+```
+
+## Discussion of pseudotime analysis/trajectory inference
+
+This project gives a brief introduction to the world of pseudotime and trajectory methodologies. The large number of tools that have been developed to address this problem highlights the fact that this is a challenge with an array of imperfect solutions. Each approach provides solutions that address at least one type of problem, while no solution works well for every problem. Finding "true" trajectories often requires some trial and error using multiple different algorithms, which can often be complimentary.
+
+A very nice comparative evaluation of the different approaches to pseudotime/trajectory analysis has been published by Saelens et al (https://doi.org/10.1038/s41587-019-0071-9). It really is worth a read if you want to understand more. You might also check out the metapackage the authors built to support their comparative benchmarking (https://github.com/dynverse/dyno). It's a little outdated at this point, but they did a good job putting it together.
+
+Once weakness in nearly all of these approaches is that trajectories are almost entirely inferential. They should be viewed as different ways to "connect the dots," but they are NOT clear evidence that one cell type/cluster gives rise to another. Moreover, while some algorithms will generate educated guesses as to the directionality in the different connections between clusters, inferences of origin and destination are really just guesses. 
+
+One can often use techniques such as RNA Velocity Analysis to get more direct evidence for directionality and evolutionary relationships. Indeed, these two techniques should be viewed as being highly complimentary. We will not have time to dive into velocity analysis today (maybe next year), but the following resources are a good place to start if you'd like to learn more:
+ - https://doi.org/10.1371/journal.pcbi.1010492
+ - https://doi.org/10.15252/msb.202110282
+ - https://scvelo.readthedocs.io/en/stable/
+
+
+## Session challenge
+
+To take on today's challenge, install the dyno package* and then use it to compare results of several different approaches to trajectory inference using the same object(s). The data could be the same dataset used in class today, one taken from a repository, or one of your own. To qualify for judging, you must generate at least 8 distinct plots/analyses that evaluate different trajectories or gene expression modules that vary with pseudotime. Winners will be selected based on the following principles:
+ - how appropriate the analyses are for addressing the problem/question
+ - how creative the approach is
+ - how well the approach is documented
+ - how beautifully/accessibly the results are presented
+
+To submit your code for judging, just save a new file titled "Session10-Challenge-Ryan_Roberts.Rmd" (replacing my name with yours, obviously) in the "Challenges" folder on the SCRGOT Coder Upgrade OneDrive.
+
+*NOTE: Running the dyno package requires singularity. Singularity joined forces with the Linux foundation and became Apptainer, which is already installed on the Franklin cluster. When you run singularity commands, these will be automatically run by apptainer, and it works fine. However, if you run test_singularity_installation and use the "detailed = TRUE" option, it will tell you that the version is old. Just ignore this. Any apptainer installation is equivalent to a singularity version >3.8.
+
+```{r}
+system("ml load GCCcore/9.3.0 ImageMagick")
+library(dyno)
+
+# Set up the dyno object from the Seurat data
+# First, add the raw and normalized counts
+dyn_obj <- wrap_expression(
+    expression = GetAssayData(seurat_obj, slot = "data", assay = "RNA") %>% t(),
+    counts = GetAssayData(seurat_obj, slot = "counts", assay = "RNA") %>% t())
+
+# Second, add the clustering information
+dyn_obj <- add_grouping(dyn_obj, seurat_obj$assignment)
+ 
+# And the UMAP embeddings
+dyn_obj <- add_dimred(dyn_obj, Embeddings(seurat_obj[["umap"]]))
+
+# And the starting cell
+# Interactive steps run previously:
+# CellSelector(DimPlot(seurat_obj))
+dyn_obj <- add_prior_information(dyn_obj, 
+    start_id = "OS_3_GTTGAACTCTATCGTT-1")
+
+# Use the interactive shiny tool to explore the different methods and choose optimal
+picked <- guidelines_shiny(dyn_obj)
+
+# Run the trajectory inferrence algorithms
+
+```
