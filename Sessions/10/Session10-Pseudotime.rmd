@@ -30,7 +30,7 @@ This object contains tumor cells isolated from a collection of clinical specimen
     - $type: location of the tumor when removed from the patient (Primary or Metastasis)
     - $path: the pathology classification of the tumor (Conventional, Chondroblastic, Telangiectatic, etc.)
     - $gse: the GEO/SRA accession number where the raw data is stored
-    - $assignment: the final tumor cell subset assigment from the previous analysis
+    - $assignment: the tumor cell subset (cluster) assigment from the previous analysis
     - $partition: a higher-level set of clustering data ("clusters of clusters") that is used by Monocle during the pseudotime determination process.
 
 Start by loading the data and visualizing the appearance/clustering as processed previously.

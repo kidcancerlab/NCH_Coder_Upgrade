@@ -42,3 +42,5 @@ vignettes/*.pdf
 
 # Output files for this project
 Rosters/*
+Sessions/02/Seurat_under_the_hood_cache
+Sessions/02/Seurat_under_the_hood_files
