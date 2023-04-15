@@ -43,13 +43,13 @@ geo_data <- tribble(
     ~gse, ~id, ~nCount, ~path, ~type,
     "GSE152048", "BC5", 18000, "Conventional", "Primary",
     "GSE152048", "BC6", 25000, "Conventional", "Primary",
-    "GSE152048", "BC10", 25000, "Conventional", "Lung Met",
+    # "GSE152048", "BC10", 25000, "Conventional", "Lung Met",
     "GSE152048", "BC11", 30000, "Conventional", "Primary",
     "GSE152048", "BC16", 70000, "Conventional", "Primary",
-    "GSE152048", "BC17", 40000, "Chondroblastic", "Lung Met",
-    "GSE152048", "BC20", 70000, "Chondroblastic", "Primary",
-    "GSE152048", "BC21", 50000, "Intraosseous", "Primary",
-    "GSE152048", "BC22", 50000, "Chondroblastic", "Primary",
+    # "GSE152048", "BC17", 40000, "Chondroblastic", "Lung Met",
+    # "GSE152048", "BC20", 70000, "Chondroblastic", "Primary",
+    # "GSE152048", "BC21", 50000, "Intraosseous", "Primary",
+    # "GSE152048", "BC22", 50000, "Chondroblastic", "Primary",
     "GSE162454", "OS_1", 50000, "Conventional", "Primary",
     "GSE162454", "OS_2", 45000, "Conventional", "Primary",
     "GSE162454", "OS_3", 23000, "Conventional", "Primary",
@@ -57,13 +57,11 @@ geo_data <- tribble(
     "GSE162454", "OS_5", 50000, "Conventional", "Primary",
     "GSE162454", "OS_6", 45000, "Conventional", "Primary"
 )
-mclapply()
 ```
 
 ## Practice 1: Simple parallelization with mclapply (from the parallel package)
 
 We will create a list of Seurat objects containing your chosen datasets. We will start by loading and processing the objects 
-
 
 1. Create a function that will utilize the variables from the tibble you created to convert the data matrices found in the "PrimaryTumor" folder into Seurat objects, subsetting for nCount_RNA < $path as a super basic QC. HINT: feel free to use the tenx_load_qc function from rrrSingleCellUtils to streamline the process.
 2. Now map the data from the tibble into the function using lapply to create a list of Seurat objects.
@@ -79,58 +77,44 @@ For the purposes of this course, we are performing parallel computing operations
 
 While interactive sessions like this can be helpful for development and debugging, they should generally be avoided. Also, when using an interactive session requesting multiple computing nodes, you should try to limit the number of nodes requested to those that you actually need and limit the time that you maintain the allocation (ie, close the session when you are done).
 
-```{r enrollment}
-# Add metadata to carry over the clustering information to the new object
-seurat_obj$monocle3_clusters <- seurat_obj$assignment
-seurat_obj$monocle3_partitions <- "p1"
+```{r parallel-1}
+# Create a function to process matrices to a Seurat object
+create_seurat <- function(x) {
+    tenx_load_qc(
+        path_10x = paste0(
+            "PrimaryTumor/",
+            x$gse, "/",
+            x$id),
+        violin_plot = FALSE,
+        sample_name = x$id
+    )
+}
 
-# Convert the Seurat object to a Monocle (cell_data_set) object
-cds_obj <- SeuratWrappers::as.cell_data_set(seurat_obj)
+# Split the tibble into a list of vectors
+geo_data_2 <- geo_data %>%
+    as.data.frame() %>%
+    split(1:nrow(geo_data)) %>%
+    `names<-`(geo_data$id)
 
-# View the transferred metadata, dimensional reductions, and assays
-as_tibble(colData(cds_obj))
-reducedDims(cds_obj)
-assayNames(cds_obj)
 
-# Calculate the pseudotime/trajectories, then
-# Test different parameters for ncenter ("resolution" of the trajectory graph)
-g <- list()
-g <- parallel::mclapply(c(200, 300, 400, 500), function(s) {
-    p <- cluster_cells(cds_obj) %>%
-        learn_graph(use_partition = FALSE,
-        learn_graph_control = list(ncenter = s)) %>%
-        plot_cells(graph_label_size = 5) +
-        ggtitle(paste("ncenter =", s)) +
-        coord_fixed()
-    return(p)
-}, mc.cores = 4)
-(g[[1]] | g[[2]]) / (g[[3]] | g[[4]])
+# Set the start time
+t <- c(Sys.time())
 
-# Choose ncenter = 300 -- it picks up the inflammatory cluster as a leaf
-cds_obj <- cluster_cells(cds_obj) %>%
-    learn_graph(use_partition = FALSE,
-    learn_graph_control = list(ncenter = 300))
+# Map the function onto the list of vectors
+tumors_list <- lapply(geo_data_2, create_seurat)
 
-# Plot cells colored by pesudotime (have to order first [interactive])
-cds_obj <- order_cells(cds_obj,
-    reduction_method = "UMAP")
-plot_cells(cds_obj,
-    color_cells_by = "pseudotime",
-    cell_size = 0.75,
-    graph_label_size = 5,
-    trajectory_graph_segment_size = 1.5) +
-    ggtitle("Osteoshark connected with pseudotime") +
-    coord_fixed()
+# Set the completion time for above and start time for below
+t[2] <- Sys.time()
 
-# Do it with Monocle-generated processing
-cds_obj <- cds_obj %>%
-    preprocess_cds(num_dim = 30) %>%
-    align_cds(alignment_group = "src") %>%
-    reduce_dimension() %>%
-    cluster_cells() %>%
-    learn_graph(use_partition = FALSE)
-plot_cells(cds_obj,
-    color_cells_by = "assignment")
+# Now repeat the function using mclapply
+tumors_list <- mclapply(geo_data_2, create_seurat)
+
+# Mark completion time for the parallel operation and calculate processing
+t[3] <- Sys.time()
+print(paste("Serial processing time:", t[2] - t[1], "seconds"))
+print(paste("Parallel processing time:", t[3] - t[2], "seconds"))
+
+
 ```
 
 ## Practice 2: Identify genes associated with branch-to-leaf transitions
