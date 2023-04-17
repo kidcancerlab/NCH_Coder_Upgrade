@@ -1,0 +1,119 @@
+---
+title: "Coder Upgrade 2023: Cell Cell interaction analysis"
+author: "Matt Cannon"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+output:
+    html_document:
+        toc: true
+        toc_float: true
+        toc_depth: 5
+        number_sections: false
+        code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      cache = TRUE,
+                      cache.lazy = FALSE)
+```
+
+Load libraries
+```{r libraries, cache=FALSE, warning=FALSE, error=FALSE, message=FALSE, eval=TRUE}
+library(rrrSingleCellUtils)
+library(tidyverse)
+library(Seurat)
+```
+
+Pulled from https://github.com/kidcancerlab/CellTypeAnnRefs/blob/main/HuOsteo/Primary-AnnotateTumor.Rmd
+
+```{r eval=FALSE}
+selection <- readRDS("/gpfs0/scratch/2023_coder_upgrade/selection.rds")
+tumor <- subset(qs::qread("/gpfs0/scratch/2023_coder_upgrade/comb.qs"), cells = selection)
+
+n_cells_grp <- 400
+
+set.seed(1337)
+cells_keep <-
+    tumor@meta.data %>%
+    as.data.frame() %>%
+    rownames_to_column("cell") %>%
+    group_by(src) %>%
+    slice_sample(n = n_cells_grp) %>%
+    pull(cell)
+
+# Normalize and scale tumor dataset
+tumor <-
+    subset(tumor, cells = cells_keep) %>%
+    NormalizeData() %>%
+    FindVariableFeatures() %>%
+    ScaleData() %>%
+    RunPCA(verbose = F)
+
+tumor_h <-
+    harmony::RunHarmony(tumor, group.by.vars = "src") %>%
+    RunUMAP(reduction = "harmony", dims = 1:20) %>%
+    FindNeighbors(reduction = "harmony", dims = 1:20) %>%
+    FindClusters(reduction = "harmony", resolution = 0.2)
+
+plot_name <-
+    DimPlot(tumor_h,
+            label = TRUE,
+            label.size = 6)
+
+ggsave("os_shark_400_UMAP.png",
+       plot = plot_name,
+       width = 8,
+       height = 8)
+
+de_results <- FindAllMarkers(tumor_h)
+
+pathways <-
+    parallel::mclapply(levels(de_results$cluster),
+           function(x) {
+               genes <-
+                   de_results %>%
+                   filter(cluster == x) %>%
+                   arrange(desc(avg_log2FC)) %>%
+                   distinct() %>%
+                   pull(avg_log2FC, name = gene)
+
+                gs_out <-
+                    clusterProfiler::gseGO(geneList = genes,
+                                           OrgDb = org.Hs.eg.db::org.Hs.eg.db,
+                                           keyType = "SYMBOL",
+                                           ont = c("BP", "MF"),
+                                           nPermSimple = 10000,
+                                           eps = 0) %>%
+                    as.tibble()
+
+                return(gs_out)
+           },
+    mc.cores = 4)
+
+names(pathways) <- levels(de_results$cluster)
+pathways <- bind_rows(pathways, .id = "cluster")
+
+top_paths <-
+    pathways %>%
+    filter(NES > 0) %>%
+    group_by(cluster) %>%
+    top_n(10, p.adjust) %>%
+    pull(Description) %>%
+    unique()
+
+plot_name <-
+    pathways %>%
+    filter(Description %in% top_paths) %>%
+    select(NES, Description, cluster) %>%
+    pivot_wider(names_from = cluster,
+                values_from = NES) %>%
+    column_to_rownames("Description") %>%
+    mutate(across(everything(), ~ replace_na(., 0))) %>%
+    pheatmap::pheatmap()
+ggsave("os_shark_400_paths.png",
+       plot = plot_name,
+       width = 10,
+       height = 10)
+
+qs::qsave(tumor_h, "os_shark_400.qs")
+```
