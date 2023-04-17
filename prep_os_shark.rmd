@@ -81,7 +81,7 @@ pathways <-
                     clusterProfiler::gseGO(geneList = genes,
                                            OrgDb = org.Hs.eg.db::org.Hs.eg.db,
                                            keyType = "SYMBOL",
-                                           ont = c("BP", "MF"),
+                                           ont = "ALL",
                                            nPermSimple = 10000,
                                            eps = 0) %>%
                     as.tibble()
@@ -95,9 +95,10 @@ pathways <- bind_rows(pathways, .id = "cluster")
 
 top_paths <-
     pathways %>%
-    filter(NES > 0) %>%
+    filter(NES > 0 &
+           ONTOLOGY != "CC") %>%
     group_by(cluster) %>%
-    top_n(10, p.adjust) %>%
+    top_n(15, p.adjust) %>%
     pull(Description) %>%
     unique()
 
@@ -113,7 +114,40 @@ plot_name <-
 ggsave("os_shark_400_paths.png",
        plot = plot_name,
        width = 10,
-       height = 10)
+       height = 12)
+
+cluster_labels <-
+    tribble(~ seurat_clusters,  ~ mol_funct,
+            0,                  "Protein production",
+            1,                  "Dividing cells",
+            2,                  "Migratory cells",
+            3,                  "ECM remodeling",
+            4,                  "Highly metabolic cells",
+            5,                  "Inflammation modulation",
+            6,                  "Inflammation modulation and metabolism") %>%
+    mutate(seurat_clusters = as.factor(seurat_clusters))
+
+temp <- full_join(as.data.frame(tumor_h@meta.data), cluster_labels)
+
+if (all(temp$nCount_RNA == tumor_h$nCount_RNA)) {
+    tumor_h$mol_funct <- temp$mol_funct
+} else {
+    stop("Something went wrong with the mol function merge")
+}
+rm(temp)
+
+
+plot_name <-
+    DimPlot(tumor_h,
+            label = TRUE,
+            label.size = 4,
+            group.by = "mol_funct") +
+    NoLegend()
+
+ggsave("os_shark_400_UMAP_mol_funct.png",
+       plot = plot_name,
+       width = 8,
+       height = 8)
 
 qs::qsave(tumor_h, "os_shark_400.qs")
 ```

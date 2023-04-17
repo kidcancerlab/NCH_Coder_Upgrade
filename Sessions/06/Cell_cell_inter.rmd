@@ -1,0 +1,179 @@
+---
+title: "Coder Upgrade 2023: Cell Cell interaction analysis"
+author: "Matt Cannon"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+output:
+    html_document:
+        toc: true
+        toc_float: true
+        toc_depth: 5
+        number_sections: false
+        code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      cache = TRUE,
+                      cache.lazy = FALSE)
+```
+
+Load libraries
+```{r libraries, cache=FALSE, warning=FALSE, error=FALSE, message=FALSE, eval=TRUE}
+library(rrrSingleCellUtils)
+library(tidyverse)
+library(Seurat)
+library(nichenetr)
+```
+
+--------------------------------------------------------------------------------
+
+# Section 1: Overview
+
+
+## What is the goal of cell-cell interaction analysis?
+
+## What are common tools used to do this?
+
+CellphoneDB
+Cellchat
+
+
+### Nichenetr
+
+Nichenetr relies on a pre-defined model of ligand - target interactions
+It applies this model to your data to identify possible interactions
+
+## Get their pre-defined model data
+From "https://zenodo.org/record/3260758/files/ligand_target_matrix.rds" and
+"https://zenodo.org/record/3260758/files/lr_network.rds"
+```{r eval=FALSE}
+ligand_target_matrix <-
+    readRDS("/gpfs0/home1/gdworkshop/lab/session_data/ligand_target_matrix.rds")
+
+lr_network <-
+    readRDS("/gpfs0/home1/gdworkshop/lab/session_data/lr_network.rds") %>%
+    mutate(bonafide = ! database %in% c("ppi_prediction", "ppi_prediction_go")) %>%
+    dplyr::rename(ligand = from, receptor = to) %>%
+    distinct(ligand, receptor, bonafide)
+```
+
+## Convert the species from human to mouse
+```{r eval=FALSE}
+head(lr_network)
+lr_network <-
+    lr_network %>%
+    mutate(ligand = convert_human_to_mouse_symbols(ligand),
+           receptor = convert_human_to_mouse_symbols(receptor)) %>%
+    drop_na()
+head(lr_network)
+
+colnames(ligand_target_matrix) <-
+    ligand_target_matrix %>%
+    colnames() %>%
+    convert_human_to_mouse_symbols()
+
+rownames(ligand_target_matrix) <-
+    ligand_target_matrix %>%
+    rownames() %>%
+    convert_human_to_mouse_symbols()
+
+ligand_target_matrix <-
+    ligand_target_matrix %>%
+    .[!is.na(rownames(ligand_target_matrix)),
+        !is.na(colnames(ligand_target_matrix))]
+```
+
+## Get data to work with
+From "https://zenodo.org/record/5840787/files/seurat_obj_subset_integrated_zonation.rds"
+```{r eval=FALSE}
+seurat_obj <-
+    readRDS("/gpfs0/home/gdworkshop/lab/session_data/seurat_obj_subset_integrated_zonation.rds")
+```
+
+## Define which cells we're comparing
+```{r eval=FALSE}
+niches <- list(
+    "KC_niche" = list(
+      "sender" = c("LSECs_portal",
+                   "Hepatocytes_portal",
+                   "Stellate cells_portal"),
+      "receiver" = c("KCs")))
+```
+
+## Do DE to define genes of interest
+```{r eval=FALSE}
+assay_name <- "SCT"
+
+seurat_obj <-
+    PrepSCTFindMarkers(seurat_obj,
+                       assay = assay_name,
+                       verbose = FALSE)
+```
+
+### 
+```{r eval=FALSE}
+de_sender <-
+    calculate_niche_de(seurat_obj = seurat_obj %>%
+                            subset(features = lr_network$ligand %>%
+                                intersect(rownames(seurat_obj))),
+                       niches = niches,
+                       type = "sender",
+                       assay_oi = assay_name) %>%
+    mutate(avg_log2FC = ifelse(avg_log2FC == Inf,
+                               max(avg_log2FC[is.finite(avg_log2FC)]),
+                               ifelse(avg_log2FC == -Inf,
+                                      min(avg_log2FC[is.finite(avg_log2FC)]),
+                                      avg_log2FC)))
+
+
+de_receiver <-
+    calculate_niche_de(seurat_obj = seurat_obj %>%
+                            subset(features = lr_network$receptor %>%
+                                   unique()),
+                       niches = niches,
+                       type = "receiver",
+                       assay_oi = assay_name) %>%
+    mutate(avg_log2FC = ifelse(avg_log2FC == Inf,
+                               max(avg_log2FC[is.finite(avg_log2FC)]),
+                               ifelse(avg_log2FC == -Inf,
+                                      min(avg_log2FC[is.finite(avg_log2FC)]),
+                                      avg_log2FC)))
+```
+
+```{r eval=FALSE}
+expression_pct <- 0.10
+de_sender_processed <-
+    process_niche_de(de_table = de_sender,
+                     niches = niches,
+                     expression_pct = expression_pct,
+                     type = "sender")
+
+de_receiver_processed <-
+    process_niche_de(de_table = de_receiver,
+                     niches = niches,
+                     expression_pct = expression_pct,
+                     type = "receiver")
+```
+
+
+# Activity (1:30 - 2ish)
+Run nichenetr on os-shark? 
+# Section 2: Visualizing nichenetr results
+
+
+# Activity (2:30 - 3ish)
+Make plots from nichenetr outputs? 
+
+# Section 3: Interpreting nichenetr results
+Activity (3:30 - 4ish)
+ 
+# Homework
+Run nichenetr on your own data or data from some random paper
+Run cell-cell interaction analysis with another package
+Compare the two
+
+
+# Resources
+
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9184522/
+https://www.nature.com/articles/s41592-019-0667-5
