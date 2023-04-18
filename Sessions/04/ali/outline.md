@@ -18,7 +18,7 @@ To Do :
 ---
 title: Outline ``scRGOT $:$ Speeding it up'' 
 author: Ali Snedden
-date: 2022-05-20
+date: 2023-05-02
 abstract: 
 
 ...
