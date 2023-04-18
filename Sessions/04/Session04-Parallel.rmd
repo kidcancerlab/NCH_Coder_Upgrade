@@ -246,13 +246,19 @@ This project gives an introduction to a few targeted ways that you can speed up 
 
 ## Session challenge
 
-To take on today's challenge, install the dyno package* and then use it to compare results of several different approaches to trajectory inference using the same object(s). The data could be the same dataset used in class today, one taken from a repository, or one of your own. To qualify for judging, you must generate at least 8 distinct plots/analyses that evaluate different trajectories or gene expression modules that vary with pseudotime. Winners will be selected based on the following principles:
+To take on today's challenge, use the dataset you generated above and ask a scientific question. This might include some combination of:
+  - determine differentially expressed genes between groups or clusters
+  - evaluate different parameters for clustering or group assignments
+  - identify cell types by comparison to a panel of references
+  - isolation/subclustering of particular groups of cells
+
+In order to qualify for judging, you need to incorporate parallel computing into at least three steps in your analysis. Winners will be selected based on the following principles:
  - how appropriate the analyses are for addressing the problem/question
  - how creative the approach is
  - how well the approach is documented
  - how beautifully/accessibly the results are presented
 
-To submit your code for judging, just save a new file titled "Session10-Challenge-Ryan_Roberts.Rmd" (replacing my name with yours, obviously) in the "Challenges" folder on the SCRGOT Coder Upgrade OneDrive.
+To submit your code for judging, just save a new file titled "Session04-Challenge-Ryan_Roberts.Rmd" (replacing my name with yours, obviously) in the "Challenges" folder on the SCRGOT Coder Upgrade OneDrive.
 
 *NOTE: Running the dyno package requires singularity. Singularity joined forces with the Linux foundation and became Apptainer, which is already installed on the Franklin cluster. When you run singularity commands, these will be automatically run by apptainer, and it works fine. However, if you run test_singularity_installation and use the "detailed = TRUE" option, it will tell you that the version is old. Just ignore this. Any apptainer installation is equivalent to a singularity version >3.8.
 
