@@ -48,15 +48,12 @@ Within these data are opportunites to address several different scientific quest
 ```{r define_data}
 geo_data <- tribble(
     ~gse, ~id, ~nCount, ~path, ~type,
-    "GSE152048", "BC5", 18000, "Conventional", "Primary",
-    "GSE152048", "BC6", 25000, "Conventional", "Primary",
-    # "GSE152048", "BC10", 25000, "Conventional", "Lung Met",
+    "GSE152048", "BC10", 25000, "Conventional", "Lung Met",
     "GSE152048", "BC11", 30000, "Conventional", "Primary",
     "GSE152048", "BC16", 70000, "Conventional", "Primary",
-    # "GSE152048", "BC17", 40000, "Chondroblastic", "Lung Met",
-    # "GSE152048", "BC20", 70000, "Chondroblastic", "Primary",
-    # "GSE152048", "BC21", 50000, "Intraosseous", "Primary",
-    # "GSE152048", "BC22", 50000, "Chondroblastic", "Primary",
+    "GSE152048", "BC17", 40000, "Chondroblastic", "Lung Met",
+    "GSE152048", "BC21", 50000, "Intraosseous", "Primary",
+    "GSE152048", "BC22", 50000, "Chondroblastic", "Primary",
     "GSE162454", "OS_1", 50000, "Conventional", "Primary",
     "GSE162454", "OS_2", 45000, "Conventional", "Primary",
     "GSE162454", "OS_3", 23000, "Conventional", "Primary",
@@ -112,7 +109,7 @@ message("Moving on to parallel processing for loading/creating Seurat objects...
 t[2] <- Sys.time()
 
 # Now repeat the function using mclapply
-tumors_parallel <- mclapply(geo_data_2, create_seurat, mc.cores = 10L)
+tumors_parallel <- mclapply(geo_data_2, create_seurat, mc.cores = 4L)
 
 # Mark completion time for the parallel operation and calculate processing
 message("Done.")
@@ -153,7 +150,7 @@ message("Starting parallel processing of the Seurat objects...")
 t[5] <- Sys.time()
 
 # Map the function using mclapply
-tumors_parallel <- mclapply(tumors_serial, process_seurat, mc.cores = 10L)
+tumors_parallel <- mclapply(tumors_serial, process_seurat, mc.cores = 4L)
 
 # Mark completion and calculate times
 message("Done.")
@@ -182,7 +179,7 @@ single_op <- function(x) {
 message("Starting the combined creating/processing approach...")
 t[7] <- Sys.time()
 
-tumors_parallel_2 <- mclapply(geo_data_2, single_op, mc.cores = 10L)
+tumors_parallel_2 <- mclapply(geo_data_2, single_op, mc.cores = 4L)
 
 t[8] <- Sys.time()
 
@@ -239,19 +236,13 @@ print(paste("Parallel processing time - slurm_map:",
     "seconds"))
 ```
 
-## Discussion of pseudotime analysis/trajectory inference
+## Discussion about parallel computing (especially in R)
 
-This project gives a brief introduction to the world of pseudotime and trajectory methodologies. The large number of tools that have been developed to address this problem highlights the fact that this is a challenge with an array of imperfect solutions. Each approach provides solutions that address at least one type of problem, while no solution works well for every problem. Finding "true" trajectories often requires some trial and error using multiple different algorithms, which can often be complimentary.
-
-A very nice comparative evaluation of the different approaches to pseudotime/trajectory analysis has been published by Saelens et al (https://doi.org/10.1038/s41587-019-0071-9). It really is worth a read if you want to understand more. You might also check out the metapackage the authors built to support their comparative benchmarking (https://github.com/dynverse/dyno). It's a little outdated at this point, but they did a good job putting it together.
-
-Once weakness in nearly all of these approaches is that trajectories are almost entirely inferential. They should be viewed as different ways to "connect the dots," but they are NOT clear evidence that one cell type/cluster gives rise to another. Moreover, while some algorithms will generate educated guesses as to the directionality in the different connections between clusters, inferences of origin and destination are really just guesses. 
-
-One can often use techniques such as RNA Velocity Analysis to get more direct evidence for directionality and evolutionary relationships. Indeed, these two techniques should be viewed as being highly complimentary. We will not have time to dive into velocity analysis today (maybe next year), but the following resources are a good place to start if you'd like to learn more:
- - https://doi.org/10.1371/journal.pcbi.1010492
- - https://doi.org/10.15252/msb.202110282
- - https://scvelo.readthedocs.io/en/stable/
-
+This project gives an introduction to a few targeted ways that you can speed up your development process by incorporating parallel computing strategies. This is really just the tip of the iceberg--there is a lot out there (even though R is not the most elegant platform for parallel computing). If you are interested to learn more, check out the following:
+  - Incorporation of futures into Seurat to enable parallel-friendly processing: https://satijalab.org/seurat/articles/future_vignette.html (NOTE: You should probably consider this to be an alternative approach to the one we learned above, rather than an opportunity to do both simultaneously, which has some potential for conflicts.)
+  - A recent publication that incorporates lazy/streaming data flows (end-to-end C++ single-cell workflow), which is a nice setup to really start utilizing parallel computing infrastructures: https://bnprks.github.io/BPCells/ 
+  - The foreach, %dopar% approach, which is quite similar to mclapply used above: https://unc-libraries-data.github.io/R-Open-Labs/Extras/Parallel/foreach.html
+  - Making it work on Windows by incorporating parLapply: https://waterprogramming.wordpress.com/2020/03/16/parallel-processing-with-r-on-windows/ 
 
 ## Session challenge
 
