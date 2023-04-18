@@ -1,0 +1,33 @@
+---
+title: 'Seurat Lesson: Code'
+author: "Emily Franz and Jack Hedberg"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 5
+    number_sections: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  tidy = TRUE,
+  echo = TRUE,
+  cache = TRUE,
+  collapse = TRUE,
+  tidy.opts = list(width.cutoff = 95),
+  message = FALSE,
+  warning = FALSE,
+  cache.lazy = FALSE)
+```
+
+```{r lib, cache = FALSE}
+# Load necessary packages
+library(Seurat)
+library(tidyverse) # This package contains ggplot2
+#library(ggplot2)
+
+# Set the random generator seed so that results are reproducible.
+set.seed(888)
+```
