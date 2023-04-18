@@ -18,7 +18,7 @@ knitr::opts_chunk$set(echo = TRUE,
 ```
 
 Load libraries
-```{r libraries, cache=FALSE, warning=FALSE, error=FALSE, message=FALSE, eval=TRUE}
+```{r libraries, cache=FALSE, warning=FALSE, error=FALSE, message=FALSE,}
 library(rrrSingleCellUtils)
 library(tidyverse)
 library(Seurat)
@@ -46,19 +46,20 @@ It applies this model to your data to identify possible interactions
 ## Get their pre-defined model data
 From "https://zenodo.org/record/3260758/files/ligand_target_matrix.rds" and
 "https://zenodo.org/record/3260758/files/lr_network.rds"
-```{r eval=FALSE}
+```{r}
 ligand_target_matrix <-
     readRDS("/gpfs0/home1/gdworkshop/lab/session_data/ligand_target_matrix.rds")
 
 lr_network <-
     readRDS("/gpfs0/home1/gdworkshop/lab/session_data/lr_network.rds") %>%
-    mutate(bonafide = ! database %in% c("ppi_prediction", "ppi_prediction_go")) %>%
+    mutate(bonafide = !database %in% c("ppi_prediction",
+                                        "ppi_prediction_go")) %>%
     dplyr::rename(ligand = from, receptor = to) %>%
     distinct(ligand, receptor, bonafide)
 ```
 
 ## Convert the species from human to mouse
-```{r eval=FALSE}
+```{r}
 head(lr_network)
 lr_network <-
     lr_network %>%
@@ -85,23 +86,31 @@ ligand_target_matrix <-
 
 ## Get data to work with
 From "https://zenodo.org/record/5840787/files/seurat_obj_subset_integrated_zonation.rds"
-```{r eval=FALSE}
+```{r}
 seurat_obj <-
     readRDS("/gpfs0/home/gdworkshop/lab/session_data/seurat_obj_subset_integrated_zonation.rds")
 ```
 
 ## Define which cells we're comparing
-```{r eval=FALSE}
-niches <- list(
-    "KC_niche" = list(
-      "sender" = c("LSECs_portal",
-                   "Hepatocytes_portal",
-                   "Stellate cells_portal"),
-      "receiver" = c("KCs")))
+```{r}
+niche_list <- list(
+    "KC_niche" = list("sender" = c("LSECs_portal",
+                                   "Hepatocytes_portal",
+                                   "Stellate cells_portal"),
+                      "receiver" = c("KCs")),
+    "MoMac2_niche" = list("sender" = c("Cholangiocytes",
+                                       "Fibroblast 2"),
+                          "receiver" = c("MoMac2")),
+    "MoMac1_niche" = list("sender" = c("Capsule fibroblasts",
+                                       "Mesothelial cells"),
+                          "receiver" = c("MoMac1"))
+  )
 ```
 
 ## Do DE to define genes of interest
-```{r eval=FALSE}
+
+### There were originally multiple SCT-transformed assays, so we need to integrate them
+```{r}
 assay_name <- "SCT"
 
 seurat_obj <-
@@ -110,49 +119,287 @@ seurat_obj <-
                        verbose = FALSE)
 ```
 
-### 
-```{r eval=FALSE}
-de_sender <-
+### Do DE between niches, then process the results
+Run DE analysis, then get rid of infinite values and calculate further statistics for DE genes
+
+```{r}
+expression_pct <- 0.10
+de_sender_processed <-
     calculate_niche_de(seurat_obj = seurat_obj %>%
                             subset(features = lr_network$ligand %>%
                                 intersect(rownames(seurat_obj))),
-                       niches = niches,
+                       niches = niche_list,
                        type = "sender",
                        assay_oi = assay_name) %>%
+    # Fix any infinite values by making them the max/min finite value
     mutate(avg_log2FC = ifelse(avg_log2FC == Inf,
                                max(avg_log2FC[is.finite(avg_log2FC)]),
                                ifelse(avg_log2FC == -Inf,
                                       min(avg_log2FC[is.finite(avg_log2FC)]),
-                                      avg_log2FC)))
-
-
-de_receiver <-
-    calculate_niche_de(seurat_obj = seurat_obj %>%
-                            subset(features = lr_network$receptor %>%
-                                   unique()),
-                       niches = niches,
-                       type = "receiver",
-                       assay_oi = assay_name) %>%
-    mutate(avg_log2FC = ifelse(avg_log2FC == Inf,
-                               max(avg_log2FC[is.finite(avg_log2FC)]),
-                               ifelse(avg_log2FC == -Inf,
-                                      min(avg_log2FC[is.finite(avg_log2FC)]),
-                                      avg_log2FC)))
-```
-
-```{r eval=FALSE}
-expression_pct <- 0.10
-de_sender_processed <-
-    process_niche_de(de_table = de_sender,
-                     niches = niches,
+                                      avg_log2FC))) %>%
+    process_niche_de(niches = niche_list,
                      expression_pct = expression_pct,
                      type = "sender")
 
 de_receiver_processed <-
-    process_niche_de(de_table = de_receiver,
-                     niches = niches,
+    calculate_niche_de(seurat_obj = seurat_obj %>%
+                            subset(features = lr_network$receptor %>%
+                                   unique()),
+                       niches = niche_list,
+                       type = "receiver",
+                       assay_oi = assay_name) %>%
+    # Fix any infinite values by making them the max/min finite value
+    mutate(avg_log2FC = ifelse(avg_log2FC == Inf,
+                               max(avg_log2FC[is.finite(avg_log2FC)]),
+                               ifelse(avg_log2FC == -Inf,
+                                      min(avg_log2FC[is.finite(avg_log2FC)]),
+                                      avg_log2FC))) %>%
+    process_niche_de(niches = niche_list,
                      expression_pct = expression_pct,
                      type = "receiver")
+```
+
+```{r}
+de_sender_receiver <-
+    combine_sender_receiver_de(de_sender_processed,
+                               de_receiver_processed,
+                               lr_network,
+                               specificity_score = "min_lfc")
+```
+
+```{r}
+lfc_cutoff <- 0.15
+
+de_receiver_processed_targets <-
+    calculate_niche_de_targets(seurat_obj = seurat_obj,
+                               niches = niche_list,
+                               lfc_cutoff = lfc_cutoff,
+                               expression_pct = expression_pct,
+                               assay_oi = assay_name) %>%
+    process_receiver_target_de(niches = niche_list,
+                               expression_pct = expression_pct,
+                               specificity_score = "min_lfc")
+
+background <-
+    de_receiver_processed_targets  %>%
+    pull(target) %>%
+    unique()
+
+geneset_KC <-
+    de_receiver_processed_targets %>%
+    filter(receiver == niche_list$KC_niche$receiver &
+            target_score >= lfc_cutoff &
+            target_significant == 1 &
+            target_present == 1) %>%
+    pull(target) %>%
+    unique()
+
+geneset_MoMac2 <-
+    de_receiver_processed_targets %>%
+    filter(receiver == niche_list$MoMac2_niche$receiver &
+            target_score >= lfc_cutoff &
+            target_significant == 1 &
+            target_present == 1) %>%
+    pull(target) %>%
+    unique()
+
+geneset_MoMac1 <-
+    de_receiver_processed_targets %>%
+    filter(receiver == niche_list$MoMac1_niche$receiver &
+            target_score >= lfc_cutoff &
+            target_significant == 1 &
+            target_present == 1) %>%
+    pull(target) %>%
+    unique()
+```
+
+```{r}
+top_n_target <- 250
+
+niche_geneset_list <- list(
+    "KC_niche" = list("receiver" = "KCs",
+                      "geneset" = geneset_KC,
+                      "background" = background),
+    "MoMac1_niche" = list("receiver" = "MoMac1",
+                          "geneset" = geneset_MoMac1,
+                          "background" = background),
+    "MoMac2_niche" = list("receiver" = "MoMac2",
+                          "geneset" = geneset_MoMac2,
+                          "background" = background))
+
+ligand_activities_targets <-
+    get_ligand_activities_targets(niche_geneset_list = niche_geneset_list,
+                                  ligand_target_matrix = ligand_target_matrix,
+                                  top_n_target = top_n_target)
+
+```
+
+## Get table of normalized expression values for genes of interest
+
+```{r}
+features_oi <-
+    union(lr_network$ligand,
+          lr_network$receptor) %>%
+    union(ligand_activities_targets$target) %>%
+    setdiff(NA)
+
+exprs_tbl <-
+    suppressWarnings(Seurat::DotPlot(seurat_obj %>%
+                                     subset(idents = niche_list %>%
+                                            unlist() %>%
+                                            unique()),
+                                     features = features_oi,
+                                     assay = assay_name))$data %>%
+    as_tibble() %>%
+    rename(celltype = id,
+           gene = features.plot,
+           expression = avg.exp,
+           expression_scaled = avg.exp.scaled,
+           fraction = pct.exp) %>%
+    mutate(fraction = fraction / 100) %>%
+    as_tibble() %>%
+    select(celltype,
+           gene,
+           expression,
+           expression_scaled,
+           fraction) %>%
+    distinct() %>%
+    arrange(gene) %>%
+    mutate(gene = as.character(gene))
+```
+
+```{r}
+exprs_tbl_ligand <-
+    exprs_tbl %>%
+    filter(gene %in% lr_network$ligand) %>%
+    rename(sender = celltype,
+           ligand = gene,
+           ligand_expression = expression,
+           ligand_expression_scaled = expression_scaled,
+           ligand_fraction = fraction) %>%
+    mutate(scaled_ligand_expression_scaled =
+                scale_quantile_adapted(ligand_expression_scaled),
+           ligand_fraction_adapted = ligand_fraction) %>%
+    mutate_cond(ligand_fraction >= expression_pct,
+                ligand_fraction_adapted = expression_pct)  %>%
+    mutate(scaled_ligand_fraction_adapted =
+                scale_quantile_adapted(ligand_fraction_adapted))
+
+exprs_tbl_receptor <-
+    exprs_tbl %>%
+    filter(gene %in% lr_network$receptor) %>%
+    rename(receiver = celltype,
+           receptor = gene,
+           receptor_expression = expression,
+           receptor_expression_scaled = expression_scaled,
+           receptor_fraction = fraction) %>%
+    mutate(scaled_receptor_expression_scaled =
+                scale_quantile_adapted(receptor_expression_scaled),
+           receptor_fraction_adapted = receptor_fraction) %>%
+    mutate_cond(receptor_fraction >= expression_pct,
+                receptor_fraction_adapted = expression_pct) %>%
+    mutate(scaled_receptor_fraction_adapted =
+                scale_quantile_adapted(receptor_fraction_adapted))
+
+exprs_tbl_target <-
+    exprs_tbl %>%
+    filter(gene %in% ligand_activities_targets$target) %>%
+    rename(receiver = celltype,
+           target = gene,
+           target_expression = expression,
+           target_expression_scaled = expression_scaled,
+           target_fraction = fraction)
+```
+
+```{r}
+exprs_sender_receiver <-
+    lr_network %>%
+    inner_join(exprs_tbl_ligand, by = c("ligand"), multiple = "all") %>%
+    inner_join(exprs_tbl_receptor, by = c("receptor"), multiple = "all") %>%
+    inner_join(de_sender_receiver %>%
+                    distinct(niche, sender, receiver), multiple = "all")
+
+```
+
+
+```{r}
+ligand_scaled_receptor_expression_fraction_df <-
+    exprs_sender_receiver %>%
+    group_by(ligand, receiver) %>%
+    mutate(rank_receptor_expression = dense_rank(receptor_expression),
+           rank_receptor_fraction  = dense_rank(receptor_fraction)) %>%
+    mutate(ligand_scaled_receptor_expression_fraction =
+                0.5 * ((rank_receptor_fraction / max(rank_receptor_fraction)) +
+                     ((rank_receptor_expression / max(rank_receptor_expression)))))  %>%
+    distinct(ligand,
+             receptor,
+             receiver,
+             ligand_scaled_receptor_expression_fraction,
+             bonafide) %>%
+    distinct() %>%
+    ungroup()
+```
+
+```{r}
+prioritizing_weights <-
+    c("scaled_ligand_score" = 5,
+      "scaled_ligand_expression_scaled" = 1,
+      "ligand_fraction" = 1,
+      "scaled_ligand_score_spatial" = 2,
+      "scaled_receptor_score" = 0.5,
+      "scaled_receptor_expression_scaled" = 0.5,
+      "receptor_fraction" = 1,
+      "ligand_scaled_receptor_expression_fraction" = 1,
+      "scaled_receptor_score_spatial" = 0,
+      "scaled_activity" = 0,
+      "scaled_activity_normalized" = 1,
+      "bona_fide" = 1)
+```
+
+### Make fake spatial data since we don't have it
+```{r}
+spatial_info <-
+    tibble(celltype_region_oi = c("LSECs_portal",
+                                  "Hepatocytes_portal",
+                                  "Stellate cells_portal"),
+           celltype_other_region = c("LSECs_central",
+                                     "Hepatocytes_central",
+                                     "Stellate cells_central")) %>%
+  mutate(niche =  "KC_niche",
+         celltype_type = "sender")
+
+sender_spatial_de_processed <-
+    get_non_spatial_de(niches = niche_list,
+                       spatial_info = spatial_info,
+                       type = "sender",
+                       lr_network = lr_network) %>%
+    mutate(scaled_ligand_score_spatial =
+            scale_quantile_adapted(ligand_score_spatial))
+
+receiver_spatial_de_processed <-
+    get_non_spatial_de(niches = niche_list,
+                       spatial_info = spatial_info,
+                       type = "receiver",
+                       lr_network = lr_network) %>%
+    mutate(scaled_receptor_score_spatial =
+            scale_quantile_adapted(receptor_score_spatial))
+```
+
+```{r}
+output <-
+    list(DE_sender_receiver = de_sender_receiver,
+         ligand_scaled_receptor_expression_fraction_df =
+                ligand_scaled_receptor_expression_fraction_df,
+         sender_spatial_DE_processed = sender_spatial_de_processed,
+         receiver_spatial_DE_processed = receiver_spatial_de_processed,
+         ligand_activities_targets = ligand_activities_targets,
+         DE_receiver_processed_targets = de_receiver_processed_targets,
+         exprs_tbl_ligand = exprs_tbl_ligand,
+         exprs_tbl_receptor = exprs_tbl_receptor,
+         exprs_tbl_target = exprs_tbl_target)
+
+prioritization_tables <- get_prioritization_tables(output, prioritizing_weights)
+qs::qsave(prioritization_tables, "Sessions/06/prioritization_tables.rds")
 ```
 
 
