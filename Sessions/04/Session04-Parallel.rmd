@@ -260,33 +260,6 @@ In order to qualify for judging, you need to incorporate parallel computing into
 
 To submit your code for judging, just save a new file titled "Session04-Challenge-Ryan_Roberts.Rmd" (replacing my name with yours, obviously) in the "Challenges" folder on the SCRGOT Coder Upgrade OneDrive.
 
-*NOTE: Running the dyno package requires singularity. Singularity joined forces with the Linux foundation and became Apptainer, which is already installed on the Franklin cluster. When you run singularity commands, these will be automatically run by apptainer, and it works fine. However, if you run test_singularity_installation and use the "detailed = TRUE" option, it will tell you that the version is old. Just ignore this. Any apptainer installation is equivalent to a singularity version >3.8.
-
 ```{r}
-system("ml load GCCcore/9.3.0 ImageMagick")
-library(dyno)
-
-# Set up the dyno object from the Seurat data
-# First, add the raw and normalized counts
-dyn_obj <- wrap_expression(
-    expression = GetAssayData(seurat_obj, slot = "data", assay = "RNA") %>% t(),
-    counts = GetAssayData(seurat_obj, slot = "counts", assay = "RNA") %>% t())
-
-# Second, add the clustering information
-dyn_obj <- add_grouping(dyn_obj, seurat_obj$assignment)
- 
-# And the UMAP embeddings
-dyn_obj <- add_dimred(dyn_obj, Embeddings(seurat_obj[["umap"]]))
-
-# And the starting cell
-# Interactive steps run previously:
-# CellSelector(DimPlot(seurat_obj))
-dyn_obj <- add_prior_information(dyn_obj, 
-    start_id = "OS_3_GTTGAACTCTATCGTT-1")
-
-# Use the interactive shiny tool to explore the different methods and choose optimal
-picked <- guidelines_shiny(dyn_obj)
-
-# Run the trajectory inferrence algorithms
-
+# Leaving this section for you to explore!
 ```
