@@ -38,24 +38,110 @@ CellphoneDB
 Cellchat
 
 
-### Nichenetr
+## Nichenetr
 
 Nichenetr relies on a pre-defined model of ligand - target interactions
 It applies this model to your data to identify possible interactions
 
+
+## Original method
+
 ## Get their pre-defined model data
-From "https://zenodo.org/record/3260758/files/ligand_target_matrix.rds" and
+From:
+"https://zenodo.org/record/3260758/files/ligand_target_matrix.rds"
 "https://zenodo.org/record/3260758/files/lr_network.rds"
+"https://zenodo.org/record/3260758/files/weighted_networks.rds"
 ```{r}
 ligand_target_matrix <-
     readRDS("/gpfs0/home1/gdworkshop/lab/session_data/ligand_target_matrix.rds")
 
+lr_network <-
+    readRDS("/gpfs0/home1/gdworkshop/lab/session_data/lr_network.rds")
+
+weighted_networks <-
+    readRDS("/gpfs0/home1/gdworkshop/lab/session_data/weighted_networks.rds")
+```
+
+## Get data to work with
+From "https://zenodo.org/record/5840787/files/seurat_obj_subset_integrated_zonation.rds"
+```{r}
+seurat_obj <-
+    readRDS("/gpfs0/home/gdworkshop/lab/session_data/seuratObj.rds")
+
+DimPlot(seurat_obj, group.by = "celltype", label = TRUE)
+```
+
+```{r}
+nichenet_output <-
+    nichenet_seuratobj_aggregate(seurat_obj = seurat_obj,
+                                 receiver = "CD8 T",
+                                 condition_colname = "aggregate",
+                                 condition_oi = "LCMV",
+                                 condition_reference = "SS",
+                                 sender = c("CD4 T","Treg", "Mono", "NK", "B", "DC"),
+                                 ligand_target_matrix = ligand_target_matrix,
+                                 lr_network = lr_network,
+                                 weighted_networks = weighted_networks,
+                                 organism = "mouse")
+```
+
+
+
+# Activity (1:30 - 2ish)
+Run nichenetr on os-shark?
+# Section 2: Visualizing nichenetr results
+
+
+# Activity (2:30 - 3ish)
+Make plots from nichenetr outputs? 
+
+# Section 3: Interpreting nichenetr results
+Activity (3:30 - 4ish)
+ 
+# Homework
+Run nichenetr on your own data or data from some random paper
+Run cell-cell interaction analysis with another package
+Compare the two
+
+
+# Resources
+
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9184522/
+https://www.nature.com/articles/s41592-019-0667-5
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Extra stuff to run Differential NicheNetr
+```{r}
 lr_network <-
     readRDS("/gpfs0/home1/gdworkshop/lab/session_data/lr_network.rds") %>%
     mutate(bonafide = !database %in% c("ppi_prediction",
                                         "ppi_prediction_go")) %>%
     dplyr::rename(ligand = from, receptor = to) %>%
     distinct(ligand, receptor, bonafide)
+
+```
+
+## Get data to work with
+From "https://zenodo.org/record/5840787/files/seurat_obj_subset_integrated_zonation.rds"
+```{r}
+seurat_obj <-
+    readRDS("/gpfs0/home/gdworkshop/lab/session_data/seurat_obj_subset_integrated_zonation.rds")
 ```
 
 ## Convert the species from human to mouse
@@ -82,13 +168,6 @@ ligand_target_matrix <-
     ligand_target_matrix %>%
     .[!is.na(rownames(ligand_target_matrix)),
         !is.na(colnames(ligand_target_matrix))]
-```
-
-## Get data to work with
-From "https://zenodo.org/record/5840787/files/seurat_obj_subset_integrated_zonation.rds"
-```{r}
-seurat_obj <-
-    readRDS("/gpfs0/home/gdworkshop/lab/session_data/seurat_obj_subset_integrated_zonation.rds")
 ```
 
 ## Define which cells we're comparing
@@ -402,25 +481,3 @@ prioritization_tables <- get_prioritization_tables(output, prioritizing_weights)
 qs::qsave(prioritization_tables, "Sessions/06/prioritization_tables.rds")
 ```
 
-
-# Activity (1:30 - 2ish)
-Run nichenetr on os-shark? 
-# Section 2: Visualizing nichenetr results
-
-
-# Activity (2:30 - 3ish)
-Make plots from nichenetr outputs? 
-
-# Section 3: Interpreting nichenetr results
-Activity (3:30 - 4ish)
- 
-# Homework
-Run nichenetr on your own data or data from some random paper
-Run cell-cell interaction analysis with another package
-Compare the two
-
-
-# Resources
-
-https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9184522/
-https://www.nature.com/articles/s41592-019-0667-5
