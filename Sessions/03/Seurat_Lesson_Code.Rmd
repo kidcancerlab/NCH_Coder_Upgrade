@@ -190,16 +190,23 @@ Idents(pbmc) <- pbmc$singleR
 # Plot on UMAP
 ## Note the use of group.by to label cells by certain identifiers (singleR here)
 ## Seurat uses ggplot, so plot titles (and more) can be edited with ggplot2 functions
+## NoLegend() (Seurat) removes DimPlot legend, useful if plot is labeled
 DimPlot(pbmc,
         reduction = "umap",
         group.by = "singleR",
         label = T,
         repel = T) +
-  ggtitle("Human Reference Annotation")
+  ggtitle("Human Reference Annotation") +
+  NoLegend()
 ```
 
 ## Differentially Expressed Genes
 *Tomorrow's lesson will be devoted to exploring this topic in more depth.*
+
+*FindAllMarkers* finds all the genes that make each cluster most different from 
+all of the other clusters. If you want to look at the genes that make cluster (A)
+most different from another cluster (B), you can use *FindMarkers* and set ident.1 
+equal to the cluster of interest (A) and ident.2 equal to its comparison (B).
 ```{r deg}
 #### FindAllMarkers ####
 # Find differential markers for every cluster compared to all remaining cells
@@ -220,16 +227,157 @@ Seurat and other packages offer numerous methods for plotting genes of interest.
 Here we present some of the most popular Seurat-based methods for plotting.
 
 ## Feature Plot
+Colors single cells on a dimensional reduction plot by feature (typically gene expression level,
+but could be  PC scores, number of genes detected, module score, etc.)
+```{r feature}
+#### Default FeaturePlot ####
+# Plots each feature separately
+FeaturePlot(pbmc,
+            features = c("MS4A1",
+                         "NKG7",
+                         "CD3E",
+                         "LYZ"))
+#### Group.by ####
+# group.by plots each feature separately, but labels by identities of interest
+FeaturePlot(pbmc,
+            features = c("MS4A1",
+                         "NKG7",
+                         "CD3E",
+                         "LYZ"),
+            group.by = "singleR",
+            label = TRUE,
+            repel = TRUE)
+
+#### Split.by ####
+# split.by plots each feature in each identity separately (labels would still
+# be defined as the default, or that specified in group.by)
+## very helpful for different treatment groups
+FeaturePlot(pbmc,
+            features = c("MS4A1",
+                         "NKG7"),
+            split.by = "singleR")
+
+# Cutoffs help visualize features if signal too weak or too strong in certain cells
+# Note that the expression units are arbitrary units, specific for each feature
+#### Max cutoff ####
+FeaturePlot(pbmc,
+            features = "LYZ",
+            max.cutoff = 4)
+
+#### Min cutoff ####
+FeaturePlot(pbmc,
+            features = "LYZ",
+            min.cutoff = 2)
+
+
+#### Change plot colors ####
+# (note that a linear color scale works best)
+FeaturePlot(pbmc,
+            features = "LYZ",
+            cols = c("pink", "red"))
+
+```
 
 ## Violin Plot
 
+```{r vln}
+#### Default VlnPlot ####
+# Each feature is plotted separately
+# violins are colored by feature (can change to color by identity with fill.by)
+VlnPlot(pbmc,
+        features = c("MS4A1",
+                     "NKG7",
+                     "CD3E",
+                     "LYZ"))
+
+#### Group.by and RotateAxis() ####
+# group.by allows expression to be shown for identity classes of interest
+# RotatedAxis() rotates x-axis labels
+VlnPlot(pbmc,
+        features = c("MS4A1",
+                     "NKG7",
+                     "CD3E",
+                     "LYZ"),
+        group.by = "singleR") +
+  RotatedAxis()
+```
+
 ## Ridge Plot
 
-## DotPlot
+```{r ridge}
+### Default ridgeplot ####
+# plots by feature
+RidgePlot(pbmc,
+          features = c("MS4A1",
+                       "NKG7",
+                       "CD3E",
+                       "LYZ"))
 
-# Saving
+#### Group.by, fill.by, sort ####
+# Can group by certain identities, sort by average expression, and more
+RidgePlot(pbmc,
+          features = c("MS4A1",
+                       "NKG7",
+                       "CD3E",
+                       "LYZ"),
+          group.by = "singleR",
+          sort = TRUE,
+          fill.by = "ident") # fill.by is also an option in VlnPlot()
+```
+
+## DotPlot
+Be careful using this plotting method - it works to emphasize differences and 
+therefore may appear misleading (visual differences are exaggerated)
+```{r dot}
+#### Default DotPlot ####
+DotPlot(pbmc,
+        features = c("MS4A1",
+                       "NKG7",
+                       "CD3E",
+                       "LYZ"),
+          group.by = "singleR")
+
+#### Remove plot scaling ####
+# (less exaggerated, more representative of true differences)
+DotPlot(pbmc,
+        features = c("MS4A1",
+                     "NKG7",
+                     "CD3E",
+                     "LYZ"),
+        group.by = "singleR",
+        scale = FALSE)
+
+#### Change Dotplot colors ####
+# (note that a linear color scale works best)
+DotPlot(pbmc,
+        features = c("MS4A1",
+                     "NKG7",
+                     "CD3E",
+                     "LYZ"),
+        group.by = "singleR",
+        scale = FALSE,
+        cols = c("pink", "red"))
+```
+
+# Saving Seurat Objects
+
+```{r save}
+
+```
+
+# Loading Seurat Objects
+
+```{r load}
+
+```
 
 # Adding/Modifying Metadata
+
+```{r metadata}
+# The [[ operator can add columns to object metadata.
+pbmc[["percent.mt"]] <- PercentageFeatureSet(pbmc,
+                                             pattern = "^MT-")
+```
 
 ```{r}
 sessionInfo()
