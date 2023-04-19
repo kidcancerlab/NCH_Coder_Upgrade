@@ -1,0 +1,150 @@
+---
+title: "Coder Upgrade 2023: Multiomics analysis"
+author: "Matt Cannon"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+output:
+    html_document:
+        toc: true
+        toc_float: true
+        toc_depth: 5
+        number_sections: false
+        code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      cache = TRUE,
+                      cache.lazy = FALSE)
+```
+
+Load libraries
+```{r libraries, cache=FALSE, warning=FALSE, error=FALSE, message=FALSE,}
+library(rrrSingleCellUtils)
+library(tidyverse)
+library(Seurat)
+library(nichenetr)
+```
+
+--------------------------------------------------------------------------------
+
+# Section 1: Overview
+
+## What is multiomics single-cell data?
+
+Any technology that produces multiple type of data from single cells
+Each cell is profiled for multiple types of data
+
+- RNA / ATAC
+- RNA / ChIP
+- RNA / Protein
+- RNA / DNA
+- RNA / DNA methylation / Chrom. accessibility
+
+## Benefits of multiomics
+
+- Direct association within individual cells between different types of data
+- Avoids shakey correlations made using bulk methods on heterogeneous populations
+- Can generate insights not possible with other methods
+
+## Challenges of multiomics
+
+- Generally, the data quality will be much worse for each individual cell compared to bulk methods
+- Sample/library preparation is more complex
+    - Especially for homebrew methods
+- $$$
+- Analysis is going to be much more complex
+    - Need to analyze multiple single-cell data types
+    - Need proper statistical methods to integrate the data
+    - Methods are generally less mature than more commonly used methods
+
+## 10x multiomics kit
+
+- Generates both RNA and ATAC data from single nuclei
+- Relies on cleanly isolated and fixed nuclei
+    - Get only RNAs from the nucleus
+    - Nuclei prep can be quite challenging
+    - Likely more prone to cell-cell cross contamination
+
+## 10x multiomics data structure
+
+RNA and ATAC have different sequencing requirements
+
+- RNA
+    - R1: 28bp <- has UMI and nucleus barcode
+    - R2: 90bp <- has RNA sequence
+    - I1/I2: 10bp <- have sample barcodes
+- ATAC
+    - R1: 50bp <- has genomic sequence
+    - R2: 24bp <- has nucleus barcode
+    - R3: 49bp <- has genomic sequence
+    - I1: 8bp <- has sample barcode
+- Recommended 20,000 read pairs / nucleus for GEX
+    - In 10x demo dataset, 122,335 reads per nucleus
+- Recommended 25,000 read pairs / nucleus for ATAC
+    - In 10x demo datasets, 95,897 reads per nucleus
+- Aim higher if possible
+    - For 2000 cells, 100k + 100k reads per sample
+        - 400M reads per sample
+        - ~4 samples on a NovaSeq S1
+
+## Cellranger-arc
+
+Depending on what data type you get back you may need to do different things
+
+- BCLs
+    - Run cellranger-arc mkfastq
+    - If both GEX and ATAC run on single lane, need to specify read lengths for each
+    - If run seperately on different lanes, can just run mkfastq on each lane
+- Fastqs
+    - Run cellranger-arc count
+    - Simple way is to do one run per sample
+        - Input is csv with sample info
+    - Output is a folder with a bunch of files/folders
+        - https://support.10xgenomics.com/single-cell-multiome-atac-gex/software/pipelines/latest/using/count
+        - web_summary.html              - html report
+        - filtered_feature_bc_matrix/   - contains the GEX data
+        - filtered_feature_bc_matrix.h5 - h5 file with both GEX and ATAC data
+        - atac_peaks.bed                - ATAC peaks
+        - atac_fragments.tsv.gz         - ATAC fragments
+        - cloupe.cloupe                 - Loupe browser file
+        - *.bam                         - BAM files
+
+## Activity (9:30 - 10ish)
+
+Look at output of cellranger-arc count
+
+## Using Seurat and Signac for 10x multiomics data individually
+
+## Activity (10:30 - 11ish)
+
+Work with Seurat and Signac
+
+## Joint analysis of multimodal data
+
+> Show ppt of plots
+
+- Multimodal UMAP
+    - Better separation of cell types due to increased dimensionality of data
+- Correlation of ATAC peaks with gene expression
+    - Identify active chromatin that might influence gene expression
+    - Motif analysis of peak sequence can potentially identify binding factors
+- Compare heterogeneity of gene expression vs. chromatin accessibility
+
+## Activity (11:30 - 12ish)
+
+Talk to Amy, Meren and Jason Navarro?
+
+## Homework
+
+
+
+
+
+# Resources
+Methods and applications for single-cell and spatial multi-omics: https://www.nature.com/articles/s41576-023-00580-2
+
+Into the multiverse: advances in single-cell multiomic profiling: https://www.cell.com/trends/genetics/fulltext/S0168-9525(22)00077-4
+
+https://www.10xgenomics.com/products/single-cell-multiome-atac-plus-gene-expression
+
+https://stuartlab.org/signac/
