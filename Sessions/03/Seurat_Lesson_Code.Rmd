@@ -32,12 +32,21 @@ library(patchwork)
 set.seed(132)
 ```
 
-# Load in scNRAseq dataset
+Link to download the example dataset we are using: https://cf.10xgenomics.com/samples/cell/pbmc3k/pbmc3k_filtered_gene_bc_matrices.tar.gz
+
+
+# Load in scRNAseq dataset: ***YOU WILL NEED TO MODIFY THE CODE BELOW SO THAT THE FOLDER PATH POINTS R TO WHEREVER THE RAW DATA YOU JUST DOWNLOADED IS LOCATED ON YOUR COMPUTER. Be careful with forward slashes. Folders always have a forward slash in front of them, and files do not.
 ```{r load}
 # Load pbmc scRNAseq dataset
-
-
+pbmc.data <- Read10X(data.dir = "../data/pbmc3k/filtered_gene_bc_matrices/hg19/")
 ```
+
+
+# Create Seurat Object
+```{r}
+pbmc <- CreateSeuratObject(counts = pbmc.data, project = "pbmc3k", min.cells = 3, min.features = 200)
+```
+
 
 # Perform Subsetting for Quality Control
 ```{r qc}
