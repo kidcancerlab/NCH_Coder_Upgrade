@@ -1,0 +1,24 @@
+# Comment lines begin with '#'
+ReadLength 50
+# Rough number of reads, maintaining the ratios below is more important than the exact number of reads
+NumberOfReads 1000000
+# Transcripts
+# Got many below transcripts by :
+# grep ENST /reference/homo_sapiens/GRCh38/ensembl/release-83/Annotation/Genes/gtf/Homo_sapiens.GRCh38.83.gtf | awk 'BEGIN{FS="\t"}{print $9}' | awk 'BEGIN{FS=";"}{print $3}' | awk '{print $2}' | sort | uniq -c | sort -n | less -SN
+ENST00000618181 100
+ENST00000488147 200
+ENST00000617307 10
+ENST00000624431 10
+ENST00000437963 10
+ENST00000420190 10
+ENST00000506640 10
+ENST00000620200 10
+ENST00000623834 10
+ENST00000623083 10
+ENST00000616125 10
+ENST00000618323 10
+ENST00000616016 10
+ENST00000618779 10
+ENST00000342066 10
+ENST00000622503 10
+ENST00000624735 10
