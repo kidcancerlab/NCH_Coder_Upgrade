@@ -125,17 +125,110 @@ The GEX data can be analyzed like normal
     - Peaks
 - Need to pull the GEX data out of the list and use that for analysis
 
+I'm not going to walk through the GEX analysis as that's been covered in previous sessions
 ```{r}
+data_path <- "/home/gdworkshop/lab/session_data/multiomics/"
 h5_data <-
-    Read10X_h5("filtered_feature_bc_matrix.h5")
+    Read10X_h5(paste0(data_path,
+                      "e18_mouse_brain_fresh_5k_filtered_feature_bc_matrix.h5"))
 
-gex_seurat <- 
-    CreateSeuratObject(counts = gex_data$`Gene Expression`,
+# mt_pattern <- "^mt-" because this is mouse data
+seurat_obj <-
+    CreateSeuratObject(counts = h5_data$`Gene Expression`,
                        assay = "RNA",
                        project = "10x_multiomics",
                        min_cells = 5,
-                       min_features = 800)
+                       min_features = 800) %>%
+    PercentageFeatureSet(pattern = "^mt-",
+                         col.name = "percent_mt_rna",
+                         assay = "RNA") 
 
+cutoffs <-
+    tribble(~feature, ~min_val, ~max_val,
+            "nCount_RNA", 2000, 25000,
+            "nFeature_RNA", 1000, 7000,
+            "percent_mt_rna", 0, 10)
+
+feature_hist(seurat_obj,
+             features = c("nCount_RNA",
+                          "nFeature_RNA",
+                          "percent_mt_rna"),
+             cutoff_table = cutoffs)
+
+seurat_obj <-
+    subset(seurat_obj,
+           subset = nCount_RNA >= cutoffs$min_val[1] &
+                    nCount_RNA <= cutoffs$max_val[1] &
+                    nFeature_RNA >= cutoffs$min_val[2] &
+                    nFeature_RNA <= cutoffs$max_val[2] &
+                    percent_mt_rna <= cutoffs$max_val[3]) %>%
+    process_seurat(resolution = 0.2)
+
+DimPlot(seurat_obj)
+```
+
+
+Let's focus on the ATAC data
+
+Add the ATAC data to the Seurat object
+```{r}
+frag_file <-
+    paste0(data_path,
+           "e18_mouse_brain_fresh_5k_atac_fragments.tsv.gz")
+
+seurat_obj[["ATAC"]] <-
+    CreateChromatinAssay(counts = h5_data$Peaks,
+                         sep = c(":", "-"),
+                         fragments = frag_file,
+                         min.cells = 5)
+```
+
+Calculate metrics to use for QC
+```{r}
+seurat_obj <-
+    Seurat::PercentageFeatureSet(seurat_obj,
+                                 pattern = "^mt-",
+                                 col.name = "percent_mt_atac",
+                                 assay = "ATAC")
+
+annotations <-
+    GetGRangesFromEnsDb(ensdb = EnsDb.Mmusculus.v79::EnsDb.Mmusculus.v79)
+seqlevelsStyle(annotations) <- 'UCSC'
+genome(annotations) <- "mm10"
+
+# add the gene information to the object
+Annotation(seurat_obj) <- annotations
+
+seurat_obj <- NucleosomeSignal(seurat_obj)
+seurat_obj$nucleosome_group <-  
+    ifelse(seurat_obj$nucleosome_signal > cutoff,
+           paste0("NS > ", cutoff),
+           paste0("NS < ", cutoff))
+
+seurat_obj <- TSSEnrichment(seurat_obj, fast = FALSE)
+seurat_obj$high_tss <-
+    ifelse(seurat_obj$TSS.enrichment > cutoff,
+           "High",
+           "Low")
+
+total_frag_df <-
+    CountFragments(frag_files[[1]], verbose = FALSE)
+
+total_frag_df <-
+    total_frag_df %>%
+    dplyr::filter(CB %in% colnames(seurat_obj)) %>%
+    dplyr::arrange(match(CB, colnames(seurat_obj)))
+
+# Populate seurat_obj with metadata
+seurat_obj$total_frag <- total_frag_df$reads_count
+seurat_obj$mononucleosomal <- total_frag_df$mononucleosomal
+seurat_obj$nucleosome_free <- total_frag_df$nucleosome_free
+seurat_obj <-
+    FRiP(seurat_obj,
+         assay = "ATAC",
+         total.fragments = "total_frag",
+         col.name = "FRiP",
+         verbose = FALSE)
 ```
 
 ## Activity (10:30 - 11ish)
