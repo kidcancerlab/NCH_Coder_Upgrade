@@ -89,7 +89,7 @@ RNA and ATAC have different sequencing requirements
 
 ## Cellranger-arc
 
-Depending on what data type you get back you may need to do different things
+Depending on what data type you recieve you may need to do different things
 
 - BCLs
     - Run cellranger-arc mkfastq
@@ -112,8 +112,31 @@ Depending on what data type you get back you may need to do different things
 ## Activity (9:30 - 10ish)
 
 Look at output of cellranger-arc count
+Create a folder of data to look at and put it in gdworkshop/data/...
 
 ## Using Seurat and Signac for 10x multiomics data individually
+
+You essentially get two independant datasets back (GEX and ATAC) that can be analyzed independantly.
+
+The GEX data can be analyzed like normal
+
+- One exception - if you read in your data using `Read10X_h5()`, it returns a list of two objects:
+    - Gene Expression
+    - Peaks
+- Need to pull the GEX data out of the list and use that for analysis
+
+```{r}
+h5_data <-
+    Read10X_h5("filtered_feature_bc_matrix.h5")
+
+gex_seurat <- 
+    CreateSeuratObject(counts = gex_data$`Gene Expression`,
+                       assay = "RNA",
+                       project = "10x_multiomics",
+                       min_cells = 5,
+                       min_features = 800)
+
+```
 
 ## Activity (10:30 - 11ish)
 
