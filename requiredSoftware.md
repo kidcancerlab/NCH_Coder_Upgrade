@@ -8,6 +8,10 @@
     - https://github.com/saeyslab/nichenetr
 - rrrSingleCellUtils
     - https://github.com/kidcancerlab/rrrSingleCellUtils
+- GenomicFeatures
+    - BiocManager::install("GenomicFeatures")
+- EnsDb.Mmusculus.v79
+    - BiocManager::install("EnsDb.Mmusculus.v79")
 
 # R packages - on local machine
 - Seurat
