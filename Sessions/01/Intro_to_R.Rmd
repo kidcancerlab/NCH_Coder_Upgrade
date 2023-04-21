@@ -89,6 +89,9 @@ months_factor = factor(months, levels = c("Jan", "Mar", "Apr", "Dec"))
 sort(months_factor)
 ```
 
+## Variable types 
+
+vector, list, matrix, data frame 
 
 ## Functions
 
@@ -123,9 +126,7 @@ help(mean)
 
 ## Naming rules in R 
 
-There are a few rules for naming variables in R. If possible names should be short and meaningful, and should include numbers, letters, _, and -. Avoid using
-
-special characters in names. Also, R is case-sensitive. 
+There are a few rules for naming variables in R. If possible names should be short and meaningful, and should include numbers, letters, _, and -. Avoid using special characters in names. Also, R is case-sensitive. 
 
 # Activity one 
 
@@ -273,7 +274,7 @@ hist(westernQuant$intensity_gene1)
 
 -- Make sure to save the summary output to a variable 
 
-### Use read.csv to read in a 
+
 ### Read in data
 Use read.delim()
 ```{r readData}
@@ -374,34 +375,48 @@ summarize() and group_by(). group() silently divides up rows by categories, and 
 ```{r}
 westernQuant %>%
   group_by(group_name) %>%
-  summarize(mean_mpg = mean(intensity_gene1))
+  summarize(mean_intensity = mean(intensity_gene1))
 ```
 
 
 ### pivot_longer()
+
 wide data vs long data
 "tidy" data - https://www.youtube.com/watch?v=K-ss_ag2k9E explanation starts ~ 6 min in
 https://epirhandbook.com/en/images/pivoting/pivot_longer_new.png
+
+
 ```{r}
 # wide data
-income
-
+temperatures = read.delim("weather.txt", header = TRUE)
+temperatures
 
 # long data
+
+#pivot_longer() "lengthens" data, increasing the number of rows and decreasing the number of columns. 
 long_data <-
-  relig_income %>%
-  pivot_longer(!Species,
-               names_to = "income",
+  temperatures %>%
+  pivot_longer(cols = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"),
+               names_to = "months",
                values_to = "count")
 
 # Make it wider
 wide_again <-
   long_data %>%
-  pivot_wider(names_from = "income",
+  pivot_wider(names_from = "months",
               values_from = "count")
+
+wide_again
 ```
 
 left_join, right_join, inner_join, outer_join, anti_join
+
+
+```{r}
+
+
+
+```
 
 ### Write a table out to a text file
 ```{r}
@@ -414,6 +429,7 @@ write.table(wide_again,
 write_tsv(wide_again,
           file = "exampleOutputAlso.txt")
 ```
+
 
 
 
