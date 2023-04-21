@@ -6,236 +6,269 @@ date: '2032-04-10'
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 # Part 1
 
-RStudio overview, R studio layout 
-  Projects -- unsure? 
+## Overview
 
-Rmd format, how to create a Rmd file, avoid dots in file names, preferable use underscores or dashes
-  ctrl+alt+i to create R chunk
+-- RStudio overview and layout.
 
-What's a variable?
+-- R markdown, creating an Rmd file.
 
-What's a function?
-  Arguments
+R markdown is a way to combine plain text, your R code, and results from your data analysis (including plots and tables) into a nicely formatted and reproducible document. 
 
-Reading function documentation
+https://intro2r.com/what-is-r-markdown.html
 
-## Basic variable types 
+-- In general, when naming files in R, avoid using dots in file names, try to stick to numbers, letters, underscores, and dashes.
 
-"=" or "<-" is an assignment operator
+-- To create a new R chunk in an Rmd file, use Code/Insert Chunk, ctrl + alt + i (Windows), or cmd + option + i (macOS).
 
-### String 
+-- What is a variable?
+
+-- What's a function? Arguments for functions. Reading function documentation. 
+  
+  
+## Variables and basic data types 
+
+"=" or "<-" is an assignment operator.
+
+Variables in R can be used to store letters, numbers, and various data structures. To create a new variable, simply assign a value to a name.
+
+Fundamental data types in R include: numeric, integer, complex, character, and logical. 
+
+Here, we create a variable holding character data. Characters are enclosed in quotes. 
 
 ```{r}
 my_name <- "Matt" 
 ```
 
-### Numeric
+You can use class(my_name) to examine to which data type does the variable my_name belong.
+
+```{r}
+class(my_name)
+```
+
+Here, we create a variable holding numeric data.
 
 ```{r}
 count = 10 
+
+class(count)
 ```
 
-### Boolean 
+Here, we create a variable holding logical (boolean) data.
 
 ```{r}
-bool = TRUE
+bool1 = TRUE
 
-bool = FALSE
+bool2 = FALSE
+
+class(bool1)
+
+class(bool2)
 ```
 
-### Factors. In R, factors are used to work with categorical variables, variables that have a fixed and known set of possible values. They are also useful when you want to display character vectors in a non-alphabetical order (https://r4ds.had.co.nz/factors.html#:~:text=In%20R%2C%20factors%20are%20used,to%20work%20with%20than%20characters)
+A variable can hold multiple values, which can be joined by using c(value1, value2, value3, value4).
 
 ```{r}
-months <- c("Dec", "Apr", "Jan", "Mar")
+months = c("Dec", "Apr", "Jan", "Mar")
+```
+
+## Factors
+
+Variables can be continuous and categorical. Continuous can assume an infinite number of values within a given interval. Categorical variables have a fixed and known set of possible values.
+
+In R, factors are used to work with categorical variables. They are also useful when you want to display character vectors in a non-alphabetical order (https://r4ds.had.co.nz/factors.html#:~:text=In%20R%2C%20factors%20are%20used,to%20work%20with%20than%20characters)
+
+```{r}
+months = c("Dec", "Apr", "Jan", "Mar")
 
 sort(months)
 
-months_factor = factor(months, level = c("Jan", "Mar", "Apr", "Dec"))
+months_factor = factor(months, levels = c("Jan", "Mar", "Apr", "Dec"))
 
 sort(months_factor)
 ```
 
-As you can see, you can join multiple variables by using c(var1, var2)
 
-### Use the following to check the type of variable, e.g trying to add up variables that are not of the same class may not work
+## Functions
 
-```{r}
-class(variable)
-```
+sort() and class() from examples above are functions. Functions are sets of statements that are designed to perform a specific task (https://www.tutorialspoint.com/r/r_functions.htm). Functions have arguments, which the user can pass to them. In R, there are a lot of in-built functions. Some examples of in-built fuctions include mean(), max(), sum(), min() (https://www.tutorialspoint.com/r/r_functions.htm). Also, in R users can define their own functions, but we won't go over this in this session. 
 
-## Functions for today
-
-### sort() and class() from examples above are functions. Functions are sets of statements that are designed to perform a specific task (https://www.tutorialspoint.com/r/r_functions.htm). Functions have arguments, which the user can pass to them. In R, there are a lot of in-built functions. Some examples of in-built fuctions include mean(), max(), sum(), min() (https://www.tutorialspoint.com/r/r_functions.htm). Also, in R users can define their own functions, but we won't go over this in this session. 
 
 ```{r}
 numbers = c(1,2,3,4,5)
+
 min(numbers)
+
 max(numbers)
+
 sum(numbers)
+
 mean(numbers)
 ```
 
-## It's impossible (and not necessary) to know all the functions and/or their arguments. 
+It's impossible (and not necessary) to know all the functions and/or their arguments.You can use the help() function to get
+
+more information about any function you want to use.  
 
 ```{r}
 help(min)
+
 help(max)
+
 help(sum)
+
 help(mean)
 ```
 
+## Naming rules in R 
+
+There are a few rules for naming variables in R. If possible names should be short and meaningful, and should include numbers, letters, _, and -. Avoid using
+
+special characters in names. Also, R is case-sensitive. 
+
 # Activity one 
 
-Create a new Rmd file and name it "Activity_1.Rmd" 
+Create a new Rmd file.
 
-Create two numerical variables containing numbers 5 and 10. 
+Within that file, create two variables holding numerical data.
 
-+, -, /, and * work like regular arithmetic operators in R. Add your two numerical variables together. 
+Knowing that +, -, /, and * work like regular arithmetic operators in R, add your two variables together.
 
-Create two character variables containing values "5" and "10", respectively. Make sure to wrap the variables in quotes. -- check very well 
+Create two variables holding the following values: "10" and "1". Make sure to enclose your variables in quotes. 
 
-This time, multiply your two character variables together, observe the error message. 
+Try adding your two new variables together. Observe the error message. 
 
-Using help(as.numeric), try to fix the error message. 
+Using as.numeric() function, try to fix the error. 
 
-Create a set of factor variables containing the following values: days of the week  , Specify the correct order. 
+Create a set of categorical variables specifying days of the week. Convert them to factors, specifying the correct order. 
 
 Use sort() function to make sure everything worked. 
 
 
+```{r}
+v1 = "1"
+
+v2 = "10"
+
+as.numeric(v1) + as.numeric(v2)
+
+days = c("Monday", "Tuesday", "Thursday", "Wednesday", "Friday")
+
+sort(days)
+
+days_f = factor(days, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday"))
+
+sort(days_f)
+```
+
+
 # Part 2 
 
-## Data are usually available to us in form of larger files, i.e. not single variables. There are functions in R that enable us to read in files. 
+## Reading in files
 
-### read.delim()
-
-# Consider changing the dataset then, add more data to it. 
-
-```{r readAfile}
-westernQuant <- read.delim("intro_to_R_2022/westernQuant.txt", header = TRUE)
-```
-
-### Another useful function is read.csv()
+Data are usually available to us in form of larger files, i.e. not single variables. There are functions in R that enable us to read in files. read.delim() can be used to read in text (.txt) files. 
 
 ```{r}
-data = read.csv("filepath.csv", header = TRUE)
+westernQuant <- read.delim("westernQuant.txt", header = TRUE)
+
+westernQuant
 ```
 
--- Not sure how to tie together the reading in a file and using the in-built mtcars dataset. -- One thought -- save the mtcars dataset as a .delim file and replace some of the values with NAs to incorporate Matt's idea to show that functions won't work on NA-containing data
+Data frames are very useful data structures in R.  westernQuant is a data frame.
 
-### Mtcars is a data frame (https://www.tutorialspoint.com/r/r_data_frames.htm)
+```{r}
+class(westernQuant)
+```
 
-A data frame is a table or a two-dimensional array-like structure in which each column contains values of one variable and each row contains one set of values from each column.
+A data frame is a table or a two-dimensional array-like structure in which each column contains values of one variable and each row contains one set of values from each column. This is similar to an Excel sheet. 
 
-The following are the characteristics of a data frame.
+Data frames have the following characteristics (https://www.tutorialspoint.com/r/r_data_frames.htm):
 
 The column names should be non-empty.
 The row names should be unique.
 The data stored in a data frame can be of numeric, factor or character type.
 Each column should contain same number of data items.
 
-Similar to an Excel sheet, where we have a table 
+Once we read in a data frame, we can manipulate the data it contains. 
 
-## Once we read in the file, we can manipulate the data it contains. 
-
-### Accessing values in a column 
+Here, we use an $ operator to access a column in a data frame.
 
 ```{r}
-mtcars$cyl
+westernQuant$group_name
 ```
 
-### Subsetting a data.frame with [ ]
-data_frame[row(s), column(s)]
-  empty means everything
+
+Square brackets can be used to subset the data frame. 
+
+data_frame[row(s), column(s)], empty means everything.
+
+R will not evaluate rows that start with "#", therefor hashtags are used to include comments in your code. 
 
 ```{r}
 # first row, first column (just one element)
-mtcars[1, 1]
+westernQuant[1, 1]
+
 # First row, all columns
-mtcars[1, ]
+westernQuant[1, ]
+
 # First column, all rows
-mtcars[, 1]
-mtcars$mpg
-# First ten rows, all columns
-mtcars[c(1:10), ]
+westernQuant[, 1]
+
+# First 5 rows, all columns
+westernQuant[c(1:5), ]
 ```
 
-### We can also use functions to manipulate the data
-
-### summary()
-
-```{r summary}
-summary(mtcars)
-```
-
-### We can use the functions from the previous section
+Also, functions head() and tail() can be used to retrieve the first and the last six rows of a data frame, respectively. 
 
 ```{r}
-min(mtcars$cyl)
+head(westernQuant)
 
-max(mtcars$mpg)
-
-mean(mtcars$disp)
+tail(westernQuant)
 ```
 
--- make a column in dataset that includes NAs
----------------------------
-Many of these functions can get angry about missing data (`NA`).
+We can also use functions to look at data. 
 
-Include na.rm = TRUE as an argument to ignore missing data
-
-#### This doesn't work
-```{r dontruns, eval=FALSE}
-mean(c(1, 3, 4, NA, 34))
+```{r}
+summary(westernQuant)
 ```
 
-#### This works
-```{r runs}
-mean(c(1, 3, 4, NA, 34), na.rm = TRUE)
+We can use the functions from the previous section. 
+
+```{r}
+min(westernQuant$intensity_gene1)
+
+max(westernQuant$intensity_gene1)
+
+mean(westernQuant$intensity_gene1)
 ```
-----------------------------
 
+Many functions will return an error if the data contain NAs. To overcome this issue, you need to include an na.rm = TRUE argument. 
 
-### We can use fnnction to make visualizations, e.g. plot()
+```{r}
+min(westernQuant$intensity_gene2)
+
+max(westernQuant$intensity_gene2)
+
+mean(westernQuant$intensity_gene2)
+
+min(westernQuant$intensity_gene2, na.rm = TRUE)
+
+max(westernQuant$intensity_gene2, na.rm = TRUE)
+
+mean(westernQuant$intensity_gene2, na.rm = TRUE)
+```
+
+We can use fnnction to make visualizations. Here, we use our data to make a boxplot. 
 
 ```{r plot}
-plot(mtcars$mpg, mtcars$cyl)
-
-plot(as.factor(mtcars$cyl), mtcars$mpg)
+boxplot(westernQuant$intensity_gene1 ~ westernQuant$group_name, data = westernQuant)
 ```
+Here, we make a histogram of our data. 
 
-## Other useful functions 
-
-### cbind, rbind
-attach two data.frames either side to side or top to bottom
-rbind will arrange column names
-cbind just puts things together without checking order
-  Generally a bad idea to cbind unless you're very careful
-  
 ```{r}
-efficient <-
-  mtcars %>%
-  filter(mpg > 30)
-
-gas_guzzlers <-
-  mtcars %>%
-  filter(mpg < 14.5)
-
-rbind(efficient, gas_guzzlers)
-
-# This is total nonsense, but R does it anyways
-test <- 
-  cbind(efficient, gas_guzzlers)
+hist(westernQuant$intensity_gene1)
 ```
-
-
-
 ## Activity 2
 
 -- Make sure to save the summary output to a variable 
@@ -265,96 +298,83 @@ Use barplot()
 
 ```
 
-### I'm super fast
-Try out wilcox.test(). --- use help() 
-
-
-
 
 # Part 3
 
-## packages -- what is a package? 
-# R packages are a collection of R functions, complied code and sample data.  
-#https://www.tutorialspoint.com/r/r_packages.htm. Packages are usually created to address a very specific need in data analysis. 
+## Packages 
 
-## Tidyverse is a very useful collection of packages
-#The tidyverse is an opinionated collection of R packages designed for data science (includes ggplot2, dplyr, and other ones). All packages share an underlying design philosophy, grammar, and #data structures.
-#https://www.tidyverse.org/
+R packages are a collection of R functions, complied code and sample data (https://www.tutorialspoint.com/r/r_packages.htm). Packages are usually created to address a very specific need in data analysis. 
 
-## Include cheat sheet link
+Tidyverse is a very useful collection of packages. Tidyverse is an opinionated collection of R packages designed for data science (includes ggplot2, dplyr, and other ones). All packages share an underlying design philosophy, grammar, and data structures.
 
-### Packages need to be installed and loaded into the session before they can be used
+https://www.tidyverse.org/
 
-Some packages come from CRAN (install.packages()), Bioconductor is a BiocManager::install(), best way to find out is goodle 
+Packages need to be installed and loaded into the session before they can be used.
+
+Some packages come from The Comprehensive R Archive Network (CRAN) with install.packages(), other packages can be installed through Bioconductor through BiocManager::install(). Best way to find out how to install a given package is to Google the specific package. 
 
 ```{r}
-#install.packages("tidyverse", Ncpus = 8)
+#install.packages("tidyverse")
+
 library(tidyverse)
 
 # Backup plan if you run into lots of errors there...
-# By the way, any text that starts with a "#" is a comment and not executed
+
 #install.packages(c("dplyr", "ggplot2"))
-#library(dplyr)
-#library(ggplot2)
+
+library(dplyr)
+
+library(ggplot2)
 ```
 
 Tidyverse packages use the pipe operator %>%
 
-### join -- left_join, inner_join, right_join, outer_join, anti_join, by = "x" 
+Several useful tidyverse functions:
 
+mutate() adds a new column to a data frame 
 
-### mutate
-Add a new column or change an existing one
 ```{r}
-km_per_mi <- 1.60934
+westernQuant = westernQuant%>%
+  mutate(intensity_gene1_log = log2(intensity_gene1))
+westernQuant
+```
+select() allows to select a certain column or several columns.
 
-mtcars %>%
-  mutate(kpg = mpg * km_per_mi)
+```{r}
+westernQuant%>%
+  select(intensity_gene1, group_name)
 ```
 
-### select
-```{r}
-mtcars %>%
-  select(cyl)
-```
+rename() allows to rename a column.
 
-### rename
 ```{r}
-mtcars %>% 
-  rename(Cyl = cyl)
+westernQuant %>% 
+  rename(Group = group_name)
 ```
+arrange() allow us to order a column by values, in ascending or descending order. 
 
-### arrange
 ```{r}
-mtcars %>%
-  arrange(mpg)
+arranged1 = westernQuant %>%
+  arrange(intensity_gene1)
   
-head(mtcars)
+head(arranged1)
 
-tail(mtcars)
+tail(arranged1)
 
-mtcars %>%
-  arrange(- mpg)
-  
-head(mtcars)
+arranged2 = westernQuant %>%
+  arrange(-intensity_gene1)
 
-tail(mtcars)
+head(arranged2)
+
+tail(arranged2)
 ```
 
-### summarize() and group_by()
-group() silently divides up rows by categories
-summarize() data within groups in a dataframe
-Makes a new column and drops all columns not in group_by() or created by summarize()
+summarize() and group_by(). group() silently divides up rows by categories, and summarize() summarizes data within groups in a data frame. This makes a new column and drops all unnecesary columns. 
 
 ```{r}
-mtcars %>%
-  group_by(cyl) %>%
-  summarize(mean_mpg = mean(mpg))
-
-starwars %>%
-  group_by(homeworld, species) %>%
-  summarize(mean_height = mean(height),
-            max_mass = max(mass))
+westernQuant %>%
+  group_by(group_name) %>%
+  summarize(mean_mpg = mean(intensity_gene1))
 ```
 
 
@@ -364,12 +384,13 @@ wide data vs long data
 https://epirhandbook.com/en/images/pivoting/pivot_longer_new.png
 ```{r}
 # wide data
-relig_income
+income
+
 
 # long data
 long_data <-
   relig_income %>%
-  pivot_longer(!religion,
+  pivot_longer(!Species,
                names_to = "income",
                values_to = "count")
 
@@ -379,6 +400,8 @@ wide_again <-
   pivot_wider(names_from = "income",
               values_from = "count")
 ```
+
+left_join, right_join, inner_join, outer_join, anti_join
 
 ### Write a table out to a text file
 ```{r}
@@ -394,7 +417,7 @@ write_tsv(wide_again,
 
 
 
-
+### 
 
 ## Activity
 
