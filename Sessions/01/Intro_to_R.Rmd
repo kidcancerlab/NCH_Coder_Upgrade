@@ -25,20 +25,21 @@ https://intro2r.com/what-is-r-markdown.html
 -- What is a variable?
 
 -- What's a function? Arguments for functions. Reading function documentation. 
-  
-  
+
+
 ## Variables and basic data types 
 
-"=" or "<-" is an assignment operator.
+"=" or "<-" is an assignment operator, though "<-" is preferred.
 
 Variables in R can be used to store letters, numbers, and various data structures. To create a new variable, simply assign a value to a name.
 
-Fundamental data types in R include: numeric, integer, complex, character, and logical. 
+Fundamental data types in R include: numeric, integer, complex, character, and logical.
 
-Here, we create a variable holding character data. Characters are enclosed in quotes. 
+Here, we create a variable holding character data. Characters are enclosed in quotes.
 
 ```{r}
-my_name <- "Matt" 
+my_name <- "Matt"
+my_name = "Matt"
 ```
 
 You can use class(my_name) to examine to which data type does the variable my_name belong.
@@ -50,7 +51,7 @@ class(my_name)
 Here, we create a variable holding numeric data.
 
 ```{r}
-count = 10 
+count <- 10
 
 class(count)
 ```
@@ -58,9 +59,9 @@ class(count)
 Here, we create a variable holding logical (boolean) data.
 
 ```{r}
-bool1 = TRUE
+bool1 <- TRUE
 
-bool2 = FALSE
+bool2 <- FALSE
 
 class(bool1)
 
@@ -70,7 +71,7 @@ class(bool2)
 A variable can hold multiple values, which can be joined by using c(value1, value2, value3, value4).
 
 ```{r}
-months = c("Dec", "Apr", "Jan", "Mar")
+months <- c("Dec", "Apr", "Jan", "Mar")
 ```
 
 ## Factors
@@ -80,11 +81,11 @@ Variables can be continuous and categorical. Continuous can assume an infinite n
 In R, factors are used to work with categorical variables. They are also useful when you want to display character vectors in a non-alphabetical order (https://r4ds.had.co.nz/factors.html#:~:text=In%20R%2C%20factors%20are%20used,to%20work%20with%20than%20characters)
 
 ```{r}
-months = c("Dec", "Apr", "Jan", "Mar")
+months <- c("Dec", "Apr", "Jan", "Mar")
 
 sort(months)
 
-months_factor = factor(months, levels = c("Jan", "Mar", "Apr", "Dec"))
+months_factor <- factor(months, levels = c("Jan", "Mar", "Apr", "Dec"))
 
 sort(months_factor)
 ```
@@ -99,7 +100,7 @@ sort() and class() from examples above are functions. Functions are sets of stat
 
 
 ```{r}
-numbers = c(1,2,3,4,5)
+numbers <- c(1,2,3,4,5)
 
 min(numbers)
 
@@ -148,17 +149,17 @@ Use sort() function to make sure everything worked.
 
 
 ```{r}
-v1 = "1"
+v1 <- "1"
 
-v2 = "10"
+v2 <- "10"
 
 as.numeric(v1) + as.numeric(v2)
 
-days = c("Monday", "Tuesday", "Thursday", "Wednesday", "Friday")
+days <- c("Monday", "Tuesday", "Thursday", "Wednesday", "Friday")
 
 sort(days)
 
-days_f = factor(days, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday"))
+days_f <- factor(days, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday"))
 
 sort(days_f)
 ```
@@ -335,7 +336,7 @@ Several useful tidyverse functions:
 mutate() adds a new column to a data frame 
 
 ```{r}
-westernQuant = westernQuant%>%
+westernQuant <- westernQuant%>%
   mutate(intensity_gene1_log = log2(intensity_gene1))
 westernQuant
 ```
@@ -355,14 +356,14 @@ westernQuant %>%
 arrange() allow us to order a column by values, in ascending or descending order. 
 
 ```{r}
-arranged1 = westernQuant %>%
+arranged1 <- westernQuant %>%
   arrange(intensity_gene1)
   
 head(arranged1)
 
 tail(arranged1)
 
-arranged2 = westernQuant %>%
+arranged2 <- westernQuant %>%
   arrange(-intensity_gene1)
 
 head(arranged2)
@@ -388,7 +389,7 @@ https://epirhandbook.com/en/images/pivoting/pivot_longer_new.png
 
 ```{r}
 # wide data
-temperatures = read.delim("weather.txt", header = TRUE)
+temperatures <- read.delim("weather.txt", header = TRUE)
 temperatures
 
 # long data
