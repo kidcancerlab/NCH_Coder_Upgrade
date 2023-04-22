@@ -6,6 +6,8 @@ date: '2032-04-10'
 output: html_document
 ---
 
+--------------------------------------------------------------------------------
+
 # Part 1
 
 ## Overview
@@ -14,18 +16,10 @@ output: html_document
 
 -- R markdown, creating an Rmd file.
 
-R markdown is a way to combine plain text, your R code, and results from your data analysis (including plots and tables) into a nicely formatted and reproducible document. 
-
+R markdown is a way to combine plain text, your R code, and results from your data analysis (including plots and tables) into a nicely formatted and reproducible document.
 https://intro2r.com/what-is-r-markdown.html
 
--- In general, when naming files in R, avoid using dots in file names, try to stick to numbers, letters, underscores, and dashes.
-
 -- To create a new R chunk in an Rmd file, use Code/Insert Chunk, ctrl + alt + i (Windows), or cmd + option + i (macOS).
-
--- What is a variable?
-
--- What's a function? Arguments for functions. Reading function documentation. 
-
 
 ## Variables and basic data types 
 
@@ -36,20 +30,18 @@ Variables in R can be used to store letters, numbers, and various data structure
 Fundamental data types in R include: numeric, integer, complex, character, and logical.
 
 Here, we create a variable holding character data. Characters are enclosed in quotes.
-
 ```{r}
 my_name <- "Matt"
 my_name = "Matt"
 ```
 
-You can use class(my_name) to examine to which data type does the variable my_name belong.
-
+You can use class(my_name) or typeof(my_name) to examine to which data type does the variable my_name belong.
 ```{r}
 class(my_name)
+typeof(my_name)
 ```
 
 Here, we create a variable holding numeric data.
-
 ```{r}
 count <- 10
 
@@ -57,7 +49,6 @@ class(count)
 ```
 
 Here, we create a variable holding logical (boolean) data.
-
 ```{r}
 bool1 <- TRUE
 
@@ -68,39 +59,100 @@ class(bool1)
 class(bool2)
 ```
 
-A variable can hold multiple values, which can be joined by using c(value1, value2, value3, value4).
-
-```{r}
-months <- c("Dec", "Apr", "Jan", "Mar")
-```
-
 ## Factors
 
 Variables can be continuous and categorical. Continuous can assume an infinite number of values within a given interval. Categorical variables have a fixed and known set of possible values.
 
 In R, factors are used to work with categorical variables. They are also useful when you want to display character vectors in a non-alphabetical order (https://r4ds.had.co.nz/factors.html#:~:text=In%20R%2C%20factors%20are%20used,to%20work%20with%20than%20characters)
-
 ```{r}
 months <- c("Dec", "Apr", "Jan", "Mar")
 
 sort(months)
 
-months_factor <- factor(months, levels = c("Jan", "Mar", "Apr", "Dec"))
+months_factor <- factor(months,
+                        levels = c("Jan", "Mar", "Apr", "Dec"))
 
 sort(months_factor)
 ```
 
-## Variable types 
+## Variable types
 
-vector, list, matrix, data frame 
+### Vectors
 
-## Functions
-
-sort() and class() from examples above are functions. Functions are sets of statements that are designed to perform a specific task (https://www.tutorialspoint.com/r/r_functions.htm). Functions have arguments, which the user can pass to them. In R, there are a lot of in-built functions. Some examples of in-built fuctions include mean(), max(), sum(), min() (https://www.tutorialspoint.com/r/r_functions.htm). Also, in R users can define their own functions, but we won't go over this in this session. 
-
+- A vector can hold multiple values, which can be joined by using c(value1, value2, value3, value4).
+- A vector holds data of a single type (all numbers, all characters, etc..)
 
 ```{r}
-numbers <- c(1,2,3,4,5)
+months <- c("Dec", "Apr", "Jan", "Mar")
+is.vector(months)
+```
+
+### Lists
+
+- Lists are like vectors, but they can hold different types of data.
+- Elements in a list can have names
+
+```{r}
+list_of_stuff <-
+    list("first",
+         2,
+         c(TRUE, TRUE, FALSE))
+list_of_stuff
+
+other_list <-
+    list("first" = "first",
+         "second" = 2,
+         "third" = c(TRUE, TRUE, FALSE))
+other_list$third
+```
+
+### Data frames
+
+- Data frames are tables of data similar to excel worksheets.
+- Each column can be of a different data type, but everything in a column has to be of the same data type.
+- A data frame is a table or a two-dimensional array-like structure in which each column contains values of one variable and each row contains one set of values from each column. This is similar to an Excel sheet. 
+- Data frames have the following characteristics (https://www.tutorialspoint.com/r/r_data_frames.htm):
+    - The column names should be non-empty.
+    - The row names should be unique.
+    - The data stored in a data frame can be of numeric, factor or character type.
+    - Each column should contain same number of data items.
+
+```{r}
+important_data <-
+    data.frame(names = c("Matt", "Luda", "John"),
+               pets = c("dog", "cat", "dog"),
+               pie_or_cake = c("pie", "cake", "pie"))
+important_data
+
+important_data$names
+```
+
+### Matrices
+
+- Matrices are like vectors, but they can have multiple dimensions.
+- Unlike dataframes, all elements in a matrix have to be of the same data type.
+
+```{r}
+my_matrix <- matrix(c(1, 2, 3, 4, 5, "bob"),
+                    nrow = 2,
+                    ncol = 3)
+my_matrix
+is.numeric(my_matrix)
+```
+
+## Getting things done with functions
+
+R uses functions to perform operations. For example, sort() and class() from above are functions. Functions are sets of statements that are designed to perform a specific task (https://www.tutorialspoint.com/r/r_functions.htm).
+
+- Functions have a name, which is used to call them.
+- They are followed by parentheses, which contain the arguments.
+- They can return a value.
+- Functions have arguments, which the user can pass to them.
+- In R, there are a lot of in-built functions. Some examples of in-built fuctions include mean(), max(), sum(), min() (https://www.tutorialspoint.com/r/r_functions.htm).
+- Also, in R users can define their own functions, but we won't go over this in this session.
+
+```{r}
+numbers <- c(1, 2, 3, 4, 5)
 
 min(numbers)
 
@@ -111,10 +163,9 @@ sum(numbers)
 mean(numbers)
 ```
 
-It's impossible (and not necessary) to know all the functions and/or their arguments.You can use the help() function to get
-
-more information about any function you want to use.  
-
+It's impossible (and not necessary) to know all the functions and/or their arguments.You can use the help() function to get more information about any function you want to use.
+    - Use "q" to quit the help page.
+How to read the help page
 ```{r}
 help(min)
 
@@ -125,74 +176,95 @@ help(sum)
 help(mean)
 ```
 
-## Naming rules in R 
+## Naming guidelines in R 
 
-There are a few rules for naming variables in R. If possible names should be short and meaningful, and should include numbers, letters, _, and -. Avoid using special characters in names. Also, R is case-sensitive. 
+There are a few rules for naming variables in R.
 
-# Activity one 
-
-Create a new Rmd file.
-
-Within that file, create two variables holding numerical data.
-
-Knowing that +, -, /, and * work like regular arithmetic operators in R, add your two variables together.
-
-Create two variables holding the following values: "10" and "1". Make sure to enclose your variables in quotes. 
-
-Try adding your two new variables together. Observe the error message. 
-
-Using as.numeric() function, try to fix the error. 
-
-Create a set of categorical variables specifying days of the week. Convert them to factors, specifying the correct order. 
-
-Use sort() function to make sure everything worked. 
-
+- Names should be short and meaningful
+- Should include numbers, letters, _, and -
+- Avoid using special characters in names
+- R is case-sensitive, best practice is to use lowercase
 
 ```{r}
-v1 <- "1"
+my_name <- "Matt"
+MY_NAME <- "Luda"
 
+my_name == MY_NAME
+```
+
+--------------------------------------------------------------------------------
+
+# Activity 1
+
+Create a new Rmd file. Use ctrl+shift+i to insert a new R chunk.
+
+Within that file, create two variables holding numerical data.
+Knowing that +, -, /, and * work like regular arithmetic operators in R, add your two variables together.
+```{r}
+var_1 <- 1
+var_2 <- 2
+
+var_1 + var_2
+```
+
+Create two variables holding the following values: "10" and "1". Make sure to enclose your variables in quotes.
+Try adding your two new variables together. Observe the error message.
+```{r}
+v1 <- "1"
 v2 <- "10"
 
-as.numeric(v1) + as.numeric(v2)
+v1 + v2
+```
 
+Using as.numeric() function, try to fix the error.
+```{r}
+as.numeric(v1) + as.numeric(v2)
+```
+
+Create a set of categorical variables specifying days of the week. Convert them to factors, specifying the correct order.
+
+Use sort() function to make sure everything worked.
+```{r}
 days <- c("Monday", "Tuesday", "Thursday", "Wednesday", "Friday")
 
 sort(days)
 
-days_f <- factor(days, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday"))
+days_f <- factor(days, levels = c("Monday",
+                                  "Tuesday",
+                                  "Wednesday",
+                                  "Thursday",
+                                  "Friday"))
 
 sort(days_f)
 ```
 
+If you're fast:
+Think of something interesting you could do with some of your variables. Look up the function that would help you do that and read the documentation. Try it out.
+```{r}
 
-# Part 2 
+```
+
+--------------------------------------------------------------------------------
+
+# Part 2
 
 ## Reading in files
 
-Data are usually available to us in form of larger files, i.e. not single variables. There are functions in R that enable us to read in files. read.delim() can be used to read in text (.txt) files. 
+Data are usually available to us in form of larger files, i.e. not single variables. There are functions in R that enable us to read in files. read.delim() can be used to read in text (.txt) files.
 
 ```{r}
-westernQuant <- read.delim("westernQuant.txt", header = TRUE)
+westernQuant <- read.delim("Sessions/01/westernQuant.txt", header = TRUE)
 
 westernQuant
 ```
 
-Data frames are very useful data structures in R.  westernQuant is a data frame.
+Data frames are very useful data structures in R. westernQuant is a data frame.
 
 ```{r}
 class(westernQuant)
 ```
 
-A data frame is a table or a two-dimensional array-like structure in which each column contains values of one variable and each row contains one set of values from each column. This is similar to an Excel sheet. 
-
-Data frames have the following characteristics (https://www.tutorialspoint.com/r/r_data_frames.htm):
-
-The column names should be non-empty.
-The row names should be unique.
-The data stored in a data frame can be of numeric, factor or character type.
-Each column should contain same number of data items.
-
-Once we read in a data frame, we can manipulate the data it contains. 
+Once we read in a data frame, we can manipulate the data it contains.
 
 Here, we use an $ operator to access a column in a data frame.
 
@@ -200,12 +272,10 @@ Here, we use an $ operator to access a column in a data frame.
 westernQuant$group_name
 ```
 
+Square brackets can be used to subset the data frame.
 
-Square brackets can be used to subset the data frame. 
-
-data_frame[row(s), column(s)], empty means everything.
-
-R will not evaluate rows that start with "#", therefor hashtags are used to include comments in your code. 
+data_frame[row(s), column(s)]
+data_frame[, ] (empty) means everything.
 
 ```{r}
 # first row, first column (just one element)
@@ -221,7 +291,7 @@ westernQuant[, 1]
 westernQuant[c(1:5), ]
 ```
 
-Also, functions head() and tail() can be used to retrieve the first and the last six rows of a data frame, respectively. 
+Also, functions head() and tail() can be used to retrieve the first and the last six rows of a data frame, respectively.
 
 ```{r}
 head(westernQuant)
@@ -264,7 +334,8 @@ mean(westernQuant$intensity_gene2, na.rm = TRUE)
 We can use fnnction to make visualizations. Here, we use our data to make a boxplot. 
 
 ```{r plot}
-boxplot(westernQuant$intensity_gene1 ~ westernQuant$group_name, data = westernQuant)
+boxplot(intensity_gene1 ~ group_name,
+        data = westernQuant)
 ```
 Here, we make a histogram of our data. 
 
@@ -274,7 +345,6 @@ hist(westernQuant$intensity_gene1)
 ## Activity 2
 
 -- Make sure to save the summary output to a variable 
-
 
 ### Read in data
 Use read.delim()
@@ -303,7 +373,7 @@ Use barplot()
 
 # Part 3
 
-## Packages 
+## Packages
 
 R packages are a collection of R functions, complied code and sample data (https://www.tutorialspoint.com/r/r_packages.htm). Packages are usually created to address a very specific need in data analysis. 
 
@@ -333,24 +403,25 @@ Tidyverse packages use the pipe operator %>%
 
 Several useful tidyverse functions:
 
-mutate() adds a new column to a data frame 
+mutate() adds a new column to a data frame
 
 ```{r}
-westernQuant <- westernQuant%>%
-  mutate(intensity_gene1_log = log2(intensity_gene1))
+westernQuant <-
+    westernQuant %>%
+    mutate(intensity_gene1_log = log2(intensity_gene1))
 westernQuant
 ```
-select() allows to select a certain column or several columns.
 
+select() allows to select a certain column or several columns.
 ```{r}
-westernQuant%>%
+westernQuant %>%
   select(intensity_gene1, group_name)
 ```
 
 rename() allows to rename a column.
 
 ```{r}
-westernQuant %>% 
+westernQuant %>%
   rename(Group = group_name)
 ```
 arrange() allow us to order a column by values, in ascending or descending order. 
@@ -358,7 +429,7 @@ arrange() allow us to order a column by values, in ascending or descending order
 ```{r}
 arranged1 <- westernQuant %>%
   arrange(intensity_gene1)
-  
+
 head(arranged1)
 
 tail(arranged1)
@@ -379,14 +450,11 @@ westernQuant %>%
   summarize(mean_intensity = mean(intensity_gene1))
 ```
 
-
 ### pivot_longer()
 
 wide data vs long data
 "tidy" data - https://www.youtube.com/watch?v=K-ss_ag2k9E explanation starts ~ 6 min in
 https://epirhandbook.com/en/images/pivoting/pivot_longer_new.png
-
-
 ```{r}
 # wide data
 temperatures <- read.delim("weather.txt", header = TRUE)
@@ -396,10 +464,21 @@ temperatures
 
 #pivot_longer() "lengthens" data, increasing the number of rows and decreasing the number of columns. 
 long_data <-
-  temperatures %>%
-  pivot_longer(cols = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"),
-               names_to = "months",
-               values_to = "count")
+    temperatures %>%
+    pivot_longer(cols = c("Jan",
+                          "Feb",
+                          "Mar",
+                          "Apr",
+                          "May",
+                          "Jun",
+                          "Jul",
+                          "Aug",
+                          "Sep",
+                          "Oct",
+                          "Nov",
+                          "Dec"),
+                 names_to = "months",
+                 values_to = "count")
 
 # Make it wider
 wide_again <-
@@ -411,8 +490,6 @@ wide_again
 ```
 
 left_join, right_join, inner_join, outer_join, anti_join
-
-
 ```{r}
 
 
@@ -431,12 +508,7 @@ write_tsv(wide_again,
           file = "exampleOutputAlso.txt")
 ```
 
-
-
-
-### 
-
-## Activity
+## Activity 3
 
 ### Read in and check out the Titanic data
 ```{r}
@@ -474,8 +546,6 @@ Basically, calculate the mean/median age and fare for men vs women
 ```
 
 
-# 
-
 ## General stuff
 
 ### Common error messages
@@ -511,19 +581,17 @@ R thinks you have unfinished business here
 
 ### googling "R how do I…"
 
----
-
-## Functions for today's activity
 
 
 
+## Activity 4
 
-
-## Activity
-
-### Read in patientGroups.txt and exercise.txt
-patientGroups.txt is patient #, treatment groups and final blood glucose measurements apatientGroups.txt is patient #, treatment groups and final blood glucose measurementspatientGroups.txt is patient #, treatment groups and final blood glucose measurementspatientGroups.txt is patient #, treatment groups and final blood glucose measurementspatientGroups.txt is patient #, treatment groups and final blood glucose measurementspatientGroups.txt is patient #, treatment groups and final blood glucose measurementspatientGroups.txt is patient #, treatment groups and final blood glucose measurements
-exercise.txt is the how many minutes each patient exercised across five days
+### Read in our data
+We have two tables of data:
+- weather_temps.txt
+    - Has monthly average temperatures for cities around the world
+- weather_precip.txt
+    - Has monthly average precipitation for cities around the world
 ```{r}
 
 ```
