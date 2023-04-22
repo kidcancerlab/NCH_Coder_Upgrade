@@ -468,7 +468,7 @@ str(pbmc_small)
 
 
 
-# Further practice
+# Session challenge
 
 
 
