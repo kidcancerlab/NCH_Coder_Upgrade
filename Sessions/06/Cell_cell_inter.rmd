@@ -23,6 +23,9 @@ library(rrrSingleCellUtils)
 library(tidyverse)
 library(Seurat)
 library(nichenetr)
+
+.libPaths("/gpfs0/export/apps/opt/scrgot/23/lib/R")
+
 ```
 
 --------------------------------------------------------------------------------
@@ -71,6 +74,13 @@ seurat_obj <-
 DimPlot(seurat_obj, group.by = "celltype", label = TRUE)
 ```
 
+
+
+
+## Easy mode
+
+This will work if you are comparing between two conditions such as treated/untreated
+List of genes to 
 ```{r}
 nichenet_output <-
     nichenet_seuratobj_aggregate(seurat_obj = seurat_obj,
@@ -98,7 +108,7 @@ Make plots from nichenetr outputs?
 # Section 3: Interpreting nichenetr results
 Activity (3:30 - 4ish)
  
-# Homework
+# Session challenge
 Run nichenetr on your own data or data from some random paper
 Run cell-cell interaction analysis with another package
 Compare the two

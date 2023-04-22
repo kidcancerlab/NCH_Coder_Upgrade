@@ -22,7 +22,9 @@ Load libraries
 library(rrrSingleCellUtils)
 library(tidyverse)
 library(Seurat)
+library(Signac)
 library(nichenetr)
+#system("ml HDF5")
 ```
 
 --------------------------------------------------------------------------------
@@ -141,36 +143,12 @@ seurat_obj <-
                        min_features = 800) %>%
     PercentageFeatureSet(pattern = "^mt-",
                          col.name = "percent_mt_rna",
-                         assay = "RNA") 
-
-cutoffs <-
-    tribble(~feature, ~min_val, ~max_val,
-            "nCount_RNA", 2000, 25000,
-            "nFeature_RNA", 1000, 7000,
-            "percent_mt_rna", 0, 10)
-
-feature_hist(seurat_obj,
-             features = c("nCount_RNA",
-                          "nFeature_RNA",
-                          "percent_mt_rna"),
-             cutoff_table = cutoffs)
-
-seurat_obj <-
-    subset(seurat_obj,
-           subset = nCount_RNA >= cutoffs$min_val[1] &
-                    nCount_RNA <= cutoffs$max_val[1] &
-                    nFeature_RNA >= cutoffs$min_val[2] &
-                    nFeature_RNA <= cutoffs$max_val[2] &
-                    percent_mt_rna <= cutoffs$max_val[3]) %>%
-    process_seurat(resolution = 0.2)
-
-DimPlot(seurat_obj)
+                         assay = "RNA")
 ```
 
 
-Let's focus on the ATAC data
-
-Add the ATAC data to the Seurat object
+## Add the ATAC data to the Seurat object
+Need to combine the datasets prior to filtering
 ```{r}
 frag_file <-
     paste0(data_path,
@@ -181,15 +159,70 @@ seurat_obj[["ATAC"]] <-
                          sep = c(":", "-"),
                          fragments = frag_file,
                          min.cells = 5)
+
 ```
+
+# Filter out likely junk cells
+```{r}
+cutoffs <-
+    tribble(~feature, ~min_val, ~max_val,
+            "nCount_RNA", 2000, 25000,
+            "nFeature_RNA", 1000, 7000,
+            "percent_mt_rna", 0, 20,
+            "nCount_ATAC", 2000, 60000,
+            "nFeature_ATAC", 1000, 25000)
+
+feature_hist(seurat_obj,
+             features = c("nCount_RNA",
+                          "nFeature_RNA",
+                          "percent_mt_rna",
+                          "percent_mt_atac",
+                          "nCount_ATAC",
+                          "nFeature_ATAC"),
+             cutoff_table = cutoffs)
+
+length(Cells(seurat_obj))
+seurat_obj <-
+    subset(seurat_obj,
+           subset = nCount_RNA >= cutoffs$min_val[1] &
+                    nCount_RNA <= cutoffs$max_val[1] &
+                    nFeature_RNA >= cutoffs$min_val[2] &
+                    nFeature_RNA <= cutoffs$max_val[2] &
+                    percent_mt_rna <= cutoffs$max_val[3]) %>%
+    process_seurat(resolution = 0.2)
+length(Cells(seurat_obj))
+
+# Not the best way to characterize brain cell types, but it's good enough for now
+imm_cells <- celldex::ImmGenData()
+mouse_rna <- celldex::MouseRNAseqData()
+
+cell_assign <-
+    SingleR::SingleR(as.SingleCellExperiment(seurat_obj),
+                     ref = list(imm_cells,
+                                mouse_rna),
+                     labels = list(imm_cells$label.fine,
+                                   mouse_rna$label.fine))
+
+seurat_obj$cell_type <-
+    cell_assign$labels %>%
+    str_replace("DC", "Dendritic cells")
+seurat_obj$cell_score <-
+    cell_assign$scores %>%
+    apply(MARGIN = 1, function(x) max(x, na.rm = TRUE))
+
+DimPlot(seurat_obj, group.by = "cell_type", label = TRUE)
+```
+
+
+Let's focus on the ATAC data
 
 Calculate metrics to use for QC
 ```{r}
 seurat_obj <-
-    Seurat::PercentageFeatureSet(seurat_obj,
-                                 pattern = "^mt-",
-                                 col.name = "percent_mt_atac",
-                                 assay = "ATAC")
+    PercentageFeatureSet(seurat_obj,
+                         pattern = "^mt-",
+                         col.name = "percent_mt_atac",
+                         assay = "ATAC")
 
 annotations <-
     GetGRangesFromEnsDb(ensdb = EnsDb.Mmusculus.v79::EnsDb.Mmusculus.v79)
@@ -200,7 +233,7 @@ genome(annotations) <- "mm10"
 Annotation(seurat_obj) <- annotations
 
 seurat_obj <- NucleosomeSignal(seurat_obj)
-seurat_obj$nucleosome_group <-  
+seurat_obj$nucleosome_group <-
     ifelse(seurat_obj$nucleosome_signal > cutoff,
            paste0("NS > ", cutoff),
            paste0("NS < ", cutoff))
@@ -250,7 +283,7 @@ Work with Seurat and Signac
 
 Talk to Amy, Meren and Jason Navarro?
 
-## Homework
+## Session challenge
 
 
 

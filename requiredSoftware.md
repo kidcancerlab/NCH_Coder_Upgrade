@@ -1,7 +1,10 @@
 # R packages - on HPC
+- BiocManager
 - hdf5r
 - Seurat
 - Signac
+- SingleCellExperiment
+    - BiocManager::install("SingleCellExperiment")
 - tidyverse
 - qs
 - nichenetr
@@ -12,6 +15,10 @@
     - BiocManager::install("GenomicFeatures")
 - EnsDb.Mmusculus.v79
     - BiocManager::install("EnsDb.Mmusculus.v79")
+- SingleR
+    - BiocManager::install("SingleR")
+- celldex
+    - BiocManager::install("celldex")
 
 # R packages - on local machine
 - Seurat
