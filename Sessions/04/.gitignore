@@ -18,3 +18,11 @@ __pycache__
 slurm-*
 *.gz
 # 
+session04_ali.aux
+session04_ali.log
+session04_ali.nav
+session04_ali.out
+session04_ali.pdf
+session04_ali.snm
+session04_ali.toc
+session04_ali.vrb
