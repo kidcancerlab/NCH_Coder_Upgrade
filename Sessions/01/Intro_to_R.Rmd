@@ -1,11 +1,12 @@
 ---
 title: "Intro to R 2023"
-author: "Matt Cannon"
-edits: "Luda Popova"
-date: '2032-04-10'
+author: "Matt Cannon and Luda Popova"
+date: '2023-04-23'
 output: html_document
 ---
-
+```{r load_packages}
+library(tidyverse)
+```
 --------------------------------------------------------------------------------
 
 # Part 1
@@ -209,7 +210,7 @@ var_1 + var_2
 
 Create two variables holding the following values: "10" and "1". Make sure to enclose your variables in quotes.
 Try adding your two new variables together. Observe the error message.
-```{r}
+```{r eval=FALSE}
 v1 <- "1"
 v2 <- "10"
 
@@ -218,6 +219,9 @@ v1 + v2
 
 Using as.numeric() function, try to fix the error.
 ```{r}
+v1 <- "1"
+v2 <- "10"
+
 as.numeric(v1) + as.numeric(v2)
 ```
 
@@ -251,15 +255,13 @@ Think of something interesting you could do with some of your variables. Look up
 ## Reading in files
 
 Data are usually available to us in form of larger files, i.e. not single variables. There are functions in R that enable us to read in files. read.delim() can be used to read in text (.txt) files.
-
 ```{r}
-westernQuant <- read.delim("Sessions/01/westernQuant.txt", header = TRUE)
+westernQuant <- read_tsv("Sessions/01/westernQuant.txt")
 
 westernQuant
 ```
 
 Data frames are very useful data structures in R. westernQuant is a data frame.
-
 ```{r}
 class(westernQuant)
 ```
@@ -267,7 +269,6 @@ class(westernQuant)
 Once we read in a data frame, we can manipulate the data it contains.
 
 Here, we use an $ operator to access a column in a data frame.
-
 ```{r}
 westernQuant$group_name
 ```
@@ -276,7 +277,6 @@ Square brackets can be used to subset the data frame.
 
 data_frame[row(s), column(s)]
 data_frame[, ] (empty) means everything.
-
 ```{r}
 # first row, first column (just one element)
 westernQuant[1, 1]
@@ -292,21 +292,18 @@ westernQuant[c(1:5), ]
 ```
 
 Also, functions head() and tail() can be used to retrieve the first and the last six rows of a data frame, respectively.
-
 ```{r}
 head(westernQuant)
 
 tail(westernQuant)
 ```
 
-We can also use functions to look at data. 
-
+We can also use functions to look at data.
 ```{r}
 summary(westernQuant)
 ```
 
-We can use the functions from the previous section. 
-
+We can use the functions from the previous section.
 ```{r}
 min(westernQuant$intensity_gene1)
 
@@ -315,8 +312,7 @@ max(westernQuant$intensity_gene1)
 mean(westernQuant$intensity_gene1)
 ```
 
-Many functions will return an error if the data contain NAs. To overcome this issue, you need to include an na.rm = TRUE argument. 
-
+Many functions will return an error if the data contain NAs. To overcome this issue, you need to include an na.rm = TRUE argument.
 ```{r}
 min(westernQuant$intensity_gene2)
 
@@ -331,17 +327,19 @@ max(westernQuant$intensity_gene2, na.rm = TRUE)
 mean(westernQuant$intensity_gene2, na.rm = TRUE)
 ```
 
-We can use fnnction to make visualizations. Here, we use our data to make a boxplot. 
-
+We can use functions to make plots. Here, we use our data to make a boxplot.
 ```{r plot}
 boxplot(intensity_gene1 ~ group_name,
         data = westernQuant)
 ```
-Here, we make a histogram of our data. 
 
+Here, we make a histogram of our data. 
 ```{r}
 hist(westernQuant$intensity_gene1)
 ```
+
+--------------------------------------------------------------------------------
+
 ## Activity 2
 
 -- Make sure to save the summary output to a variable 
@@ -370,21 +368,23 @@ Use barplot()
 
 ```
 
+--------------------------------------------------------------------------------
 
 # Part 3
 
 ## Packages
 
-R packages are a collection of R functions, complied code and sample data (https://www.tutorialspoint.com/r/r_packages.htm). Packages are usually created to address a very specific need in data analysis. 
+R packages are a collection of R functions, complied code and sample data (https://www.tutorialspoint.com/r/r_packages.htm). Packages are usually created to address a very specific need in data analysis.
+
+Packages are created by the commnunity and so conventions and quality vary widely.
+
+Packages need to be installed and loaded into the session before they can be used.
+
+Some packages come from The Comprehensive R Archive Network (CRAN) with install.packages(), other packages can be installed through Bioconductor through BiocManager::install(). Best way to find out how to install a given package is to Google the specific package.
 
 Tidyverse is a very useful collection of packages. Tidyverse is an opinionated collection of R packages designed for data science (includes ggplot2, dplyr, and other ones). All packages share an underlying design philosophy, grammar, and data structures.
 
 https://www.tidyverse.org/
-
-Packages need to be installed and loaded into the session before they can be used.
-
-Some packages come from The Comprehensive R Archive Network (CRAN) with install.packages(), other packages can be installed through Bioconductor through BiocManager::install(). Best way to find out how to install a given package is to Google the specific package. 
-
 ```{r}
 #install.packages("tidyverse")
 
@@ -399,12 +399,30 @@ library(dplyr)
 library(ggplot2)
 ```
 
+## A brief intro to the tidyverse
 Tidyverse packages use the pipe operator %>%
+
+This passes data from one function to the next without having to re-call the original data
+
+temp_1 <- function_1(my_data)
+temp_2 <- function_2(temp_1)
+output <- function_3(temp_2)
+rm(temp_1, temp_2)
+
+is the same as:
+
+function_3(function_2(function_1(my_data)))
+
+is the same as:
+
+output <-
+    function_1(my_data) %>%
+    function_2() %>%
+    function_3()
 
 Several useful tidyverse functions:
 
-mutate() adds a new column to a data frame
-
+### mutate() adds a new column to a data frame
 ```{r}
 westernQuant <-
     westernQuant %>%
@@ -412,20 +430,19 @@ westernQuant <-
 westernQuant
 ```
 
-select() allows to select a certain column or several columns.
+### select() allows to select a certain column or several columns.
 ```{r}
 westernQuant %>%
   select(intensity_gene1, group_name)
 ```
 
-rename() allows to rename a column.
-
+### rename() allows to rename a column.
 ```{r}
 westernQuant %>%
   rename(Group = group_name)
 ```
-arrange() allow us to order a column by values, in ascending or descending order. 
 
+### arrange() allow us to order a table by a column's values, in ascending or descending order.
 ```{r}
 arranged1 <- westernQuant %>%
   arrange(intensity_gene1)
@@ -442,58 +459,112 @@ head(arranged2)
 tail(arranged2)
 ```
 
-summarize() and group_by(). group() silently divides up rows by categories, and summarize() summarizes data within groups in a data frame. This makes a new column and drops all unnecesary columns. 
-
+### summarize() and group_by()
+group() silently divides up rows by categories
+summarize() summarizes data within groups in a data frame. This makes a new column and drops all unnecesary columns.
 ```{r}
 westernQuant %>%
   group_by(group_name) %>%
-  summarize(mean_intensity = mean(intensity_gene1))
+  summarize(mean_intensity = mean(intensity_gene1)) %>%
+  ungroup()
 ```
 
 ### pivot_longer()
-
 wide data vs long data
+
 "tidy" data - https://www.youtube.com/watch?v=K-ss_ag2k9E explanation starts ~ 6 min in
 https://epirhandbook.com/en/images/pivoting/pivot_longer_new.png
+
+Many tidyverse functions require long data
+
+wide data is data where the same measurement is in multiple columns split by something (time, etc)
 ```{r}
-# wide data
-temperatures <- read.delim("weather.txt", header = TRUE)
+temperatures <- read.delim("Sessions/01/weather_temps.txt", header = TRUE)
 temperatures
+```
 
-# long data
+long data has one column for each measurement and column(s) for the variable(s) that define metadat (time, experimental groups, etc).
 
-#pivot_longer() "lengthens" data, increasing the number of rows and decreasing the number of columns. 
-long_data <-
+pivot_longer() "lengthens" data, increasing the number of rows and decreasing the number of columns.
+```{r}
+long_temps <-
     temperatures %>%
-    pivot_longer(cols = c("Jan",
-                          "Feb",
-                          "Mar",
-                          "Apr",
-                          "May",
-                          "Jun",
-                          "Jul",
-                          "Aug",
-                          "Sep",
-                          "Oct",
-                          "Nov",
-                          "Dec"),
-                 names_to = "months",
-                 values_to = "count")
+    pivot_longer(cols = c(Jan,
+                          Feb,
+                          Mar,
+                          Apr,
+                          May,
+                          Jun,
+                          Jul,
+                          Aug,
+                          Sep,
+                          Oct,
+                          Nov,
+                          Dec),
+                 names_to = "month",
+                 values_to = "temp")
 
-# Make it wider
+long_temps <-
+    temperatures %>%
+    pivot_longer(cols = c(-Country,
+                          -City),
+                 names_to = "month",
+                 values_to = "temp")
+
+long_temps
+```
+
+# Make it wider with pivot_wider()
+```{r}
 wide_again <-
-  long_data %>%
-  pivot_wider(names_from = "months",
-              values_from = "count")
+  long_temps %>%
+  pivot_wider(names_from = "month",
+              values_from = "temp")
 
 wide_again
 ```
 
-left_join, right_join, inner_join, outer_join, anti_join
+### Joining dataframes
+left_join, right_join, inner_join, full_join
+Graphical explanation of join types:
+https://www.softwaretestinghelp.com/wp-content/qa/uploads/2019/05/Capture-1.jpg
+
+Lets get some other data to use
 ```{r}
+rain <- read_tsv("Sessions/01/weather_precip.tsv")
+rain
 
+rain <-
+    rain %>%
+    pivot_longer(cols = c(-Region,
+                          -Country,
+                          -City,
+                          -Yearly),
+                 names_to = "month",
+                 values_to = "rainfall")
+rain
+```
 
+```{r}
+colnames(long_temps)
+colnames(rain)
+nrow(long_temps)
+nrow(rain)
 
+left_join(long_temps,
+          rain)
+
+right_join(long_temps,
+           rain)
+
+full_join(long_temps,
+          rain)
+
+inner_join(long_temps,
+           rain)
+
+outer_join(long_temps,
+           rain)
 ```
 
 ### Write a table out to a text file
@@ -507,6 +578,43 @@ write.table(wide_again,
 write_tsv(wide_again,
           file = "exampleOutputAlso.txt")
 ```
+
+## General stuff
+
+### Common error messages
+```{r, eval=FALSE}
+mean(bob)
+#Error in mean(bob) : object 'bob' not found
+```
+R is looking for a variable named bob, but it doesn't exist
+-   Either make it
+-   Check spelling/capitalization
+-   You forgot to put quotes around a character string
+
+```{r, eval=FALSE}
+arbleGarble(mtcars)
+#Error in arbleGarble(mtcars) : could not find function "arbleGarble"
+```
+R is trying to use the function `arbleGarble()`, but it doesn't exist
+-   Either load in the library that has it
+    -   (or use `coolLib::arbleGarble()`)
+-   Check spelling/capitalization
+
+```{r, eval=FALSE}
+hist(mtcars$mpg, n = 20
+# +
+((((((1))))))
+```
+R thinks you have unfinished business here
+-   Hit escape to cancel the command
+-   Most likely you're missing a parenthesis or a quotation mark somewhere
+-   rainbow brackets!
+
+### googling error messages
+
+### googling "R how do I…"
+
+--------------------------------------------------------------------------------
 
 ## Activity 3
 
@@ -546,46 +654,6 @@ Basically, calculate the mean/median age and fare for men vs women
 ```
 
 
-## General stuff
-
-### Common error messages
-```{r, eval=FALSE}
-mean(bob)
-#Error in mean(bob) : object 'bob' not found
-```
-R is looking for a variable named bob, but it doesn't exist
--   Either make it
--   Check spelling/capitalization
--   You forgot to put quotes around a character string
-
-```{r, eval=FALSE}
-arbleGarble(mtcars)
-#Error in arbleGarble(mtcars) : could not find function "arbleGarble"
-```
-R is trying to use the function `arbleGarble()`, but it doesn't exist
--   Either load in the library that has it
-    -   (or use `coolLib::arbleGarble()`)
--   Check spelling/capitalization
-
-```{r, eval=FALSE}
-hist(mtcars$mpg, n = 20
-# +
-((((((1))))))
-```
-R thinks you have unfinished business here
--   Hit escape to cancel the command
--   Most likely you're missing a parenthesis or a quotation mark somewhere
--   rainbow brackets!
-
-### googling error messages
-
-### googling "R how do I…"
-
-
-
-
-## Activity 4
-
 ### Read in our data
 We have two tables of data:
 - weather_temps.txt
@@ -623,7 +691,7 @@ Columns should be patient, day, exercise_min, glucose
 
 ```
 
-## If you’re super fast
+## If you're super fast
 
 ### Plot glucose levels for each group (treated/control)
 ```{r}
@@ -646,31 +714,31 @@ Columns should be patient, day, exercise_min, glucose
 ```
 
 
+# Part 4
 
+## GGplot2
 
-
-# Part 4 
-
-## General stuff
-
-## GGplot
-
-### geoms as layers
+This is a package that makes much nicer plots than the base R plotting functions
 https://ggplot2.tidyverse.org/reference/
 
-## Functions for today's activity, also for reference
+### geoms as layers
+
+When plotting with ggplot2, you're generally building the plot with layers (geoms)
 
 ### ggplot
-ggplot(data_frame_here, aes(x = x_here, y = y_here, other_stuff)) +
-layer_1 +
-layer_2 +
-layer_3 +
-. +
-. +
-. +
-modify_the_plot_somehow
+ggplot(data_frame_here,
+       aes(x = x_here,
+           y = y_here,
+           other_stuff)) +
+    layer_1 +
+    layer_2 +
+    layer_3 +
+    . +
+    . +
+    . +
+    modify_the_plot_somehow
 
-#### geom_point() ##############################################################
+### geom_point()
 Add a scatterplot layer to the plot
 ```{r}
 ggplot(mtcars,
@@ -680,6 +748,7 @@ ggplot(mtcars,
 
 # Set the overall look of the plot - I like the white background better than gray
 theme_set(theme_bw())
+# Put the title in the middle of the top instead of the left
 theme_update(plot.title = element_text(hjust = 0.5))
 
 ggplot(mtcars,
@@ -689,7 +758,7 @@ ggplot(mtcars,
   theme_bw()
 ```
 
-#### aes(fill/color/shape/size) ################################################
+### aes(fill/color/shape/size)
 Change colors/shapes/etc
 
 If you put the argument outside of aes()
@@ -736,7 +805,7 @@ ggplot(storms,
 ```
 
 
-#### geom_col() ################################################################
+#### geom_col()
 Add a barplot layer to the plot
 ```{r}
 mtcars %>%
@@ -813,8 +882,21 @@ ggsave("anotherExamplePlot.png",
        plot = plot_in_variable)
 ```
 
-### Include pdf() and png()
-### dev.off()
+### pdf() and png()
+```{r}
+png("examplePlot.png",
+    width = 10,
+    height = 8)
+hist(storms$pressure, n = 200)
+dev.off()
+
+pdf("examplePlot.pdf",
+    width = 10,
+    height = 8)
+hist(storms$pressure, n = 200)
+hist(storms$wind, n = 200)
+dev.off()
+```
 
 ## Activity
 
@@ -830,30 +912,58 @@ I downloaded their figure data and made it easier to import:
 -   Fig2F.txt
 -   Fig3F.txt
 
-#### Figure 1A – geom_boxplot()
+#### Figure 1A - geom_boxplot()
 ```{r}
-
+read_tsv("Sessions/01/Fig1A_partial.txt") %>%
+    pivot_longer(cols = -cancer_type,
+                 names_to = "week",
+                 values_to = "mRNA_levels") %>%
+    mutate(week = factor(week, levels = c("2wk", "4wk", "6wk", "20wk"))) %>%
+    ggplot(aes(x = week,
+               y = mRNA_levels,
+               fill = cancer_type)) +
+    geom_boxplot() +
+    facet_wrap(~ cancer_type,
+               ncol = 2,
+               scales = "free")
 ```
 
-#### Figure 1C – heatmap()
+#### Figure 2F - geom_point()
 ```{r}
-
+read_tsv("Sessions/01/Fig2F.txt") %>%
+    mutate(p_val = -log10(Bonferroni_pvalue)) %>%
+    ggplot(aes(x = Pearson_coefficient,
+               y = p_val)) +
+    geom_point()
+# Oops, they messed up their data submission and we only have some of the data!
 ```
 
-#### Figure 2F – geom_point()
-```{r}
-
-```
-
-#### Figure 3F – geom_col
+#### Figure 3F - geom_col
 use geom_errorbars()
 and facet_wrap() to split the plots by cell_line
 ```{r}
+data <- read_tsv("Sessions/01/Fig3F.txt")
 
+ggplot(data,
+       aes(x = BMS_777607_concentration,
+           y = Avg,
+           fill = treatment)) +
+    geom_col(position = "dodge") +
+    facet_wrap(~ cell_line,
+               ncol = 2,
+               scales = "free")
 ```
 
-## If you’re super fast:
-Keep going, do the rest 🙃
+## Session challenge
+Keep going 🙃
+
+Recreate
+
+- Fig1E
+- Fig1F
+- Fig2E
+- Fig3C
+- Fig3D
 
 Download the data from the supplemental data here:
 
