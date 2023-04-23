@@ -19,6 +19,8 @@
     - BiocManager::install("SingleR")
 - celldex
     - BiocManager::install("celldex")
+- biovizBase
+    - BiocManager::install("biovizBase")
 
 # R packages - on local machine
 - Seurat
