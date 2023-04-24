@@ -44,3 +44,5 @@ vignettes/*.pdf
 Rosters/*
 Sessions/02/Seurat_under_the_hood_cache
 Sessions/02/Seurat_under_the_hood_files
+Sessions/08/multiomics_files
+Sessions/08/multiomics_cache
