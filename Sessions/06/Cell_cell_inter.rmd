@@ -63,6 +63,11 @@ lr_network <-
 
 weighted_networks <-
     readRDS("/gpfs0/home1/gdworkshop/lab/session_data/weighted_networks.rds")
+
+weighted_networks_lr <-
+    weighted_networks$lr_sig %>%
+    inner_join(lr_network %>% distinct(from, to),
+               by = c("from", "to"))
 ```
 
 ## Get data to work with
@@ -74,6 +79,135 @@ seurat_obj <-
 DimPlot(seurat_obj, group.by = "celltype", label = TRUE)
 ```
 
+## Convert gene names in model to mouse
+```{r}
+lr_network <-
+    lr_network %>%
+    mutate(from = convert_human_to_mouse_symbols(from),
+           to = convert_human_to_mouse_symbols(to)) %>%
+    drop_na()
+
+colnames(ligand_target_matrix) <-
+    ligand_target_matrix %>%
+    colnames() %>%
+    convert_human_to_mouse_symbols()
+
+rownames(ligand_target_matrix) <-
+    ligand_target_matrix %>%
+    rownames() %>%
+    convert_human_to_mouse_symbols()
+
+ligand_target_matrix <-
+    ligand_target_matrix %>%
+    .[!is.na(rownames(ligand_target_matrix)),
+        !is.na(colnames(ligand_target_matrix))]
+
+weighted_networks_lr <-
+    weighted_networks_lr %>%
+    mutate(from = convert_human_to_mouse_symbols(from),
+           to = convert_human_to_mouse_symbols(to)) %>%
+    drop_na()
+```
+
+## Define sender and reciever cells
+Also make sure they're in our model
+```{r}
+## receiver
+receiver <- "CD8 T"
+expressed_genes_receiver <-
+    get_expressed_genes(receiver,
+                        seuratObj,
+                        pct = 0.10)
+
+background_expressed_genes <-
+    expressed_genes_receiver %>%
+    .[. %in% rownames(ligand_target_matrix)]
+
+## sender
+sender_celltypes <- c("CD4 T",
+                      "Treg",
+                      "Mono",
+                      "NK",
+                      "B",
+                      "DC")
+
+list_expressed_genes_sender <-
+    sender_celltypes %>%
+    # lapply to get the expressed genes of every sender cell type separately here
+    lapply(get_expressed_genes, seuratObj, 0.10)
+
+expressed_genes_sender <-
+    list_expressed_genes_sender %>%
+    unlist() %>%
+    unique()
+```
+
+## Use FindMarkers to define out genes of interest
+Can use other methods to define the group of genes you want to look at
+Get just the reciever cells and do DE based on conditions ("aggregate" in this case)
+Then make sure these genes are in our model
+```{r}
+seurat_obj_receiver <- subset(seuratObj, idents = receiver)
+seurat_obj_receiver <-
+    SetIdent(seurat_obj_receiver,
+             value = seurat_obj_receiver[["aggregate"]])
+
+DE_table_receiver <-
+    FindMarkers(object = seurat_obj_receiver,
+                ident.1 = "LCMV",
+                ident.2 = "SS",
+                min.pct = 0.10) %>%
+    rownames_to_column("gene")
+
+geneset_oi <-
+    DE_table_receiver %>%
+    filter(p_val_adj <= 0.05 &
+            abs(avg_log2FC) >= 0.25) %>%
+    pull(gene)
+
+geneset_oi <-
+    geneset_oi %>%
+    .[. %in% rownames(ligand_target_matrix)]
+```
+
+## Define potential ligands
+
+```{r}
+ligands <-
+    lr_network %>%
+    pull(from) %>%
+    unique()
+
+receptors <-
+    lr_network %>%
+    pull(to) %>%
+    unique()
+
+expressed_ligands <- intersect(ligands, expressed_genes_sender)
+expressed_receptors <- intersect(receptors, expressed_genes_receiver)
+
+potential_ligands <-
+    lr_network %>%
+    filter(from %in% expressed_ligands &
+            to %in% expressed_receptors) %>%
+    pull(from) %>%
+    unique()
+```
+
+## 
+```{r}
+ligand_activities <-
+    predict_ligand_activities(geneset = geneset_oi,
+                              background_expressed_genes = background_expressed_genes,
+                              ligand_target_matrix = ligand_target_matrix,
+                              potential_ligands = potential_ligands)
+
+ligand_activities <-
+    ligand_activities %>%
+    arrange(-pearson) %>%
+    mutate(rank = rank(desc(pearson)))
+
+```
 
 
 
@@ -88,7 +222,12 @@ nichenet_output <-
                                  condition_colname = "aggregate",
                                  condition_oi = "LCMV",
                                  condition_reference = "SS",
-                                 sender = c("CD4 T","Treg", "Mono", "NK", "B", "DC"),
+                                 sender = c("CD4 T",
+                                            "Treg",
+                                            "Mono",
+                                            "NK",
+                                            "B",
+                                            "DC"),
                                  ligand_target_matrix = ligand_target_matrix,
                                  lr_network = lr_network,
                                  weighted_networks = weighted_networks,
