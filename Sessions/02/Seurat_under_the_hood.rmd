@@ -18,7 +18,7 @@ knitr::opts_chunk$set(echo = TRUE,
 ```
 
 Load libraries
-```{r libraries, cache=FALSE, warning=FALSE, error=FALSE, message=FALSE, eval=TRUE}
+```{r libraries, cache=FALSE, warning=FALSE, error=FALSE, message=FALSE}
 library(rrrSingleCellUtils)
 library(tidyverse)
 library(Seurat)
@@ -29,7 +29,7 @@ library(Seurat)
 # Section 1: Objects in R and Seurat objects
 
 R has many variable types
-```{r eval=FALSE}
+```{r}
 my_vector <- c(1, 2, 3, 4, 5)
 my_matrix <- matrix(1:9, nrow = 3)
 my_data_frame <- data.frame(x = 1:5, y = 6:10)
@@ -47,7 +47,7 @@ But it also has some "object oriented" features
     - Variables are meant to be directly manipulated
     - Objects are meant to be interacted with through methods
 
-Two main types of objects in R
+Three main types of objects in R
 
 - S3
     - The original object type in R
@@ -56,20 +56,18 @@ Two main types of objects in R
     - More strictly defined
     - More complicated to create
     - Less prone to errors
-
 - R6
     - More traditional OO behavior
     - Not super common
 
 ## Seurat objects are S4 objects
-
-```{r eval=TRUE}
+```{r}
 isS4(pbmc_small)
 class(pbmc_small)
 ```
 
 This is the code that defines a Seurat object
-```{r eval=FALSE}
+```{r}
 Seurat <- setClass(
   Class = 'Seurat',
   slots = c(
@@ -95,7 +93,7 @@ Then methods/functions are created to work with Seurat objects
 Note that the function has a function name (merge), then ".", then the object type (Seurat)
 
 This tells R how to use the merge function on a Seurat object
-```{r eval=FALSE}
+```{r}
 merge.Seurat <- function(
   x = NULL,
   y = NULL,
@@ -132,9 +130,9 @@ merge.Seurat <- function(
 
 - The structure of an object is defined and static
 - Can write functions that are "guaranteed" to work with objects of a certain type
-- Can exend base R functions to work with objects of a certain type
+- Can extend base R functions to work with objects of a certain type
 
-```{r eval=FALSE}
+```{r}
 str(pbmc_small)
 ```
 
@@ -231,7 +229,7 @@ Each element of the list is an assay object
 - meta.features = 'data.frame'
 - misc = 'list'
 
-```{r eval=FALSE}
+```{r}
 class(pbmc_small@assays[[1]])
 ```
 
@@ -413,7 +411,7 @@ head(pbmc_small_plus@meta.data)
 ```
 
 ## Get PCA/UMAP/TSNE values
-```{r eval=FALSE}
+```{r}
 tsne_data <- Embeddings(pbmc_small, reduction = "tsne")
 
 pca_data <- Embeddings(pbmc_small, reduction = "pca")
@@ -470,7 +468,7 @@ str(pbmc_small)
 
 
 
-# Further practice
+# Session challenge
 
 
 
