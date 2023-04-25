@@ -24,7 +24,7 @@ library(tidyverse)
 library(Seurat)
 library(nichenetr)
 
-.libPaths("/gpfs0/export/apps/opt/scrgot/23/lib/R")
+#.libPaths("/gpfs0/export/apps/opt/scrgot/23/lib/R")
 
 ```
 
@@ -63,6 +63,11 @@ lr_network <-
 
 weighted_networks <-
     readRDS("/gpfs0/home1/gdworkshop/lab/session_data/weighted_networks.rds")
+
+weighted_networks_lr <-
+    weighted_networks$lr_sig %>%
+    inner_join(lr_network %>% distinct(from, to),
+               by = c("from", "to"))
 ```
 
 ## Get data to work with
@@ -74,30 +79,198 @@ seurat_obj <-
 DimPlot(seurat_obj, group.by = "celltype", label = TRUE)
 ```
 
+## Convert gene names in model to mouse
+```{r}
+lr_network <-
+    lr_network %>%
+    mutate(from = convert_human_to_mouse_symbols(from),
+           to = convert_human_to_mouse_symbols(to)) %>%
+    drop_na()
 
+colnames(ligand_target_matrix) <-
+    ligand_target_matrix %>%
+    colnames() %>%
+    convert_human_to_mouse_symbols()
 
+rownames(ligand_target_matrix) <-
+    ligand_target_matrix %>%
+    rownames() %>%
+    convert_human_to_mouse_symbols()
+
+ligand_target_matrix <-
+    ligand_target_matrix %>%
+    .[!is.na(rownames(ligand_target_matrix)),
+        !is.na(colnames(ligand_target_matrix))]
+
+weighted_networks_lr <-
+    weighted_networks_lr %>%
+    mutate(from = convert_human_to_mouse_symbols(from),
+           to = convert_human_to_mouse_symbols(to)) %>%
+    drop_na()
+```
+
+## Define sender and reciever cells
+Also get lists of genes expressed in receiver cells
+```{r}
+## receiver
+receiver <- "CD8 T"
+expressed_genes_receiver <-
+    get_expressed_genes(receiver,
+                        seurat_obj,
+                        pct = 0.10)
+
+background_expressed_genes <-
+    expressed_genes_receiver %>%
+    .[. %in% rownames(ligand_target_matrix)]
+
+## sender
+sender_celltypes <- c("CD4 T",
+                      "Treg",
+                      "Mono",
+                      "NK",
+                      "B",
+                      "DC")
+```
+
+## Make sure to keep only genes present in our model
+```{r}
+list_expressed_genes_sender <-
+    sender_celltypes %>%
+    # lapply to get the expressed genes of every sender cell type separately here
+    lapply(get_expressed_genes, seurat_obj, 0.10)
+
+expressed_genes_sender <-
+    list_expressed_genes_sender %>%
+    unlist() %>%
+    unique()
+```
+
+## Use FindMarkers to define out genes of interest
+Can use other methods to define the group of genes you want to look at
+Get just the reciever cells and do DE based on conditions ("aggregate" in this case)
+Then make sure these genes are in our model
+```{r}
+seurat_obj_receiver <-
+    subset(seurat_obj, idents = receiver) %>%
+    SetIdent(value = "aggregate")
+
+DE_table_receiver <-
+    FindMarkers(object = seurat_obj_receiver,
+                ident.1 = "LCMV",
+                ident.2 = "SS",
+                min.pct = 0.10) %>%
+    rownames_to_column("gene")
+
+geneset_oi <-
+    DE_table_receiver %>%
+    filter(p_val_adj <= 0.05 &
+            abs(avg_log2FC) >= 0.25) %>%
+    pull(gene) %>%
+    .[. %in% rownames(ligand_target_matrix)]
+
+head(geneset_oi)
+```
+
+## Define potential ligands
+Take the list of ligands from our model and keep the ones that are expressed in our data and do the same for the receptors
+Then use these lists to keep ligands where both the receptor and the ligand are expressed
+```{r}
+ligands <-
+    lr_network %>%
+    pull(from) %>%
+    unique()
+
+receptors <-
+    lr_network %>%
+    pull(to) %>%
+    unique()
+
+expressed_ligands <- intersect(ligands, expressed_genes_sender)
+expressed_receptors <- intersect(receptors, expressed_genes_receiver)
+
+potential_ligands <-
+    lr_network %>%
+    filter(from %in% expressed_ligands &
+            to %in% expressed_receptors) %>%
+    pull(from) %>%
+    unique()
+```
+
+## Predict which ligands best explain the expressed genes in the reciever cells
+We provide:
+
+- geneset_oi                    - List of downstream targets of potentially activated receptors
+- background_expressed_genes    - List of genes expressed in the reciever cells
+- ligand_target_matrix          - Matrix of ligand-receptor interactions
+- potential_ligands             - List of ligands that are expressed in the sender cells
+
+How you generate these lists is flexible
+
+```{r}
+nichenet_stepwise_output <-
+    predict_ligand_activities(geneset = geneset_oi,
+                              background_expressed_genes = background_expressed_genes,
+                              ligand_target_matrix = ligand_target_matrix,
+                              potential_ligands = potential_ligands) %>%
+    arrange(-pearson) %>%
+    mutate(rank = rank(desc(pearson)))
+
+nichenet_stepwise_output
+
+qs::qsave(nichenet_stepwise_output, file = "Sessions/06/nichenet_stepwise_output.qs")
+```
 
 ## Easy mode
 
 This will work if you are comparing between two conditions such as treated/untreated
-List of genes to 
 ```{r}
-nichenet_output <-
+ligand_target_matrix <-
+    readRDS("/gpfs0/home1/gdworkshop/lab/session_data/ligand_target_matrix.rds")
+
+lr_network <-
+    readRDS("/gpfs0/home1/gdworkshop/lab/session_data/lr_network.rds")
+
+weighted_networks <-
+    readRDS("/gpfs0/home1/gdworkshop/lab/session_data/weighted_networks.rds")
+
+Idents(seurat_obj) <- "celltype"
+nichenet_easy_output <-
     nichenet_seuratobj_aggregate(seurat_obj = seurat_obj,
                                  receiver = "CD8 T",
                                  condition_colname = "aggregate",
                                  condition_oi = "LCMV",
                                  condition_reference = "SS",
-                                 sender = c("CD4 T","Treg", "Mono", "NK", "B", "DC"),
+                                 sender = c("CD4 T",
+                                            "Treg",
+                                            "Mono",
+                                            "NK",
+                                            "B",
+                                            "DC"),
                                  ligand_target_matrix = ligand_target_matrix,
                                  lr_network = lr_network,
                                  weighted_networks = weighted_networks,
                                  organism = "mouse")
+
+qs::qsave(nichenet_easy_output, file = "Sessions/06/nichenet_easy_output.qs")
+```
+
+--------------------------------------------------------------------------------
+
+# Activity (1:30 - 2ish)
+
+```{r}
+tumor_h <- qs::qread("os_shark_400.qs")
 ```
 
 
+- geneset_oi                    - List of downstream targets of potentially activated receptors
+For this, lets grab the genes that are in the 
 
-# Activity (1:30 - 2ish)
+- background_expressed_genes    - List of genes expressed in the reciever cells
+- ligand_target_matrix          - Matrix of ligand-receptor interactions
+- potential_ligands             - List of ligands that are expressed in the sender cells
+
+
 Run nichenetr on os-shark?
 # Section 2: Visualizing nichenetr results
 
@@ -107,7 +280,33 @@ Make plots from nichenetr outputs?
 
 # Section 3: Interpreting nichenetr results
 Activity (3:30 - 4ish)
- 
+
+
+
+## Easy mode output:
+
+Important outputs
+- $ligand_activities: data frame with output ligand activity analysis
+- $top_ligands: top_n ligands based on ligand activity
+- $top_targets: active, affected target genes of these ligands
+- $top_receptors: receptors of these ligands
+- $ligand_activity_target_heatmap: heatmap showing both ligand activity scores and target genes of these top ligands
+- $ligand_expression_dotplot: expression dotplot of the top ligands
+- $ligand_differential_expression_heatmap = differential expression heatmap of the top ligands
+- $ligand_target_heatmap: heatmap of ligand-target regulatory potential
+- $ligand_receptor_heatmap: heatmap showing ligand-receptor interactions
+
+Saved input info
+- $ligand_target_matrix: matrix indicating regulatory potential scores between active ligands and their predicted targets
+- $ligand_target_df: data frame showing regulatory potential scores of predicted active ligand-target network
+- $ligand_receptor_matrix: matrix of ligand-receptor interactions
+- $ligand_receptor_df: data frame of ligand-receptor interactions
+- $ligand_receptor_matrix_bonafide: ligand-receptor matrix, after filtering out interactions predicted by PPI
+- $ligand_receptor_heatmap_bonafide: heatmap of ligand-receptor interactions after filtering out interactions predicted by PPI
+- $ligand_receptor_df_bonafide: data frame of ligand-receptor interactions, after filtering out interactions predicted by PPI
+- $geneset_oi: a vector containing the set of genes used as input for the ligand activity analysis
+- $background_expressed_genes: the background of genes to which the geneset will be compared in the ligand activity analysis.
+
 # Session challenge
 Run nichenetr on your own data or data from some random paper
 Run cell-cell interaction analysis with another package

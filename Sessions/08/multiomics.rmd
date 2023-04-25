@@ -18,7 +18,7 @@ knitr::opts_chunk$set(echo = TRUE,
 ```
 
 Load libraries
-```{r libraries, cache=FALSE, warning=FALSE, error=FALSE, message=FALSE,}
+```{r libraries, cache=FALSE, warning=FALSE, error=FALSE, message=FALSE}
 library(rrrSingleCellUtils)
 library(tidyverse)
 library(Seurat)
@@ -111,14 +111,18 @@ Depending on what data type you recieve you may need to do different things
         - cloupe.cloupe                 - Loupe browser file
         - *.bam                         - BAM files
 
+--------------------------------------------------------------------------------
+
 ## Activity (9:30 - 10ish)
 
 Look at output of cellranger-arc count
 Create a folder of data to look at and put it in gdworkshop/data/...
 
+--------------------------------------------------------------------------------
+
 ## Using Seurat and Signac for 10x multiomics data individually
 
-You essentially get two independant datasets back (GEX and ATAC) that can be analyzed independantly.
+You essentially get two independant datasets back (GEX and ATAC) that can be analyzed independently.
 
 The GEX data can be analyzed like normal
 
@@ -146,7 +150,6 @@ seurat_obj <-
                          assay = "RNA")
 ```
 
-
 ## Add the ATAC data to the Seurat object
 Need to combine the datasets prior to filtering
 ```{r}
@@ -159,10 +162,10 @@ seurat_obj[["ATAC"]] <-
                          sep = c(":", "-"),
                          fragments = frag_file,
                          min.cells = 5)
-
 ```
 
 # Filter out likely junk cells
+Not going to walk through this as it should all be review
 ```{r}
 cutoffs <-
     tribble(~feature, ~min_val, ~max_val,
@@ -189,7 +192,15 @@ seurat_obj <-
                     nFeature_RNA >= cutoffs$min_val[2] &
                     nFeature_RNA <= cutoffs$max_val[2] &
                     percent_mt_rna <= cutoffs$max_val[3]) %>%
-    process_seurat(resolution = 0.2)
+    NormalizeData() %>%
+    FindVariableFeatures() %>%
+    ScaleData() %>%
+    RunPCA() %>%
+    RunUMAP(reduction.name = "umap_rna",
+            dims = 1:10) %>%
+    FindNeighbors(dims = 1:10) %>%
+    FindClusters(resolution = 0.4)
+
 length(Cells(seurat_obj))
 
 # Not the best way to characterize brain cell types, but it's good enough for now
@@ -210,19 +221,21 @@ seurat_obj$cell_score <-
     cell_assign$scores %>%
     apply(MARGIN = 1, function(x) max(x, na.rm = TRUE))
 
-DimPlot(seurat_obj, group.by = "cell_type", label = TRUE)
+DimPlot(seurat_obj,
+        group.by = "cell_type",
+        reduction = "umap_rna",
+        label = TRUE)
+
+# Save this so I don't have to re-run everything
+qs::qsave(seurat_obj, paste0(data_path,
+                             "mouse_brain_5k_sobj_1.qs"))
 ```
 
+# Let's focus on the ATAC data
 
-Let's focus on the ATAC data
-
-Calculate metrics to use for QC
+## Add in gene annotations
 ```{r}
-seurat_obj <-
-    PercentageFeatureSet(seurat_obj,
-                         pattern = "^mt-",
-                         col.name = "percent_mt_atac",
-                         assay = "ATAC")
+DefaultAssay(seurat_obj) <- "ATAC"
 
 annotations <-
     GetGRangesFromEnsDb(ensdb = EnsDb.Mmusculus.v79::EnsDb.Mmusculus.v79)
@@ -230,22 +243,33 @@ seqlevelsStyle(annotations) <- 'UCSC'
 genome(annotations) <- "mm10"
 
 # add the gene information to the object
-Annotation(seurat_obj) <- annotations
+Annotation(seurat_obj[["ATAC"]]) <- annotations
+```
 
+## Add in nucleosome signal.
+This is a the ratio of mononucleosome fragments to short fragments.
+```{r}
 seurat_obj <- NucleosomeSignal(seurat_obj)
 seurat_obj$nucleosome_group <-
-    ifelse(seurat_obj$nucleosome_signal > cutoff,
-           paste0("NS > ", cutoff),
-           paste0("NS < ", cutoff))
+    ifelse(seurat_obj$nucleosome_signal > 4,
+           paste0("NS > ", 4),
+           paste0("NS < ", 4))
+```
 
+## Calculate the signal enrichment at transcription start sites
+```{r}
 seurat_obj <- TSSEnrichment(seurat_obj, fast = FALSE)
 seurat_obj$high_tss <-
-    ifelse(seurat_obj$TSS.enrichment > cutoff,
+    ifelse(seurat_obj$TSS.enrichment > 2,
            "High",
            "Low")
+```
 
+## Calculate how many of the reads are in types of regions
+```{r}
 total_frag_df <-
-    CountFragments(frag_files[[1]], verbose = FALSE)
+    CountFragments(paste0(data_path,
+                          "e18_mouse_brain_fresh_5k_atac_fragments.tsv.gz"))
 
 total_frag_df <-
     total_frag_df %>%
@@ -253,9 +277,14 @@ total_frag_df <-
     dplyr::arrange(match(CB, colnames(seurat_obj)))
 
 # Populate seurat_obj with metadata
+
 seurat_obj$total_frag <- total_frag_df$reads_count
 seurat_obj$mononucleosomal <- total_frag_df$mononucleosomal
 seurat_obj$nucleosome_free <- total_frag_df$nucleosome_free
+```
+
+## Calculate the fraction of reads in peaks
+```{r}
 seurat_obj <-
     FRiP(seurat_obj,
          assay = "ATAC",
@@ -263,6 +292,147 @@ seurat_obj <-
          col.name = "FRiP",
          verbose = FALSE)
 ```
+
+## Add in metadata output by cellranger-arc count
+```{r}
+metadata <-
+    read_csv(paste0(data_path, "/e18_mouse_brain_fresh_5k_per_barcode_metrics.csv"),
+             show_col_types = FALSE) %>%
+    mutate(atac_pct_mito = atac_mitochondrial_reads / atac_raw_reads * 100,
+           atac_pct_dups = atac_dup_reads / atac_raw_reads * 100) %>%
+    filter(barcode %in% colnames(seurat_obj)) %>%
+    select(-atac_barcode,
+           -is_cell,
+           -excluded_reason,
+           -gex_barcode) %>%
+    arrange(match(barcode, colnames(seurat_obj))) %>%
+    column_to_rownames("barcode")
+
+seurat_obj <- AddMetaData(seurat_obj, metadata)
+
+# Save it so I don't have to re-run everything
+qs::qsave(seurat_obj, paste0(data_path,
+                             "mouse_brain_5k_sobj_2.qs"))
+```
+
+## Lets plot our new metadata
+```{r}
+plot_factors <-
+    c("TSS.enrichment",
+      "FRiP",
+      "nucleosome_signal",
+      "atac_pct_mito",
+      "nCount_ATAC",
+      "atac_pct_dups")
+plot_name <- feature_hist(seurat_obj, plot_factors)
+ggsave("Sessions/08/atac_feat_hist.png",
+       plot_name,
+       width = 6,
+       height = 10)
+```
+
+## Process the seurat data
+```{r}
+seurat_obj <-
+    seurat_obj %>%
+    RunTFIDF() %>%
+    FindTopFeatures(min.cutoff = "q0") %>%
+    RunSVD() %>%
+    FindNeighbors(reduction = "lsi") %>%
+    FindClusters(algorithm = 3) %>%
+    RunUMAP(reduction = "lsi",
+            dims = 2:30,
+            reduction.name = "umap_atac")
+
+DimPlot(seurat_obj,
+        group.by = "cell_type",
+        reduction = "umap_atac",
+        label = TRUE)
+
+qs::qsave(seurat_obj, paste0(data_path,
+                             "mouse_brain_5k_sobj_3.qs"))
+```
+
+### Find differential accessibility between cell types
+Also add in annotation for nearest feature
+```{r}
+Idents(seurat_obj) <- "cell_type"
+
+da_peaks <-
+    FindMarkers(seurat_obj,
+                ident.1 = "NPCs",
+                ident.2 = "Neurons",
+                test.use = "LR",
+                latent.vars = "atac_peak_region_fragments") %>%
+    rownames_to_column("region") %>%
+    left_join(ClosestFeature(seurat_obj,
+                             regions = .$region) %>%
+        dplyr::rename(region = query_region))
+```
+
+# Plot ATAC peaks
+Let's pick out three up and three down regulated regions
+```{r}
+fav_peaks <-
+    da_peaks %>%
+    filter(p_val_adj < 1e-20 &
+               abs(avg_log2FC) > 0.5 &
+               gene_biotype == "protein_coding" &
+               distance == 0) %>%
+    group_by(avg_log2FC > 0) %>%
+    arrange(avg_log2FC) %>%
+    slice_head(n = 3) %>%
+    pull(region)
+
+CoveragePlot(seurat_obj,
+             region = fav_peaks,
+             idents = c("NPCs", "Neurons"),
+             extend.upstream = 2000,
+             extend.downstream = 2000)
+```
+
+
+One issue:
+
+If you have multiple samples called with cellranger-arc, their peaks are different, so you can't really compare them directly.
+
+You can either re-call the peaks: https://stuartlab.org/signac/articles/peak_calling.html
+
+Or redefine their boundaries: https://stuartlab.org/signac/articles/merging.html
+
+https://github.com/kidcancerlab/rrrSingleCellUtils/blob/master/R/multiomics.R#L18
+
+```{r eval=FALSE}
+# Documentation is still a work in progress
+library(rrrSingleCellUtils)
+peak_beds <-
+    paste0(data_path,
+           c("sample_1/atac_peaks.bed",
+             "sample_2/atac_peaks.bed",
+             "sample_3/atac_peaks.bed"))
+
+frag_paths <-
+    paste0(data_path,
+           c("sample_1/atac_fragments.tsv.gz",
+             "sample_2/atac_fragments.tsv.gz",
+             "sample_3/atac_fragments.tsv.gz"))
+
+cell_ids <-
+    c("sample_1",
+      "sample_2",
+      "sample_3")
+
+# Uses {parallel} to run faster
+merged_atac_data <-
+    merge_atac(peak_beds = peak_beds,
+               frag_paths = frag_paths,
+               cell_ids = cell_ids,
+               n_regions_simul = 100000,
+               threads = 3) %>%
+    subset(nCount_ATAC > 100)
+```
+
+https://stuartlab.org/signac/articles/merging.html
 
 ## Activity (10:30 - 11ish)
 
@@ -272,8 +442,30 @@ Work with Seurat and Signac
 
 > Show ppt of plots
 
-- Multimodal UMAP
-    - Better separation of cell types due to increased dimensionality of data
+### Multimodal UMAP
+Better separation of cell types due to increased dimensionality of data
+```{r}
+seurat_obj <-
+    qs::qread(paste0(data_path,
+                     "mouse_brain_5k_sobj_3.qs"))
+
+seurat_obj <-
+    seurat_obj %>%
+    FindMultiModalNeighbors(reduction.list = list("pca", "lsi"),
+                            dims.list = list(1:20, 2:20))
+
+# build a joint UMAP visualization
+seurat_obj <-
+    seurat_obj %>%
+    RunUMAP(nn.name = "weighted.nn",
+            assay = "RNA",
+            reduction.name = "umap_joint") %>%
+    FindClusters(algorithm = 3,
+                 graph.name = "wsnn")
+
+
+```
+
 - Correlation of ATAC peaks with gene expression
     - Identify active chromatin that might influence gene expression
     - Motif analysis of peak sequence can potentially identify binding factors
@@ -297,3 +489,5 @@ Into the multiverse: advances in single-cell multiomic profiling: https://www.ce
 https://www.10xgenomics.com/products/single-cell-multiome-atac-plus-gene-expression
 
 https://stuartlab.org/signac/
+
+Merging ATAC datasets: https://stuartlab.org/signac/articles/merging.html

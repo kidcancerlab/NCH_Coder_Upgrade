@@ -19,11 +19,21 @@
     - BiocManager::install("SingleR")
 - celldex
     - BiocManager::install("celldex")
+- biovizBase
+    - BiocManager::install("biovizBase")
+- org.Hs.eg.db
+    - BiocManager::install("org.Hs.eg.db")
 
 # R packages - on local machine
 - Seurat
 - tidyverse
 - qs
+
+# Programs on local machine
+- R
+- Rtools (windows only)
+- RStudio
+- git
 
 # HPC modules
 - GCC/9.3.0
