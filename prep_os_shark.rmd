@@ -28,7 +28,8 @@ Pulled from https://github.com/kidcancerlab/CellTypeAnnRefs/blob/main/HuOsteo/Pr
 
 ```{r eval=FALSE}
 selection <- readRDS("/gpfs0/scratch/2023_coder_upgrade/selection.rds")
-tumor <- subset(qs::qread("/gpfs0/scratch/2023_coder_upgrade/comb.qs"), cells = selection)
+tumor <- subset(qs::qread("/gpfs0/scratch/2023_coder_upgrade/comb.qs"),
+                cells = selection)
 
 n_cells_grp <- 400
 
@@ -47,7 +48,7 @@ tumor <-
     NormalizeData() %>%
     FindVariableFeatures() %>%
     ScaleData() %>%
-    RunPCA(verbose = F)
+    RunPCA()
 
 tumor_h <-
     harmony::RunHarmony(tumor, group.by.vars = "src") %>%
@@ -92,6 +93,8 @@ pathways <-
 
 names(pathways) <- levels(de_results$cluster)
 pathways <- bind_rows(pathways, .id = "cluster")
+
+qs::qsave(pathways, "os_shark_400_pathways.qs")
 
 top_paths <-
     pathways %>%
@@ -149,5 +152,5 @@ ggsave("os_shark_400_UMAP_mol_funct.png",
        width = 8,
        height = 8)
 
-qs::qsave(tumor_h, "os_shark_400.qs")
+qs::qsave(tumor_h, "/home/gdworkshop/lab/session_data/os_shark_400.qs")
 ```
