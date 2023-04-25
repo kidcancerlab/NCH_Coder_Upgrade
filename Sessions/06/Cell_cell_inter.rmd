@@ -376,6 +376,8 @@ activity_1_output <-
 
 activity_1_output
 
+nichenet_seuratobj_aggregate_cluster_de()
+
 qs::qsave(activity_1_output, file = "/home/gdworkshop/lab/session_data/06/activity_1_output.qs")
 ```
 
@@ -392,15 +394,86 @@ Run nichenetr on os-shark?
 # Section 2: Visualizing nichenetr results
 
 
-# Activity (2:30 - 3ish)
+# Activity 2 (2:30 - 3ish)
 Make plots from nichenetr outputs? 
 
 # Section 3: Interpreting nichenetr results
-Activity (3:30 - 4ish)
 
+## Stepwise output
+
+The output from predict_ligand_activities() is a tibble with the following columns:
+
+- $test_ligand      - Ligand that was tested
+- $auroc            - Area under the ROC curve
+- $aupr             - Area under the precision-recall curve
+- $pearson          - Pearson correlation between predicted effects of ligand activity and observed gene expression
+
+Don't be dismayed if your pearson correlation coefficients are low, that's normal
+
+Pearson correlation is the best method to use to rank the ligands
+
+Nichenetr doesn't return p-values because it's not a statistical test, it's a ranking method
+
+Nichenetr generally provides a jumping off point for further analysis
+
+From here, you'll want to look at the top ligands and their targets, then confirm that the ligands are expressed in the sender cells and the targets are expressed in the receiver cells
+
+```{r}
+nichenet_stepwise_output
+```
+
+## Lets look at the top ligands
+These are the proteins that may be causing the downstream gene expression patterns we see in our receiver cells.
+
+We're grabbing the top 5 here since the pearson gets really low further down (even negative with Ccl5)
+```{r}
+top_ligands <-
+    nichenet_stepwise_output$test_ligand %>%
+    head(n = 5)
+
+top_ligands
+
+DotPlot(seurat_obj,
+        features = top_ligands,
+        scale = FALSE)
+```
+
+## What are the downstream targets of our ligands?
+We can re-use our model data to get the downstream targets of our potential ligand-receptor interactions
+```{r}
+top_ligand_targets <-
+    ligand_target_matrix[, convert_mouse_to_human_symbols(top_ligands)] %>%
+    as.data.frame() %>%
+    arrange(desc(EBI3))
+
+top_ligand_targets
+```
+
+## What are potential receptors of our ligands?
+Again, we can use our model data to get a list of potential receptors our ligands may be binding
+
+We'll also filter out predicted interactions to get a more conservative list of potential receptors
+```{r}
+potential_receptors <-
+    lr_network %>%
+    filter(from %in% convert_mouse_to_human_symbols(top_ligands)) %>%
+    arrange(from)
+
+potential_receptors
+
+stronger_potential_receptors <-
+    lr_network %>%
+    filter(from %in% convert_mouse_to_human_symbols(top_ligands)) %>%
+    arrange(from) %>%
+    filter(database != "ppi_prediction" &
+            database != "ppi_prediction_go")
+
+stronger_potential_receptors
+```
 
 
 ## Easy mode output:
+The easy mode output is more complex as the package generates a lot of stuff to look at
 
 Important outputs
 - $ligand_activities: data frame with output ligand activity analysis
@@ -412,6 +485,7 @@ Important outputs
 - $ligand_differential_expression_heatmap = differential expression heatmap of the top ligands
 - $ligand_target_heatmap: heatmap of ligand-target regulatory potential
 - $ligand_receptor_heatmap: heatmap showing ligand-receptor interactions
+- $ligand_receptor_heatmap_bonafide: heatmap of ligand-receptor interactions after filtering out interactions predicted by PPI
 
 Saved input info
 - $ligand_target_matrix: matrix indicating regulatory potential scores between active ligands and their predicted targets
@@ -419,21 +493,37 @@ Saved input info
 - $ligand_receptor_matrix: matrix of ligand-receptor interactions
 - $ligand_receptor_df: data frame of ligand-receptor interactions
 - $ligand_receptor_matrix_bonafide: ligand-receptor matrix, after filtering out interactions predicted by PPI
-- $ligand_receptor_heatmap_bonafide: heatmap of ligand-receptor interactions after filtering out interactions predicted by PPI
 - $ligand_receptor_df_bonafide: data frame of ligand-receptor interactions, after filtering out interactions predicted by PPI
 - $geneset_oi: a vector containing the set of genes used as input for the ligand activity analysis
 - $background_expressed_genes: the background of genes to which the geneset will be compared in the ligand activity analysis.
 
-# Session challenge
-Run nichenetr on your own data or data from some random paper
-Run cell-cell interaction analysis with another package
-Compare the two
+## Where to go from here?
 
+From this point, you can take your results and try to apply them to your biological question. Look at the ligands and receptors that that are predicted to be important players in your system and see if they make sense. If they do, you can try to validate them experimentally. If they don't, you can try to figure out why. Maybe you're missing some data, maybe you need to do some more analysis, maybe you need to try a different method.
+
+This sort of analysis should be viewed as a jumping off point for further analysis and experiments, not a definitive answer to your question.
+
+# Activity 3 (3:30 - 4ish)
+
+Take a look at your output from activity 1 and see what ligand/receptor interactions or pathways that you would chose to pursue further.
+
+What
+
+
+# Session challenge
+Run nichenetr on your own data
+
+If you don't have a dataset handy, you can download data here:
+https://www.10xgenomics.com/resources/datasets/hodgkins-lymphoma-dissociated-tumor-whole-transcriptome-analysis-3-1-standard-4-0-0
+
+## If you're feeling ambitious
+Run cell-cell interaction analysis with another package and compare the results
 
 # Resources
 
 https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9184522/
 https://www.nature.com/articles/s41592-019-0667-5
+https://github.com/saeyslab/nichenetr
 
 
 
@@ -453,6 +543,12 @@ https://www.nature.com/articles/s41592-019-0667-5
 
 
 # Extra stuff to run Differential NicheNetr
+
+We're not going to go over this, but I'm putting this here as it is a newer implementation of nichenetr that tries to take the expression data into consideration when ranking your top ligand/receptor interactions
+
+https://www.sciencedirect.com/science/article/pii/S0092867421014811
+
+
 ```{r eval=FALSE}
 lr_network <-
     readRDS("/home/gdworkshop/lab/session_data/06/lr_network.rds") %>%
@@ -640,7 +736,6 @@ ligand_activities_targets <-
 ```
 
 ## Get table of normalized expression values for genes of interest
-
 ```{r eval=FALSE}
 features_oi <-
     union(lr_network$ligand,
