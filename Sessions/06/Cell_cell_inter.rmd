@@ -71,6 +71,7 @@ weighted_networks_lr <-
 ```
 
 ## Get data to work with
+# please correct the dataset: https://zenodo.org/record/3531889/files/seuratObj.rds ?
 From "https://zenodo.org/record/5840787/files/seurat_obj_subset_integrated_zonation.rds"
 ```{r}
 seurat_obj <-
