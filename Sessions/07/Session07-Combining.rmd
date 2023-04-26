@@ -90,12 +90,13 @@ create_seurat <- function(x) {
 
 # Map the sample_list to the create_seurat function with lapply to generate
 # a list of Seurat objects
-tumors <- lapply(sample_list, create_seurat)
+tumors <- mclapply(sample_list, create_seurat, mc.cores = 4L)
 names(tumors) <- sample_list
 
 violins <- list()
 for(t in names(tumors)) {
-    violins[[t]] <- VlnPlot(tumors[[t]], features = c("nFeature_RNA", "nCount_RNA", "percent.mt")) +
+    violins[[t]] <- VlnPlot(tumors[[t]],
+        features = c("nFeature_RNA", "nCount_RNA", "percent.mt")) +
         plot_annotation(title = t,
             theme = theme(plot.title = element_text(size = 16)))
 }
@@ -108,14 +109,41 @@ qc <- data.frame(
     mtpercent = c(25, 25, 25, 25, 25, 25)
 )
 
-for(i in seq_along(tumors)) {
-    tumors[[i]] <- tumors[[i]] %>%
-        subset(subset = nCount_RNA < qc[i]$ncount &
-            percent.mt < qc[i]$mtpercent)
-}
-tumors[[1]]$mt.percent <- PercentageFeatureSet(tumors[[1]], pattern = "^MT-")
+tum_cells <- readRDS("Datasets/PatientTumors/tumor_cells.rds") %>%
+    stringr::str_extract("[ACTG]{16}-[:digit:]")
 
-head(tumors[[1]]$mt.percent)
+patient_tumor <- mclapply(seq_along(tumors), function(i) {
+    x <- tumors[[i]] %>%
+        subset(subset = nCount_RNA < qc$ncount[i] &
+            percent.mt < qc$mtpercent[i]) %>%
+        NormalizeData() %>%
+        FindVariableFeatures() %>%
+        ScaleData() %>%
+        RunPCA() %>%
+        FindNeighbors() %>%
+        FindClusters() %>%
+        RunUMAP(dims = 1:30)
+    Idents(x) <- "Stroma"
+    Idents(x, cells = tum_cells) <- "Tumor"
+    return(x)
+})
+
+p <- mclapply(patient_tumor, function(x) {
+    r_dim_plot(x)
+})
+
+wrap_plots(p, ncol = 3)
+
+p <- mclapply(patient_tumor, function(x) {
+    r_feature_plot(x, features = "COL1A2")
+})
+
+wrap_plots(p, ncol = 3)
+
+for(i in seq_along(tumors)) {
+    sel <- CellSelector(p[[i]], object = tumors[[i]], ident = "Tumor")
+}
+
 ```
 
 
