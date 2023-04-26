@@ -81,21 +81,68 @@ sample_list <- c("OS_1", "OS_2", "OS_3", "OS_4", "OS_5", "OS_6")
 create_seurat <- function(x) {
     message(paste("Loading", x, "..."))
     s <- Read10X(paste0("Datasets/PatientTumors/", x)) %>%
-    CreateSeuratObject() %>%
+    CreateSeuratObject(min_cells = 5, min_features = 800) %>%
     PercentageFeatureSet(pattern = "^MT-", col.name = "percent.mt")
     s$src <- x
     message(paste("Sample", x, "is loaded."))
+    return(s)
 }
-
-# Set up a parallel machine (required on Windows)
-cl <- makeCluster(6)
-clusterExport(cl, varlist = c("sample_list", "create_seurat"))
-clusterEvalQ(cl, {library(dplyr); library(Seurat)})
 
 # Map the sample_list to the create_seurat function with lapply to generate
 # a list of Seurat objects
-tumors <- parLapply(cl, sample_list, create_seurat)
+tumors <- mclapply(sample_list, create_seurat, mc.cores = 4L)
+names(tumors) <- sample_list
 
+violins <- list()
+for(t in names(tumors)) {
+    violins[[t]] <- VlnPlot(tumors[[t]],
+        features = c("nFeature_RNA", "nCount_RNA", "percent.mt")) +
+        plot_annotation(title = t,
+            theme = theme(plot.title = element_text(size = 16)))
+}
+
+wrap_plots(violins, ncol = 3)
+
+qc <- data.frame(
+    sample = sample_list,
+    ncount = c(70000, 60000, 30000, 70000, 80000, 60000),
+    mtpercent = c(25, 25, 25, 25, 25, 25)
+)
+
+tum_cells <- readRDS("Datasets/PatientTumors/tumor_cells.rds") %>%
+    stringr::str_extract("[ACTG]{16}-[:digit:]")
+
+patient_tumor <- mclapply(seq_along(tumors), function(i) {
+    x <- tumors[[i]] %>%
+        subset(subset = nCount_RNA < qc$ncount[i] &
+            percent.mt < qc$mtpercent[i]) %>%
+        NormalizeData() %>%
+        FindVariableFeatures() %>%
+        ScaleData() %>%
+        RunPCA() %>%
+        FindNeighbors() %>%
+        FindClusters() %>%
+        RunUMAP(dims = 1:30)
+    Idents(x) <- "Stroma"
+    Idents(x, cells = tum_cells) <- "Tumor"
+    return(x)
+})
+
+p <- mclapply(patient_tumor, function(x) {
+    r_dim_plot(x)
+})
+
+wrap_plots(p, ncol = 3)
+
+p <- mclapply(patient_tumor, function(x) {
+    r_feature_plot(x, features = "COL1A2")
+})
+
+wrap_plots(p, ncol = 3)
+
+for(i in seq_along(tumors)) {
+    sel <- CellSelector(p[[i]], object = tumors[[i]], ident = "Tumor")
+}
 
 ```
 
