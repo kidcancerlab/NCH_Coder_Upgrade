@@ -408,7 +408,7 @@ Potential_ligands <-
 # we can select the top 20 ligands with default output from nichenet_output$top_ligands
 Ligands_top20 <- 
     nichenet_output$top_ligands
-# we can selected top 10 ligands based on the rank and bon_fide_ligand 
+# we can also select top 10 ligands based on the rank and bon_fide_ligand 
 Bona_fide_ligands_top10 <- 
     nichenet_output$ligand_activities %>% 
     filter(bona_fide_ligand == "TRUE")%>% 
@@ -416,6 +416,30 @@ Bona_fide_ligands_top10 <-
     slice(1:10) %>% 
     pull(test_ligand) %>% 
     unique()
+    
+## Pearson correlation of these ligands
+# Prepare the ligand activity matrix
+Ligand_activity_output<- nichenet_output$ligand_activities
+Ligand_activity_output
+
+# Select the pearson and test_ligand as matrix
+Ligand_activity_pearson_matrix <- Ligand_activity_output %>% 
+    select(pearson) %>% as.matrix() %>% 
+    magrittr::set_rownames(Ligand_activity_output$test_ligand)
+    
+# Select top 10 bona fide ligands and their pearson correlation value
+Bona_fide_ligands_top10_pearson <- 
+    Ligand_activity_pearson_matrix[Bona_fide_ligands_top10,] %>% 
+    as.matrix(ncol=1) %>% 
+    magrittr::set_colnames("Pearson")
+    
+# Draw the heatmap of these ligands and pearson correlation.
+p_ligand_parson <- Bona_fide_ligands_top10_pearson %>% make_heatmap_ggplot("Prioritized CAF-ligands","Ligand activity", 
+    color = "darkorange", 
+    legend_position = "top", x_axis_position = "top", 
+    legend_title = "Pearson correlation coefficient\ntarget gene prediction ability)")
+    
+p_ligand_parson
 
 ## Dotplot for these ligands
 # These ligands are expressed by one or more of the sender cells. 
