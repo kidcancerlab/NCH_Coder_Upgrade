@@ -385,40 +385,33 @@ nichenet_seuratobj_aggregate_cluster_de()
 qs::qsave(activity_1_output, file = "/home/gdworkshop/lab/session_data/06/activity_1_output.qs")
 ```
 
+--------------------------------------------------------------------------------
 
-- geneset_oi                    - List of downstream targets of potentially activated receptors
-For this, lets grab the genes that are in the 
-
-- background_expressed_genes    - List of genes expressed in the reciever cells
-- ligand_target_matrix          - Matrix of ligand-receptor interactions
-- potential_ligands             - List of ligands that are expressed in the sender cells
-
-
-Run nichenetr on os-shark?
 # Section 2: Visualizing nichenetr results
 
 ## Infer ligand activity
 Ligand activity analysis results: a prioritizing ligands based on predicted ligand acitvity. 
 ```{r}
-nichenet_output$ligand_activities
+nichenet_easy_output$ligand_activities
 
 #The different ligand activity measures (auroc, aupr, pearson correlation coefficient) are a measure for how well a ligand can predict the observed differentially expressed genes compared to the background of expressed genes.
 
 ## ligand predicted based on DEG
-Potential_ligands <- 
-    nichenet_output$ligand_activities %>% 
+Potential_ligands <-
+    nichenet_easy_output$ligand_activities %>%
     pull(test_ligand)
-    
-# we can select the top 20 ligands with default output from nichenet_output$top_ligands
-Ligands_top20 <- 
-    nichenet_output$top_ligands
-# we can also select top 10 ligands based on the rank and bon_fide_ligand 
-Bona_fide_ligands_top10 <- 
-    nichenet_output$ligand_activities %>% 
-    filter(bona_fide_ligand == "TRUE")%>% 
-    arrange(rank) %>% 
-    slice(1:10) %>% 
-    pull(test_ligand) %>% 
+
+# we can select the top 20 ligands with default output from nichenet_easy_output$top_ligands
+Ligands_top20 <-
+    nichenet_easy_output$top_ligands
+
+# we can selected top 10 ligands based on the rank and bon_fide_ligand 
+Bona_fide_ligands_top10 <-
+    nichenet_easy_output$ligand_activities %>%
+    filter(bona_fide_ligand == "TRUE") %>%
+    arrange(rank) %>%
+    slice(1:10) %>%
+    pull(test_ligand) %>%
     unique()
     
 ## Pearson correlation of these ligands
@@ -448,63 +441,97 @@ p_ligand_parson
 ## Dotplot for these ligands
 # These ligands are expressed by one or more of the sender cells. 
 # To further confirm, we run the dotplot for all potential ligands, top 20 ligands, and top10 bona fide ligands.
-DotPlot(seuratObj, features = Potential_ligands, cols = "RdYlBu") + RotatedAxis()
-DotPlot(seuratObj, features = Bona_fide_ligands_top10, cols = "RdYlBu") + RotatedAxis()
-DotPlot(seuratObj, features = Ligands_top20, cols = "RdYlBu") + RotatedAxis()
+DotPlot(seurat_obj,
+        features = Potential_ligands,
+        cols = "RdYlBu") +
+    RotatedAxis()
 
+DotPlot(seurat_obj,
+        features = Bona_fide_ligands_top10,
+        cols = "RdYlBu") +
+    RotatedAxis()
+
+DotPlot(seurat_obj,
+        features = Ligands_top20,
+        cols = "RdYlBu") +
+    RotatedAxis()
 ```
+
 ## Make log fold change heatmap for predicted ligands and target receptors
 We also need to see whether some of these ligands are differential expressed after  LCMV infection
 
 ```{r}
-## For heatmap default: the output provides the top ranked 
-nichenet_output$ligand_differential_expression_heatmap
+## For heatmap default: the output provides the top ranked
+nichenet_easy_output$ligand_differential_expression_heatmap
 
 ## Customize the log fold change of Bona_fide_ligands (top10) from sender cells
 # Define the sender cell type
-sender <- c("CD4 T","Treg", "Mono", "NK", "B", "DC")
+sender <- c("CD4 T", "Treg", "Mono", "NK", "B", "DC")
 # Perform differentially expressed analyses for all the genes between two conditions in the sender
-DE_table_all <- 
-    Idents(seuratObj) %>% 
-    levels() %>% 
-    intersect(sender) %>% 
-    lapply(get_lfc_celltype, seurat_obj = seuratObj, condition_colname = "aggregate", condition_oi = "LCMV", condition_reference = "SS", expression_pct = 0.10, celltype_col = NULL) %>% 
+DE_table_all <-
+    Idents(seurat_obj) %>%
+    levels() %>%
+    intersect(sender) %>%
+    lapply(get_lfc_celltype,
+           seurat_obj = seurat_obj,
+           condition_colname = "aggregate",
+           condition_oi = "LCMV",
+           condition_reference = "SS",
+           expression_pct = 0.10,
+           celltype_col = NULL) %>%
     reduce(full_join) # use this if cell type labels are the identities of your Seurat object -- if not: indicate the celltype_col properly
 
 # Select the expression profile of top10 bona fide ligands in sender cell types.
-ligand_DEG = DE_table_all %>% 
+ligand_DEG <- DE_table_all %>%
     filter(gene %in% Bona_fide_ligands_top10)
 
 # transfer the tibble into matrix for heatmap
-vis_ligand_lf = ligand_DEG %>% 
-    select(-gene) %>% as.matrix()
+vis_ligand_lf <- ligand_DEG %>%
+    select(-gene) %>%
+    as.matrix()
 
 # define rownames and colnames
 rownames(vis_ligand_lf) <- ligand_DEG$gene
-colnames(vis_ligand_lf) <- colnames(vis_ligand_lf) %>% make.names()
+colnames(vis_ligand_lf) <- colnames(vis_ligand_lf) %>%
+    make.names()
 
 # order the gene by ligands
-vis_ligand_lf[Bona_fide_ligands_top10,]
+vis_ligand_lf[Bona_fide_ligands_top10, ]
 
 # draw the heatmap
-vis_ligand_lf %>% 
-    make_threecolor_heatmap_ggplot("Prioritized ligands","LFC in Sender", low_color = "midnightblue",mid_color = "white", mid = median(vis_ligand_lf), high_color = "red",legend_position = "top", x_axis_position = "top", legend_title = "LFC") + 
+vis_ligand_lf %>%
+    make_threecolor_heatmap_ggplot("Prioritized ligands",
+                                   "LFC in Sender",
+                                   low_color = "midnightblue",
+                                   mid_color = "white",
+                                   mid = median(vis_ligand_lf, na.rm = TRUE),
+                                   high_color = "red",
+                                   legend_position = "top",
+                                   x_axis_position = "top",
+                                   legend_title = "LFC") +
     theme(axis.text.y = element_text(face = "italic"))
 ```
-# Infer active ligand-target links
+
+## Infer active ligand-target links
 ```{r}
 # Default output provides a ligand target link heatmap
-nichenet_output$ligand_target_heatmap
-
+nichenet_easy_output$ligand_target_heatmap
 
 # Infer active selected ligand and their targets links (Bona_fide_ligands_top10)
-nichenet_selected_ligand_link <-  
-    nichenet_output$ligand_target_matrix[rownames(nichenet_output$ligand_target_matrix) %in% Bona_fide_ligands_top10,]
+nichenet_selected_ligand_link <-
+    nichenet_easy_output$ligand_target_matrix[rownames(nichenet_easy_output$ligand_target_matrix) %in% Bona_fide_ligands_top10,]
 
-nichenet_selected_ligand_link %>% 
-    make_heatmap_ggplot("Prioritized ligands","Predicted target genes", color = "purple",legend_position = "top", x_axis_position = "top",legend_title = "Regulatory potential")  + 
-    theme(axis.text.x = element_text(face = "italic")) + 
-    scale_fill_gradient2(low = "whitesmoke",  high = "purple", breaks = c(0,0.0045,0.0090))
+nichenet_selected_ligand_link %>%
+    make_heatmap_ggplot("Prioritized ligands",
+                        "Predicted target genes",
+                        color = "purple",
+                        legend_position = "top",
+                        x_axis_position = "top",
+                        legend_title = "Regulatory potential")  + 
+    theme(axis.text.x = element_text(face = "italic")) +
+    scale_fill_gradient2(low = "whitesmoke",
+                         high = "purple",
+                         breaks = c(0, 0.0045, 0.0090))
 
 ```
 
