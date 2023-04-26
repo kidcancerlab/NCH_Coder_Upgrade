@@ -401,7 +401,7 @@ Ligand activity analysis results: a prioritizing ligands based on predicted liga
 ```{r}
 nichenet_output$ligand_activities
 
-#The different ligand activity measures (auroc, aupr, pearson correlation coefficient) are a measure for how well a ligand can predict the observed differentially expressed genes compared to the background of expressed genes.
+# The different ligand activity measures (auroc, aupr, pearson correlation coefficient) are a measure for how well a ligand can predict the observed differentially expressed genes compared to the background of expressed genes.
 
 ## ligand predicted based on DEG
 Potential_ligands <- 
