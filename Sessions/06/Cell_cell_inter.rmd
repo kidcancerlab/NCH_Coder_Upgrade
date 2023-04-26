@@ -23,6 +23,9 @@ library(rrrSingleCellUtils)
 library(tidyverse)
 library(Seurat)
 library(nichenetr)
+library(cowplot)
+library(ggpubr)
+library(RColorBrewer)
 
 #.libPaths("/gpfs0/export/apps/opt/scrgot/23/lib/R")
 
