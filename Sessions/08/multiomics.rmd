@@ -133,7 +133,10 @@ The GEX data can be analyzed like normal
 
 I'm not going to walk through the GEX analysis as that's been covered in previous sessions
 ```{r}
-data_path <- "/home/gdworkshop/lab/session_data/multiomics/"
+data_path <- "/home/gdworkshop/lab/session_data/08/multiomics/"
+# If you're running the code on the IGM AWS instance, you can use this path:
+#data_path = "/igm/projects/scrgot_coder_upgrade/2023/"
+
 h5_data <-
     Read10X_h5(paste0(data_path,
                       "e18_mouse_brain_fresh_5k_filtered_feature_bc_matrix.h5"))
@@ -296,7 +299,8 @@ seurat_obj <-
 ## Add in metadata output by cellranger-arc count
 ```{r}
 metadata <-
-    read_csv(paste0(data_path, "/e18_mouse_brain_fresh_5k_per_barcode_metrics.csv"),
+    read_csv(paste0(data_path,
+                    "/e18_mouse_brain_fresh_5k_per_barcode_metrics.csv"),
              show_col_types = FALSE) %>%
     mutate(atac_pct_mito = atac_mitochondrial_reads / atac_raw_reads * 100,
            atac_pct_dups = atac_dup_reads / atac_raw_reads * 100) %>%
@@ -391,10 +395,10 @@ CoveragePlot(seurat_obj,
              extend.downstream = 2000)
 ```
 
-
 One issue:
 
 If you have multiple samples called with cellranger-arc, their peaks are different, so you can't really compare them directly.
+I'm not going to walk through this, due to time constraints, but just wanted to show a couple of options to deal with this.
 
 You can either re-call the peaks: https://stuartlab.org/signac/articles/peak_calling.html
 
@@ -402,6 +406,7 @@ Or redefine their boundaries: https://stuartlab.org/signac/articles/merging.html
 
 https://github.com/kidcancerlab/rrrSingleCellUtils/blob/master/R/multiomics.R#L18
 
+This code won't work since the files don't exist, it's just to show you how to use the function
 ```{r eval=FALSE}
 # Documentation is still a work in progress
 library(rrrSingleCellUtils)
@@ -432,11 +437,10 @@ merged_atac_data <-
     subset(nCount_ATAC > 100)
 ```
 
-https://stuartlab.org/signac/articles/merging.html
 
-## Activity (10:30 - 11ish)
+## Activity 2 (10:30 - 11ish)
 
-Work with Seurat and Signac
+Try running the code above to generate the seurat object and look at the output of each step. Once you have the seurat object put together try plotting the UMAP for the different datasets and look at 
 
 ## Joint analysis of multimodal data
 
