@@ -23,7 +23,7 @@ library(rrrSingleCellUtils)
 library(tidyverse)
 library(Seurat)
 library(Signac)
-library(nichenetr)
+library(patchwork)
 #system("ml HDF5")
 ```
 
@@ -133,7 +133,7 @@ The GEX data can be analyzed like normal
 
 I'm not going to walk through the GEX analysis as that's been covered in previous sessions
 ```{r}
-data_path <- "/home/gdworkshop/lab/session_data/08/multiomics/"
+data_path <- "/home/gdworkshop/lab/session_data/08/"
 # If you're running the code on the IGM AWS instance, you can use this path:
 #data_path = "/igm/projects/scrgot_coder_upgrade/2023/"
 
@@ -203,6 +203,9 @@ seurat_obj <-
             dims = 1:10) %>%
     FindNeighbors(dims = 1:10) %>%
     FindClusters(resolution = 0.4)
+
+seurat_obj$RNA_cluster <-
+    Idents(seurat_obj)
 
 length(Cells(seurat_obj))
 
@@ -348,6 +351,8 @@ seurat_obj <-
             dims = 2:30,
             reduction.name = "umap_atac")
 
+seurat_obj$ATAC_cluster <- Idents(seurat_obj)
+
 DimPlot(seurat_obj,
         group.by = "cell_type",
         reduction = "umap_atac",
@@ -446,13 +451,72 @@ Try running the code above to generate the seurat object and look at the output 
 
 > Show ppt of plots
 
-### Multimodal UMAP
-Better separation of cell types due to increased dimensionality of data
+### Matching cells between datasets
 ```{r}
 seurat_obj <-
     qs::qread(paste0(data_path,
                      "mouse_brain_5k_sobj_3.qs"))
 
+rna_umap <-
+    Embeddings(seurat_obj, reduction = "umap_rna") %>%
+    as.data.frame() %>%
+    rownames_to_column("cell") %>%
+    as_tibble() %>%
+    mutate(rna_cluster = as.vector(seurat_obj$RNA_cluster))
+
+atac_umap <-
+    Embeddings(seurat_obj, reduction = "umap_atac") %>%
+    as.data.frame() %>%
+    rownames_to_column("cell") %>%
+    as_tibble() %>%
+    dplyr::rename(UMAP_1 = umap_atac_1,
+                  UMAP_2 = umap_atac_2) %>%
+    full_join(rna_umap %>%
+                select(cell, rna_cluster))
+
+# Merging the UMAP data
+# Shifted UMAP_1 for both by offset_num to separate the datasets
+
+offset_num <- 13
+
+combined_umap <-
+    rna_umap %>%
+    mutate(data_type = "RNAseq",
+           UMAP_1 = UMAP_1 - offset_num) %>%
+    bind_rows(atac_umap %>%
+               mutate(data_type = "ATACseq",
+                      UMAP_1 = UMAP_1 + offset_num))
+
+draw_cluster <- 7
+
+# Make plot of the combined UMAP projections
+ggplot(combined_umap,
+       aes(x = UMAP_1,
+           y = UMAP_2,
+           shape = data_type)) +
+    geom_point(aes(color = rna_cluster == draw_cluster),
+               alpha = 0.5) +
+    scale_color_brewer(palette = "Paired",
+                       name = "Data type") +
+    geom_line(data = combined_umap %>%
+                filter(rna_cluster == draw_cluster),
+              aes(x = UMAP_1,
+                  y = UMAP_2,
+                  group = cell),
+              color = "#808080",
+              alpha = 0.05) +
+    scale_color_brewer(palette = "Set2",
+                       name = "Target cluster")
+
+ggsave("Sessions/08/combined_umap.png",
+       width = 10,
+       height = 6)
+```
+
+
+### Multimodal UMAP
+Better separation of cell types due to increased dimensionality of data
+```{r}
 seurat_obj <-
     seurat_obj %>%
     FindMultiModalNeighbors(reduction.list = list("pca", "lsi"),
@@ -463,10 +527,41 @@ seurat_obj <-
     seurat_obj %>%
     RunUMAP(nn.name = "weighted.nn",
             assay = "RNA",
-            reduction.name = "umap_joint") %>%
+            reduction.name = "joint_umap") %>%
     FindClusters(algorithm = 3,
                  graph.name = "wsnn")
 
+seurat_obj$joint_cluster <-
+    Idents(seurat_obj)
+
+joint_umap <-
+    DimPlot(seurat_obj,
+            reduction = "joint_umap",
+            label = TRUE,
+            repel = TRUE,
+            pt.size = 0.5,
+            group.by = "cell_type") +
+    NoLegend()
+
+rna_umap <-
+    DimPlot(seurat_obj,
+            reduction = "umap_rna",
+            label = TRUE,
+            repel = TRUE,
+            pt.size = 0.5,
+            group.by = "cell_type") +
+    NoLegend()
+
+atac_umap <-
+    DimPlot(seurat_obj,
+            reduction = "umap_atac",
+            label = TRUE,
+            repel = TRUE,
+            pt.size = 0.5,
+            group.by = "cell_type") +
+    NoLegend()
+
+joint_umap + (rna_umap / atac_umap)
 
 ```
 
