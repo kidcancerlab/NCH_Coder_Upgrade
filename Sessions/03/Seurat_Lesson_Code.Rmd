@@ -76,7 +76,7 @@ This step can also be known as linear dimensional reduction. Numerous methods
 exist for visualization of principle components (PCs). A common method is 
 *ElbowPlot*, which plots the standard deviations of the principle components. 
 The left of the 'elbow' tends to represent the significant dimensions. 
-Other visulazation methods include *JackStraw* (slow) and *DimHeatmap*. Note that 
+Other visualization methods include *JackStraw* (slow) and *DimHeatmap*. Note that 
 higher dimensions can be chosen, especially if certain rare cell-type signatures 
 are distinguishable in these PCs. *DimHeatmap* is helpful in seeing these genes.
 More information can be found at: 
@@ -274,7 +274,7 @@ FeaturePlot(pbmc,
 # (note that a linear color scale works best)
 FeaturePlot(pbmc,
             features = "LYZ",
-            cols = c("pink", "red"))
+            cols = c("gray", "red"))
 
 ```
 
@@ -356,7 +356,7 @@ DotPlot(pbmc,
                      "LYZ"),
         group.by = "singleR",
         scale = FALSE,
-        cols = c("pink", "red"))
+        cols = c("gray", "red"))
 ```
 
 # Saving Seurat Objects
