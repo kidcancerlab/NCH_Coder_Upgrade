@@ -344,29 +344,50 @@ hist(westernQuant$intensity_gene1)
 
 -- Make sure to save the summary output to a variable 
 
-### Read in data
+Read in data the titanic dataset
 Use read.delim()
-```{r readData}
-
+```{r}
+titanic = read.delim("titanic.txt", header = TRUE)
+titanic
 ```
 
-### Summarize the data.frame
-Use summary()
-```{r summaryWestern}
-
+Summarize the dataset
+```{r}
+summary = summary(titanic)
+summary
 ```
 
-### Test for group differences -- use help()
-Use t.test() function
-```{r testDiff}
+Use the head() and tail() functions to take a closer look at the dataset
+```{r}
+head(titanic)
 
+tail(titanic)
 ```
 
-### Barplots
-Use barplot()
-```{r plots}
-
+Access the 3rd column of the data frame, i.e. the "Name" column. Save it to a variable. 
+```{r}
+names = titanic$Name
 ```
+
+Access the third row of the dataset, save the output to a variable. 
+```{r}
+row = titanic[3, ]
+row
+```
+Retrieve the name of the person specified in row 3 using square brackets. 
+```{r}
+name = titanic[3, 3]
+name
+```
+
+Make variables that contain the Mean/median/min/max of age/fare
+```{r}
+min_age = min(titanic$Age)
+
+max_age = max(titanic$Age)
+```
+
+
 
 --------------------------------------------------------------------------------
 
@@ -614,105 +635,92 @@ R thinks you have unfinished business here
 
 ### googling "R how do I…"
 
+### = and == have different meaning in R. 
+
+```{r}
+a <- 1
+
+b <- 4
+
+a == b
+
+a = b
+
+a
+
+a != 5
+```
+
 --------------------------------------------------------------------------------
 
 ## Activity 3
 
-### Read in and check out the Titanic data
+Read in and check out the Titanic data
 ```{r}
+titanic = read.delim("titanic.txt", header = TRUE)
+titanic
+```
+Arrange the dataset by age from youngest to oldest and oldest to youngest
+```{r}
+titanic%>%
+  arrange(Age)
 
+titanic%>%
+  arrange(-Age)
 ```
 
-### Make variables that contain the Mean/median/min/max of age/fare
+Use filter to make two new dataframe variables with just male and female only and then calculate the mean/median values for age and fare. Basically, calculate the mean/median age and fare for men vs women
 ```{r}
+females = titanic%>%
+  filter(Sex == "female")
 
+mean(females$Age)
+mean(females$Fare)
+
+median(females$Age)
+median(females$Fare)
+
+males = titanic%>%
+  filter(Sex == "male")
+
+mean(males$Age)
+mean(males$Fare)
+
+mean(males$Age)
+mean(males$Fare)
 ```
 
-### Use filter to make two new dataframe variables with just male and female only and then calculate the mean/median values for age and fare
-Basically, calculate the mean/median age and fare for men vs women
+Group the dataset by gender and calculate mean fare and age
 ```{r}
+titanic%>%
+  group_by(Sex)%>%
+  summarise(mean_age = mean(Age))
 
+titanic%>%
+  group_by(Sex)%>%
+  summarise(mean_fare = mean(Fare))
+
+titanic%>%
+  group_by(Sex)%>%
+  summarise(median_age = median(Age))
+
+titanic%>%
+  group_by(Sex)%>%
+  summarise(median_fare = median(Fare))
 ```
 
-### Make a histogram of the age all passengers
+Make a new data frame selecting the following columns: Name, Age, Fare
 ```{r}
-
+subset = titanic%>%
+  select(Name, Age, Fare)
 ```
 
-### Make another histogram for only passengers who survived
-
-## If you're super fast
-
-### Use `aov()` to test which factors influenced who survived the titanic disaster
+Make a new column 
 ```{r}
-
+subset = subset%>%
+  mutate(Age_group = ifelse(Age > 18, "adult", "child"))
+subset
 ```
-
-### Use table() to compare how many women vs men survived
-```{r}
-
-```
-
-
-### Read in our data
-We have two tables of data:
-- weather_temps.txt
-    - Has monthly average temperatures for cities around the world
-- weather_precip.txt
-    - Has monthly average precipitation for cities around the world
-```{r}
-
-```
-
-
-### Combine the datasets into a single data.frame
-```{r}
-
-```
-
-### Pivot the data to long form
-Columns should be patient, day, exercise_min, glucose
-```{r}
-
-```
-
-### Save the pivoted data.frame to a text file with write.table() or write_tsv()
-```{r}
-
-```
-
-### Make a new column where glucose is multiplied by 1000
-```{r}
-
-```
-
-### Calculate the average daily minutes of exercise per patient
-```{r}
-
-```
-
-## If you're super fast
-
-### Plot glucose levels for each group (treated/control)
-```{r}
-
-```
-
-### Test if glucose levels are statistically different between groups
-```{r}
-
-```
-
-### Plot daily exercise minutes per group
-```{r}
-
-```
-
-### Test if exercise minutes is statistically different between groups
-```{r}
-
-```
-
 
 # Part 4
 
