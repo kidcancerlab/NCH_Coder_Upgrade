@@ -1,0 +1,385 @@
+---
+title: 'Seurat Lesson: Code'
+author: "Emily Franz and Jack Hedberg"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 5
+    number_sections: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  tidy = TRUE,
+  echo = TRUE,
+  cache = TRUE,
+  collapse = TRUE,
+  tidy.opts = list(width.cutoff = 95),
+  message = FALSE,
+  warning = FALSE,
+  cache.lazy = FALSE)
+```
+
+```{r lib, cache = FALSE}
+# Load necessary packages
+library(Seurat)
+library(tidyverse) # This package contains ggplot2 and dplyr
+library(patchwork)
+
+# Set the random generator seed so that results are reproducible.
+set.seed(132)
+```
+
+# Load in scNRAseq dataset
+```{r load}
+# Load pbmc scRNAseq dataset
+
+
+```
+
+# Perform Subsetting for Quality Control
+```{r qc}
+
+```
+
+# Normalize
+```{r normalize}
+
+```
+
+# Identify Highly Variable Features
+```{r varfeatures}
+
+```
+
+# Scale Features
+Scaling applies linear transformation. Importantly, this step ensures that 
+highly-expressed genes do not dominate and drown out relatively lower-expressed 
+genes that have biological importance. This is a standard pre-processing step 
+prior to principle component analysis (dimensional reduction).
+  -Shifts the expression of each gene (feature), so that the mean expression across cells is 0
+  -Scales the expression of each gene (feature), so that the variance across cells is 1
+  -Results are stored in pbmc[["RNA"]]@scale.data
+```{r scale}
+#### Scale data ####
+# The rownames of the pbmc object are ALL of the genes (features).
+# Note that if the features parameter is undefined, this function will perform 
+# scaling on only 2,000 of the most variable features by default (may lose data).
+pbmc <- ScaleData(pbmc,
+                  features = rownames(pbmc))
+```
+
+# Perform Principle Component Analysis (PCA)
+This step can also be known as linear dimensional reduction. Numerous methods 
+exist for visualization of principle components (PCs). A common method is 
+*ElbowPlot*, which plots the standard deviations of the principle components. 
+The left of the 'elbow' tends to represent the significant dimensions. 
+Other visualization methods include *JackStraw* (slow) and *DimHeatmap*. Note that 
+higher dimensions can be chosen, especially if certain rare cell-type signatures 
+are distinguishable in these PCs. *DimHeatmap* is helpful in seeing these genes.
+More information can be found at: 
+[Seurat - Guided Clustering Tutorial: Perform linear dimensional reduction](https://satijalab.org/seurat/articles/pbmc3k_tutorial.html).
+```{r pca}
+#### Run PCA ####
+pbmc <- RunPCA(pbmc,
+               features = VariableFeatures(object = pbmc))
+
+#### Elbow Plot ####
+# Note the elbow around PC 9 or 10
+# (more specifically, the PC 11 point shows nearly no difference in y-axis 
+# value to that of PC 10). Thus, we will proceed with dims = 1:10.
+ElbowPlot(pbmc,
+          ndims = 25)
+```
+
+# Cluster Single Cells.
+This portion includes two steps. The first, *FindNeighbors*, takes the principle 
+components selected above and constructs a graph based on the euclidean distance 
+from the PCA and finds the similarities between two cells based on overlap of 
+their local neighborhoods. The selected PCs are defined in the *dims* parameter. 
+The second step, *FindClusters*, iteratively groups cells together with the ability 
+to set the resolution, or granularity, of the clustering. The higher the 
+resolution, the greater the number of clusters in the output.
+```{r cluster}
+#### Find Neighbors ####
+pbmc <- FindNeighbors(pbmc,
+                      dims = 1:10)
+
+#### Find Clusters ####
+pbmc <- FindClusters(pbmc,
+                     resolution = 0.5)
+```
+
+# Run Non-linear Dimensional Reduction (UMAP/tSNE)
+Using the same PCs and resolution as defined above, this step places similar 
+cells together in a low-dimension (2D) space. Those cells calculated as co-localized 
+in the clusters generated above should co-localize in the UMAP or tSNE space. 
+Cells are colored by their cluster or identity class.
+
+As for differences between tSNE and UMAP, UMAP lowers the dimensions of the high 
+dimensional graph from above using compression, whereas t-SNE moves the high 
+dimensional graph to a lower dimensional space points by points. Their parameters,
+thus, differ, but both can be used as graph-based methods for non-linear 
+dimensional reduction. Neither is perfect, but UMAP tends to provide better balance
+between local versus global structure and is more time-effective. For more information, 
+please see [Comparing UMAP vs t-SNE in Single-cell RNA-Seq Data Visualization, Simply Explained](https://blog.bioturing.com/2022/01/14/umap-vs-t-sne-single-cell-rna-seq-data-visualization/) 
+and [Understanding UMAP](https://pair-code.github.io/understanding-umap/).
+```{r umap}
+#### Run UMAP ####
+# Use the same dimensions as those in FindNeighbors()
+pbmc <- RunUMAP(pbmc,
+                dims = 1:10)
+
+#### Plot UMAP ####
+DimPlot(pbmc,
+        reduction = "umap")
+
+# Visualize cluster labels on UMAP
+## Note: reduction parameter, if not specified, first searches for umap, then tsne, then pca
+## By default, then, it will select whichever dimensional reduction method is used above,
+## unless both umap and tsne have been generated. 
+DimPlot(pbmc,
+        label = TRUE,
+        repel = TRUE)
+```
+
+# Cell Type Annotation
+There are many methods of cell type annotation. Here we show a reference-
+based technique, *SingleR*. A reference based technique uses a
+list of genes associated with a certain cell type to suggest cell identities.
+A simpler, but often time-consuming approach, is to analyze the top 
+differentially expressed genes for each cluster (shown here) or certain unique 
+genes your lab or others have used to identify specific cell types, if 
+applicable (see below techniques for feature plotting).
+
+## SingleR
+```{r singler}
+# Automatic prediction of cell types using SingleR
+library(SingleCellExperiment)
+library(celldex)
+library(SingleR)
+
+# Convert the Seurat object to a SCE object
+pbmc_sce <- as.SingleCellExperiment(pbmc)
+
+# Load human reference of interest from celldex
+## Mouse reference & immune-specific mouse reference are helpful for mouse data.
+## ref_mouse <- celldex::MouseRNAseqData()
+## ref_mouse_immune <- celldex::ImmGenData()
+ref1 <- celldex::HumanPrimaryCellAtlasData()
+
+# Make cell type predictions using SingleR
+## Note that you can use ref1$label.fine for more specific predictions
+predictions <- SingleR(test = pbmc_sce,
+                       ref = list(ref1),
+                       labels = list(ref1$label.main))
+
+# Clean up environment
+rm(pbmc_sce, ref1)
+```
+
+```{r singler_cont, dependson= "singler"}
+# Transfer labels back to the Seurat object metadata and plot
+pbmc$singleR <- predictions$labels
+
+# Label cells with singlr label
+Idents(pbmc) <- pbmc$singleR 
+
+# Plot on UMAP
+## Note the use of group.by to label cells by certain identifiers (singleR here)
+## Seurat uses ggplot, so plot titles (and more) can be edited with ggplot2 functions
+## NoLegend() (Seurat) removes DimPlot legend, useful if plot is labeled
+DimPlot(pbmc,
+        reduction = "umap",
+        group.by = "singleR",
+        label = T,
+        repel = T) +
+  ggtitle("Human Reference Annotation") +
+  NoLegend()
+```
+
+## Differentially Expressed Genes
+*Tomorrow's lesson will be devoted to exploring this topic in more depth.*
+
+*FindAllMarkers* finds all the genes that make each cluster most different from 
+all of the other clusters. If you want to look at the genes that make cluster (A)
+most different from another cluster (B), you can use *FindMarkers* and set ident.1 
+equal to the cluster of interest (A) and ident.2 equal to its comparison (B).
+```{r deg}
+#### FindAllMarkers ####
+# Find differential markers for every cluster compared to all remaining cells
+# Report only the positive values and set a log-fold-change threshold of 0.25
+# Note that different statistical tests can be used; default is wilcox
+pbmc.markers <- FindAllMarkers(pbmc,
+                               only.pos = TRUE,
+                               logfc.threshold = 0.25)
+#### View Markers ####
+pbmc.markers %>%
+    group_by(cluster) %>%
+    slice_max(n = 5,
+              order_by = avg_log2FC)
+```
+
+# Feature Plotting Techniques 
+Seurat and other packages offer numerous methods for plotting genes of interest.
+Here we present some of the most popular Seurat-based methods for plotting.
+
+## Feature Plot
+Colors single cells on a dimensional reduction plot by feature (typically gene expression level,
+but could be  PC scores, number of genes detected, module score, etc.)
+```{r feature}
+#### Default FeaturePlot ####
+# Plots each feature separately
+FeaturePlot(pbmc,
+            features = c("MS4A1",
+                         "NKG7",
+                         "CD3E",
+                         "LYZ"))
+#### Group.by ####
+# group.by plots each feature separately, but labels by identities of interest
+FeaturePlot(pbmc,
+            features = c("MS4A1",
+                         "NKG7",
+                         "CD3E",
+                         "LYZ"),
+            group.by = "singleR",
+            label = TRUE,
+            repel = TRUE)
+
+#### Split.by ####
+# split.by plots each feature in each identity separately (labels would still
+# be defined as the default, or that specified in group.by)
+## very helpful for different treatment groups
+FeaturePlot(pbmc,
+            features = c("MS4A1",
+                         "NKG7"),
+            split.by = "singleR")
+
+# Cutoffs help visualize features if signal too weak or too strong in certain cells
+# Note that the expression units are arbitrary units, specific for each feature
+#### Max cutoff ####
+FeaturePlot(pbmc,
+            features = "LYZ",
+            max.cutoff = 4)
+
+#### Min cutoff ####
+FeaturePlot(pbmc,
+            features = "LYZ",
+            min.cutoff = 2)
+
+
+#### Change plot colors ####
+# (note that a linear color scale works best)
+FeaturePlot(pbmc,
+            features = "LYZ",
+            cols = c("gray", "red"))
+
+```
+
+## Violin Plot
+
+```{r vln}
+#### Default VlnPlot ####
+# Each feature is plotted separately
+# violins are colored by feature (can change to color by identity with fill.by)
+VlnPlot(pbmc,
+        features = c("MS4A1",
+                     "NKG7",
+                     "CD3E",
+                     "LYZ"))
+
+#### Group.by and RotateAxis() ####
+# group.by allows expression to be shown for identity classes of interest
+# RotatedAxis() rotates x-axis labels
+VlnPlot(pbmc,
+        features = c("MS4A1",
+                     "NKG7",
+                     "CD3E",
+                     "LYZ"),
+        group.by = "singleR") +
+  RotatedAxis()
+```
+
+## Ridge Plot
+
+```{r ridge}
+### Default ridgeplot ####
+# plots by feature
+RidgePlot(pbmc,
+          features = c("MS4A1",
+                       "NKG7",
+                       "CD3E",
+                       "LYZ"))
+
+#### Group.by, fill.by, sort ####
+# Can group by certain identities, sort by average expression, and more
+RidgePlot(pbmc,
+          features = c("MS4A1",
+                       "NKG7",
+                       "CD3E",
+                       "LYZ"),
+          group.by = "singleR",
+          sort = TRUE,
+          fill.by = "ident") # fill.by is also an option in VlnPlot()
+```
+
+## DotPlot
+Be careful using this plotting method - it works to emphasize differences and 
+therefore may appear misleading (visual differences are exaggerated)
+```{r dot}
+#### Default DotPlot ####
+DotPlot(pbmc,
+        features = c("MS4A1",
+                       "NKG7",
+                       "CD3E",
+                       "LYZ"),
+          group.by = "singleR")
+
+#### Remove plot scaling ####
+# (less exaggerated, more representative of true differences)
+DotPlot(pbmc,
+        features = c("MS4A1",
+                     "NKG7",
+                     "CD3E",
+                     "LYZ"),
+        group.by = "singleR",
+        scale = FALSE)
+
+#### Change Dotplot colors ####
+# (note that a linear color scale works best)
+DotPlot(pbmc,
+        features = c("MS4A1",
+                     "NKG7",
+                     "CD3E",
+                     "LYZ"),
+        group.by = "singleR",
+        scale = FALSE,
+        cols = c("gray", "red"))
+```
+
+# Saving Seurat Objects
+
+```{r save}
+
+```
+
+# Loading Seurat Objects
+
+```{r load}
+
+```
+
+# Adding/Modifying Metadata
+
+```{r metadata}
+# The [[ operator can add columns to object metadata.
+pbmc[["percent.mt"]] <- PercentageFeatureSet(pbmc,
+                                             pattern = "^MT-")
+```
+
+```{r}
+sessionInfo()
+```
+
