@@ -546,6 +546,12 @@ nichenet_selected_ligand_link %>%
 # Activity 2 (2:30 - 3ish)
 Make plots from nichenetr outputs? 
 
+Extract ligands that have pearson value greater than 0.4: 
+    1) Make heatmap for these ligand acitivities, 
+    2) Use these ligands to generate the FeaturePlot,
+    3) Draw heatmap for LFC in sender cells after LCMV infection
+    4) Draw heatmap to visualize these ligand-receptor links. 
+
 # Section 3: Interpreting nichenetr results
 
 ## Stepwise output
