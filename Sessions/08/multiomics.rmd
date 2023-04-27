@@ -562,12 +562,116 @@ atac_umap <-
     NoLegend()
 
 joint_umap + (rna_umap / atac_umap)
-
 ```
 
-- Correlation of ATAC peaks with gene expression
-    - Identify active chromatin that might influence gene expression
-    - Motif analysis of peak sequence can potentially identify binding factors
+### Correlation of ATAC peaks with gene expression
+
+```{r}
+DefaultAssay(seurat_obj) <- "ATAC"
+Idents(seurat_obj) <- "cell_type"
+
+seurat_obj <-
+    RegionStats(seurat_obj,
+                genome = BSgenome.Mmusculus.UCSC.mm10::BSgenome.Mmusculus.UCSC.mm10)
+# ignore the warning - our object just doesn't have some of the junk contigs
+
+diff_peaks <-
+    FindMarkers(seurat_obj,
+                assay = "ATAC",
+                ident.1 = "Neurons",
+                ident.2 = "NPCs") %>%
+    rownames_to_column("region") %>%
+    as_tibble() %>%
+    full_join(tibble(region = rownames(seurat_obj))) %>%
+    arrange(match(region, rownames(seurat_obj))) %>%
+    mutate(p_val_adj = ifelse(is.na(p_val_adj), 1, p_val_adj))
+
+qs::qsave(diff_peaks,
+          "Sessions/08/diff_peaks.qs")
+
+seurat_obj[["ATAC"]][["neuron_signif"]] <- diff_peaks$p_val_adj < 0.05
+
+de_genes <-
+    FindMarkers(seurat_obj,
+                assay = "RNA",
+                ident.1 = "Neurons",
+                ident.2 = "NPCs")
+
+# link peaks to genes
+seurat_obj <-
+    LinkPeaks(object = seurat_obj,
+              peak.assay = "ATAC",
+              expression.assay = "RNA",
+              min.distance = 5000,
+              genes.use = rownames(de_genes)[1:20])
+
+links <-
+    Links(seurat_obj) %>%
+    as.data.frame() %>%
+    as_tibble() %>%
+    arrange(pvalue)
+
+links
+
+CoveragePlot(object = seurat_obj,
+             region = "Pax6",
+             features = "Pax6",
+             idents = c("Neurons", "NPCs"),
+             peaks.group.by = "neuron_signif",
+             expression.assay = "RNA",
+             extend.upstream = 150000,
+             extend.downstream = 50000)
+```
+
+
+## Motif analysis of peak sequence can potentially identify binding factors
+
+```{r eval=FALSE}
+freq_matrix <-
+    getMatrixSet(x = JASPAR2020,
+                 opts = list(collection = "CORE",
+                             tax_group = 'vertebrates',
+                             all_versions = FALSE))
+
+# add motif information
+seurat_obj <-
+    AddMotifs(object = seurat_obj,
+              genome = BSgenome.Mmusculus.UCSC.mm10,
+              pfm = freq_matrix)
+
+da_peaks <-
+    FindMarkers(object = seurat_obj,
+                ident.1 = "Neurons",
+                ident.2 = "NPCs",
+                only.pos = TRUE,
+                test.use = "LR",
+                min.pct = 0.05,
+                latent.vars = "nCount_ATAC")
+
+open_peaks <-
+    AccessiblePeaks(seurat_obj,
+                    idents = c("Neurons", "NPCs"))
+
+# match the overall GC content in the peak set
+meta_feature <-
+    GetAssayData(seurat_obj,
+                 assay = "ATAC",
+                 slot = "meta.features")
+
+peaks_matched <-
+    MatchRegionStats(meta_feature = meta_feature[open_peaks, ],
+                     query_feature = meta_feature[top.da.peak, ],
+                     n = 50000)
+
+## Matching GC.percent distribution
+
+# test enrichment
+enriched.motifs <- FindMotifs(
+  object = seurat_obj,
+  features = top.da.peak
+)
+
+```
 - Compare heterogeneity of gene expression vs. chromatin accessibility
 
 ## Activity (11:30 - 12ish)
