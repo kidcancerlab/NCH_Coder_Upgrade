@@ -127,25 +127,44 @@ patient_tumor <- mclapply(seq_along(tumors), function(i) {
     Idents(x, cells = tum_cells) <- "Tumor"
     return(x)
 })
+names(patient_tumor) <- names(tumors)
 
 p <- mclapply(patient_tumor, function(x) {
     r_dim_plot(x)
-})
+}, mc.cores = 4L)
 
 wrap_plots(p, ncol = 3)
 
 p <- mclapply(patient_tumor, function(x) {
-    r_feature_plot(x, features = "COL1A2")
-})
+    r_feature_plot(x, features = "SATB2")
+}, mc.cores = 4L)
 
 wrap_plots(p, ncol = 3)
 
+tum_cells <- c()
 for(i in seq_along(tumors)) {
-    sel <- CellSelector(p[[i]], object = tumors[[i]], ident = "Tumor")
+    tum_cells <- c(tum_cells, 
+        CellSelector(p[[i]]))
 }
 
-```
+dsample <- 500
+pt_tumor <- lapply(patient_tumor, function(x) {
+    s <- subset(x, cells = tum_cells)
+    cell_list <- colnames(s)
+    samp_number <- min(dsample, length(cell_list))
+    cell_list <- sample(cell_list, samp_number)
+    s <- subset(s, cells = cell_list)
+    return(s)
+})
 
+pt_stroma <- lapply()
+
+biggie <- merge(patient_tumor[[1]], patient_tumor[2:length(patient_tumor)],
+    add.cell.ids = names(patient_tumor))
+
+biggie_tumor <- subset(biggie, cells = tum_cells)
+
+```
 
 
 
