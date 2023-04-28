@@ -82,7 +82,7 @@ We will create a list of Seurat objects containing your chosen datasets. We will
 create_seurat <- function(x) {
     x <- tenx_load_qc(
         path_10x = paste0(
-            "Datasets/",
+            "/home/gdworkshop/lab/session_data/04/Datasets/",
             x$gse, "/",
             x$id),
         violin_plot = FALSE,
