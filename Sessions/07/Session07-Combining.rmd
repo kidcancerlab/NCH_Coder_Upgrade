@@ -130,314 +130,6 @@ stroma <- lapply(patient_tumor, function(x) {
 
 ```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-*NOTE: The procedures we will use in this exercise will only work if R is running in a Mac/UNIX/Linux environment. This is because the most efficient (and embarrasingly easy to implement) solutions for multi-core computing in R rely on a process called "forking", which Windows doesn't support. You're OK if you're working on a Windows machine to remote into the cluster, or if you're using a local windows machine to pass commands to a remote Linux machine (like in VSCode). If you need to run multi-core on a Windows machine, check out solutions like the doParallel package.
-
-## Examine the data
-
-The "Datasets" folder contains several single cell datasets downloaded from two different GEO entries. The names of the next level folders (GSEXXXXXX) are the GEO accession IDs. Within these are a series of folders named by the sample ID reported in the publication, each containing the three barcodes/features/matrix files produced by a cellranger alignment. The tibble created below consolidates key data elements associated with each sample.
-
-The samples used to create these datasets were tumors taken from individuals diagnosed with a type of bone tumor (osteosarcoma). Osteosarcoma has several different histologic subtypes (the "path" element below). Primary tumors form in bones, while the lungs are the most common site of metastasis (the "type" argument). There was no additional processing/sorting of the tumor samples before sequencing, so the datasets contain both tumor cells and the surrounding stromal and immune components. The "nCount" column contains a simple pre-determined qc cutoff to reduce doublets.
-
-Within these data are opportunites to address several different scientific questions. Think of some question that you might ask of such data, then select the datasets that you'd use to answer it (for this exercise, ideally 6-10 datasets). Delete or comment out the rows that you won't use, then run the code to create the tibble.
-
-```{r define_data}
-geo_data <- tribble(
-    ~gse, ~id, ~nCount, ~path, ~type,
-    "GSE152048", "BC5", 18000, "Conventional", "Primary",
-    "GSE152048", "BC6", 25000, "Conventional", "Primary",
-    # "GSE152048", "BC10", 25000, "Conventional", "Lung Met",
-    "GSE152048", "BC11", 30000, "Conventional", "Primary",
-    "GSE152048", "BC16", 70000, "Conventional", "Primary",
-    # "GSE152048", "BC17", 40000, "Chondroblastic", "Lung Met",
-    # "GSE152048", "BC20", 70000, "Chondroblastic", "Primary",
-    # "GSE152048", "BC21", 50000, "Intraosseous", "Primary",
-    # "GSE152048", "BC22", 50000, "Chondroblastic", "Primary",
-    "GSE162454", "OS_1", 50000, "Conventional", "Primary",
-    "GSE162454", "OS_2", 45000, "Conventional", "Primary",
-    "GSE162454", "OS_3", 23000, "Conventional", "Primary",
-    "GSE162454", "OS_4", 50000, "Conventional", "Primary",
-    "GSE162454", "OS_5", 50000, "Conventional", "Primary",
-    "GSE162454", "OS_6", 45000, "Conventional", "Primary"
-)
-```
-
-## Practice 1: Simple parallelization with mclapply (from the parallel package)
-
-We will create a list of Seurat objects containing your chosen datasets. We will start by loading and processing the objects 
-
-1. Create a function that will utilize the variables from the tibble you created to convert the data matrices found in the "Datasets" folder into Seurat objects, subsetting for nCount_RNA < $path as a super basic QC. HINT: feel free to use the tenx_load_qc function from rrrSingleCellUtils to streamline the process.
-2. Now map the data from the tibble into the function using lapply to create a list of Seurat objects.
-3. Then wrap this code with a pair of system timestamps [Sys.time()] and calculate the difference to document the time it takes to perform the operation.
-4. Once you have this working, copy that block of code and paste it at the end of the chunk. Then, simply change the "lapply" command to "mclapply" and add the mc.cores argument, with the number of cores set to those you requested in your session.
-5. Determine how much time is saved by running the processes in parallel.
-6. BONUS. Want to see how all of this is happening by monitoring the processes running on the cluster in real time? Open a separate shell running on the same node and run "top". Then, set the process in motion and observe how your code utilizes the different cores.
-7. Now repeat this procedure to create a function that will process your Seurat objects (NormalizeData, FindVariableFeatures, ScaleData, RunPCA, FindNeighbors, FindClusters, RunUMAP), then plot the UMAPs. How much time do you save with this step by running it parallel?
-8. BONUS. Restructure your code so that the data loading and processing operations occur in a single parallel computing operation, rather than two separate parallel computing operations. Embed a series of timestamps to benchmark the two approaches and compare the results. Does combining the two operations increase efficiency? Why or why not?
-9. BONUS. Are the data objects created using the serial and the parallel processing approaches identical? Why or why not? (see https://pat-s.me/reproducibility-when-going-parallel/ for some helpful information)
-
-```{r parallel-1}
-# Create a function to process matrices to a Seurat object
-create_seurat <- function(x) {
-    x <- tenx_load_qc(
-        path_10x = paste0(
-            "Datasets/",
-            x$gse, "/",
-            x$id),
-        violin_plot = FALSE,
-        sample_name = x$id
-    )
-    return(x)
-}
-
-# Split the tibble into a list of vectors
-geo_data_2 <- geo_data %>%
-    as.data.frame() %>%
-    split(1:nrow(geo_data)) %>%
-    `names<-`(geo_data$id)
-
-# Set the start time
-message("Starting serial processing for loading/creating Seurat objects...")
-t <- c(Sys.time())
-
-# Map the function onto the list of vectors
-tumors_serial <- lapply(geo_data_2, create_seurat)
-
-# Set the completion time for above and start time for below
-message("Moving on to parallel processing for loading/creating Seurat objects...")
-t[2] <- Sys.time()
-
-# Now repeat the function using mclapply
-tumors_parallel <- mclapply(geo_data_2, create_seurat, mc.cores = 10L)
-
-# Mark completion time for the parallel operation and calculate processing
-message("Done.")
-t[3] <- Sys.time()
-print(paste("Serial processing time:",
-    difftime(t[2], t[1], units = "secs"),
-    "seconds"))
-print(paste("Parallel processing time:",
-    difftime(t[3], t[2], units = "secs"),
-    "seconds"))
-
-# Test to see of the two results are the same
-print("Are the objects the same?")
-identical(tumors_serial, tumors_parallel)
-
-# Create a function to process from normalize to umap
-process_seurat <- function(x) {
-    x <- x %>%
-        NormalizeData(verbose = FALSE) %>%
-        FindVariableFeatures(verbose = FALSE) %>%
-        ScaleData(verbose = FALSE) %>%
-        RunPCA(verbose = FALSE) %>%
-        FindNeighbors(verbose = FALSE) %>%
-        FindClusters(verbose = FALSE) %>%
-        RunUMAP(dims = 1:20, verbose = FALSE)
-    return(x)
-}
-
-# Set the time for starting the serial processing
-message("Starting serial processing of the Seurat objects...")
-t[4] <- Sys.time()
-
-# Map the function to the list of Seurat objects using lapply
-tumors_serial <- lapply(tumors_serial, process_seurat)
-
-# Mark completion of the previous operation and start of the next
-message("Starting parallel processing of the Seurat objects...")
-t[5] <- Sys.time()
-
-# Map the function using mclapply
-tumors_parallel <- mclapply(tumors_serial, process_seurat, mc.cores = 10L)
-
-# Mark completion and calculate times
-message("Done.")
-t[6] <- Sys.time()
-print(paste("Serial processing time:",
-    difftime(t[5], t[4], units = "secs"),
-    "seconds"))
-print(paste("Parallel processing time:",
-    difftime(t[6], t[5], units = "secs"),
-    "seconds"))
-
-# Are these two objects identical?
-print("Are these two objects identical?")
-identical(tumors_serial, tumors_parallel)
-
-# Compare jobs run within a single operation
-single_op <- function(x) {
-    id <- x$id
-    message(paste(id, "is starting..."))
-    x <- create_seurat(x) %>%
-        process_seurat()
-    message(paste(id, "has completed."))
-    return(x)
-}
-
-message("Starting the combined creating/processing approach...")
-t[7] <- Sys.time()
-
-tumors_parallel_2 <- mclapply(geo_data_2, single_op, mc.cores = 10L)
-
-t[8] <- Sys.time()
-
-print(paste("Total time for create, then process:",
-    difftime(t[3], t[2], units = "secs") + difftime(t[6], t[5], units = "secs"),
-    "seconds"))
-print(paste("Total time for create + process in a single step:",
-    difftime(t[8], t[7], units = "secs"),
-    "seconds"))
-```
-
-## Practice 2: Be a good doobie (time permitting)
-
-***A NOTE ABOUT COMPUTATIONAL STEWARDSHIP***
-For the purposes of this course, we are performing parallel computing operations using an interactive session, to which we've assigned several computing resources. Generally, this is a very inefficient way to utilize resources, because you are really only using all of the requested CPUs for brief bursts of activity. The rest of the time, those cores sit idle while you write your code, but are not available for others to use. Leaving idle sessions like this running for long periods of time is poor form on a resource that is free to you (like Franklin) and a good way to spend a lot of money on computing power that you're not actually using. 
-
-While interactive sessions like this can be helpful for development and debugging, they should generally be avoided. Also, when using an interactive session requesting multiple computing nodes, you should try to limit the number of nodes requested to those that you actually need and limit the time that you maintain the allocation (ie, close the session when you are done).
-
-So, is there a way to be more efficient AND be a good citizen of our cyberspace?
-
-YES! Here are some options:
-1. Break your code down into sections that can be run as batch submissions through slurm.
-2. Automate the above using the rslurm package. Run your interactive session on a single core (only requesting a single core in your srun or salloc interactive session scheduling request).
-3. Find a middle ground. Requesting 3 cores will still speed up your data-intense operations about 3-fold, but leaves a lot more computing resources for others. (Or costs a lot less if you're paying for your wall hours.)
-4. Make sure you turn things on and off to reduce your footprint. Use srun ... R to start your R sessions
-
-Try one of these potential solutions above and see how it affects performace using benchmarks.
-
-```{r parallel-slurm-r}
-# Run the same block of code above as a slurm batch submission using rslurm
-library(rslurm)
-
-# Mark completion of the previous operation and start of the next
-message("Starting parallel processing of the Seurat objects...")
-t[9] <- Sys.time()
-
-# Map the function using slurm_map
-slurm_job <- slurm_map(tumors_serial,
-    process_seurat,
-    nodes = 1,
-    cpus_per_node = length(tumors_serial))
-tumors_parallel_3 <- get_slurm_out(slurm_job,
-    outtype = "raw",
-    wait = TRUE)
-
-# Mark completion and calculate times
-message("Done.")
-t[10] <- Sys.time()
-print(paste("Parallel processing time - mclapply:",
-    difftime(t[5], t[4], units = "secs"),
-    "seconds"))
-print(paste("Parallel processing time - slurm_map:",
-    difftime(t[6], t[5], units = "secs"),
-    "seconds"))
-```
-
-## Discussion of pseudotime analysis/trajectory inference
-
-This project gives a brief introduction to the world of pseudotime and trajectory methodologies. The large number of tools that have been developed to address this problem highlights the fact that this is a challenge with an array of imperfect solutions. Each approach provides solutions that address at least one type of problem, while no solution works well for every problem. Finding "true" trajectories often requires some trial and error using multiple different algorithms, which can often be complimentary.
-
-A very nice comparative evaluation of the different approaches to pseudotime/trajectory analysis has been published by Saelens et al (https://doi.org/10.1038/s41587-019-0071-9). It really is worth a read if you want to understand more. You might also check out the metapackage the authors built to support their comparative benchmarking (https://github.com/dynverse/dyno). It's a little outdated at this point, but they did a good job putting it together.
-
-Once weakness in nearly all of these approaches is that trajectories are almost entirely inferential. They should be viewed as different ways to "connect the dots," but they are NOT clear evidence that one cell type/cluster gives rise to another. Moreover, while some algorithms will generate educated guesses as to the directionality in the different connections between clusters, inferences of origin and destination are really just guesses. 
-
-One can often use techniques such as RNA Velocity Analysis to get more direct evidence for directionality and evolutionary relationships. Indeed, these two techniques should be viewed as being highly complimentary. We will not have time to dive into velocity analysis today (maybe next year), but the following resources are a good place to start if you'd like to learn more:
- - https://doi.org/10.1371/journal.pcbi.1010492
- - https://doi.org/10.15252/msb.202110282
- - https://scvelo.readthedocs.io/en/stable/
-
-
-## Session challenge
-
-To take on today's challenge, install the dyno package* and then use it to compare results of several different approaches to trajectory inference using the same object(s). The data could be the same dataset used in class today, one taken from a repository, or one of your own. To qualify for judging, you must generate at least 8 distinct plots/analyses that evaluate different trajectories or gene expression modules that vary with pseudotime. Winners will be selected based on the following principles:
- - how appropriate the analyses are for addressing the problem/question
- - how creative the approach is
- - how well the approach is documented
- - how beautifully/accessibly the results are presented
-
-To submit your code for judging, just save a new file titled "Session10-Challenge-Ryan_Roberts.Rmd" (replacing my name with yours, obviously) in the "Challenges" folder on the SCRGOT Coder Upgrade OneDrive.
-
-*NOTE: Running the dyno package requires singularity. Singularity joined forces with the Linux foundation and became Apptainer, which is already installed on the Franklin cluster. When you run singularity commands, these will be automatically run by apptainer, and it works fine. However, if you run test_singularity_installation and use the "detailed = TRUE" option, it will tell you that the version is old. Just ignore this. Any apptainer installation is equivalent to a singularity version >3.8.
-
-```{r}
-system("ml load GCCcore/9.3.0 ImageMagick")
-library(dyno)
-
-# Set up the dyno object from the Seurat data
-# First, add the raw and normalized counts
-dyn_obj <- wrap_expression(
-    expression = GetAssayData(seurat_obj, slot = "data", assay = "RNA") %>% t(),
-    counts = GetAssayData(seurat_obj, slot = "counts", assay = "RNA") %>% t())
-
-# Second, add the clustering information
-dyn_obj <- add_grouping(dyn_obj, seurat_obj$assignment)
- 
-# And the UMAP embeddings
-dyn_obj <- add_dimred(dyn_obj, Embeddings(seurat_obj[["umap"]]))
-
-# And the starting cell
-# Interactive steps run previously:
-# CellSelector(DimPlot(seurat_obj))
-dyn_obj <- add_prior_information(dyn_obj, 
-    start_id = "OS_3_GTTGAACTCTATCGTT-1")
-
-# Use the interactive shiny tool to explore the different methods and choose optimal
-picked <- guidelines_shiny(dyn_obj)
-
-# Run the trajectory inferrence algorithms
-
-```
-
-
 #########################################################################
 ## Section 2: Comparing two integration methods: Harmony and CCA.     
 #########################################################################
@@ -687,6 +379,31 @@ FeaturePlot(seurat.integrated, features = c("PECAM1"), split.by = 'group', min.c
 ## Break: 10 min
 
 ## Activity (20 min): Run the harmony with tumor datasets, and visualize the differences among harmony, merge and CCA.
+
+
+## Discussion of single cell integration/batch correction methods
+
+***
+if you'd like to learn more:
+ - https://doi.org/10.1371/journal.pcbi.1010492
+ - https://doi.org/10.15252/msb.202110282
+ - https://scvelo.readthedocs.io/en/stable/
+
+
+## Session challenge
+
+*** Winners will be selected based on the following principles:
+ - how appropriate the analyses are for addressing the problem/question
+ - how creative the approach is
+ - how well the approach is documented
+ - how beautifully/accessibly the results are presented
+
+To submit your code for judging, just save a new file titled "Session7-Challenge-Ryan_Roberts.Rmd" (replacing my name with yours, obviously) in the "Challenges" folder on the SCRGOT Coder Upgrade OneDrive.
+
+```{r}
+***
+
+```
 
 
 
