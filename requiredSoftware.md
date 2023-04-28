@@ -23,6 +23,11 @@
     - BiocManager::install("biovizBase")
 - org.Hs.eg.db
     - BiocManager::install("org.Hs.eg.db")
+- BSgenome.Mmusculus.UCSC.mm10
+    - BiocManager::install("BSgenome.Mmusculus.UCSC.mm10")
+- qlcMatrix
+- JASPAR2020
+    - BiocManager::install("JASPAR2020")
 
 # R packages - on local machine
 - Seurat

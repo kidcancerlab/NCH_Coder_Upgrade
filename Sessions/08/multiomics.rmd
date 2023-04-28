@@ -23,7 +23,7 @@ library(rrrSingleCellUtils)
 library(tidyverse)
 library(Seurat)
 library(Signac)
-library(nichenetr)
+library(patchwork)
 #system("ml HDF5")
 ```
 
@@ -133,7 +133,7 @@ The GEX data can be analyzed like normal
 
 I'm not going to walk through the GEX analysis as that's been covered in previous sessions
 ```{r}
-data_path <- "/home/gdworkshop/lab/session_data/08/multiomics/"
+data_path <- "/home/gdworkshop/lab/session_data/08/"
 # If you're running the code on the IGM AWS instance, you can use this path:
 #data_path = "/igm/projects/scrgot_coder_upgrade/2023/"
 
@@ -203,6 +203,9 @@ seurat_obj <-
             dims = 1:10) %>%
     FindNeighbors(dims = 1:10) %>%
     FindClusters(resolution = 0.4)
+
+seurat_obj$RNA_cluster <-
+    Idents(seurat_obj)
 
 length(Cells(seurat_obj))
 
@@ -348,6 +351,8 @@ seurat_obj <-
             dims = 2:30,
             reduction.name = "umap_atac")
 
+seurat_obj$ATAC_cluster <- Idents(seurat_obj)
+
 DimPlot(seurat_obj,
         group.by = "cell_type",
         reduction = "umap_atac",
@@ -446,13 +451,72 @@ Try running the code above to generate the seurat object and look at the output 
 
 > Show ppt of plots
 
-### Multimodal UMAP
-Better separation of cell types due to increased dimensionality of data
+### Matching cells between datasets
 ```{r}
 seurat_obj <-
     qs::qread(paste0(data_path,
                      "mouse_brain_5k_sobj_3.qs"))
 
+rna_umap <-
+    Embeddings(seurat_obj, reduction = "umap_rna") %>%
+    as.data.frame() %>%
+    rownames_to_column("cell") %>%
+    as_tibble() %>%
+    mutate(rna_cluster = as.vector(seurat_obj$RNA_cluster))
+
+atac_umap <-
+    Embeddings(seurat_obj, reduction = "umap_atac") %>%
+    as.data.frame() %>%
+    rownames_to_column("cell") %>%
+    as_tibble() %>%
+    dplyr::rename(UMAP_1 = umap_atac_1,
+                  UMAP_2 = umap_atac_2) %>%
+    full_join(rna_umap %>%
+                select(cell, rna_cluster))
+
+# Merging the UMAP data
+# Shifted UMAP_1 for both by offset_num to separate the datasets
+
+offset_num <- 13
+
+combined_umap <-
+    rna_umap %>%
+    mutate(data_type = "RNAseq",
+           UMAP_1 = UMAP_1 - offset_num) %>%
+    bind_rows(atac_umap %>%
+               mutate(data_type = "ATACseq",
+                      UMAP_1 = UMAP_1 + offset_num))
+
+draw_cluster <- 7
+
+# Make plot of the combined UMAP projections
+ggplot(combined_umap,
+       aes(x = UMAP_1,
+           y = UMAP_2,
+           shape = data_type)) +
+    geom_point(aes(color = rna_cluster == draw_cluster),
+               alpha = 0.5) +
+    scale_color_brewer(palette = "Paired",
+                       name = "Data type") +
+    geom_line(data = combined_umap %>%
+                filter(rna_cluster == draw_cluster),
+              aes(x = UMAP_1,
+                  y = UMAP_2,
+                  group = cell),
+              color = "#808080",
+              alpha = 0.05) +
+    scale_color_brewer(palette = "Set2",
+                       name = "Target cluster")
+
+ggsave("Sessions/08/combined_umap.png",
+       width = 10,
+       height = 6)
+```
+
+
+### Multimodal UMAP
+Better separation of cell types due to increased dimensionality of data
+```{r}
 seurat_obj <-
     seurat_obj %>%
     FindMultiModalNeighbors(reduction.list = list("pca", "lsi"),
@@ -463,16 +527,151 @@ seurat_obj <-
     seurat_obj %>%
     RunUMAP(nn.name = "weighted.nn",
             assay = "RNA",
-            reduction.name = "umap_joint") %>%
+            reduction.name = "joint_umap") %>%
     FindClusters(algorithm = 3,
                  graph.name = "wsnn")
 
+seurat_obj$joint_cluster <-
+    Idents(seurat_obj)
 
+joint_umap <-
+    DimPlot(seurat_obj,
+            reduction = "joint_umap",
+            label = TRUE,
+            repel = TRUE,
+            pt.size = 0.5,
+            group.by = "cell_type") +
+    NoLegend()
+
+rna_umap <-
+    DimPlot(seurat_obj,
+            reduction = "umap_rna",
+            label = TRUE,
+            repel = TRUE,
+            pt.size = 0.5,
+            group.by = "cell_type") +
+    NoLegend()
+
+atac_umap <-
+    DimPlot(seurat_obj,
+            reduction = "umap_atac",
+            label = TRUE,
+            repel = TRUE,
+            pt.size = 0.5,
+            group.by = "cell_type") +
+    NoLegend()
+
+joint_umap + (rna_umap / atac_umap)
 ```
 
-- Correlation of ATAC peaks with gene expression
-    - Identify active chromatin that might influence gene expression
-    - Motif analysis of peak sequence can potentially identify binding factors
+### Correlation of ATAC peaks with gene expression
+
+```{r}
+DefaultAssay(seurat_obj) <- "ATAC"
+Idents(seurat_obj) <- "cell_type"
+
+seurat_obj <-
+    RegionStats(seurat_obj,
+                genome = BSgenome.Mmusculus.UCSC.mm10::BSgenome.Mmusculus.UCSC.mm10)
+# ignore the warning - our object just doesn't have some of the junk contigs
+
+diff_peaks <-
+    FindMarkers(seurat_obj,
+                assay = "ATAC",
+                ident.1 = "Neurons",
+                ident.2 = "NPCs") %>%
+    rownames_to_column("region") %>%
+    as_tibble() %>%
+    full_join(tibble(region = rownames(seurat_obj))) %>%
+    arrange(match(region, rownames(seurat_obj))) %>%
+    mutate(p_val_adj = ifelse(is.na(p_val_adj), 1, p_val_adj))
+
+qs::qsave(diff_peaks,
+          "Sessions/08/diff_peaks.qs")
+
+seurat_obj[["ATAC"]][["neuron_signif"]] <- diff_peaks$p_val_adj < 0.05
+
+de_genes <-
+    FindMarkers(seurat_obj,
+                assay = "RNA",
+                ident.1 = "Neurons",
+                ident.2 = "NPCs")
+
+# link peaks to genes
+seurat_obj <-
+    LinkPeaks(object = seurat_obj,
+              peak.assay = "ATAC",
+              expression.assay = "RNA",
+              min.distance = 5000,
+              genes.use = rownames(de_genes)[1:20])
+
+links <-
+    Links(seurat_obj) %>%
+    as.data.frame() %>%
+    as_tibble() %>%
+    arrange(pvalue)
+
+links
+
+CoveragePlot(object = seurat_obj,
+             region = "Pax6",
+             features = "Pax6",
+             idents = c("Neurons", "NPCs"),
+             peaks.group.by = "neuron_signif",
+             expression.assay = "RNA",
+             extend.upstream = 150000,
+             extend.downstream = 50000)
+```
+
+
+## Motif analysis of peak sequence can potentially identify binding factors
+
+```{r eval=FALSE}
+freq_matrix <-
+    getMatrixSet(x = JASPAR2020,
+                 opts = list(collection = "CORE",
+                             tax_group = 'vertebrates',
+                             all_versions = FALSE))
+
+# add motif information
+seurat_obj <-
+    AddMotifs(object = seurat_obj,
+              genome = BSgenome.Mmusculus.UCSC.mm10,
+              pfm = freq_matrix)
+
+da_peaks <-
+    FindMarkers(object = seurat_obj,
+                ident.1 = "Neurons",
+                ident.2 = "NPCs",
+                only.pos = TRUE,
+                test.use = "LR",
+                min.pct = 0.05,
+                latent.vars = "nCount_ATAC")
+
+open_peaks <-
+    AccessiblePeaks(seurat_obj,
+                    idents = c("Neurons", "NPCs"))
+
+# match the overall GC content in the peak set
+meta_feature <-
+    GetAssayData(seurat_obj,
+                 assay = "ATAC",
+                 slot = "meta.features")
+
+peaks_matched <-
+    MatchRegionStats(meta_feature = meta_feature[open_peaks, ],
+                     query_feature = meta_feature[top.da.peak, ],
+                     n = 50000)
+
+## Matching GC.percent distribution
+
+# test enrichment
+enriched.motifs <- FindMotifs(
+  object = seurat_obj,
+  features = top.da.peak
+)
+
+```
 - Compare heterogeneity of gene expression vs. chromatin accessibility
 
 ## Activity (11:30 - 12ish)

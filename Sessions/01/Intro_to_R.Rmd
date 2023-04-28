@@ -197,7 +197,7 @@ my_name == MY_NAME
 
 # Activity 1
 
-Create a new Rmd file. Use ctrl+shift+i to insert a new R chunk.
+Create a new Rmd file. Use ctrl+alt+i to insert a new R chunk.
 
 Within that file, create two variables holding numerical data.
 Knowing that +, -, /, and * work like regular arithmetic operators in R, add your two variables together.
@@ -387,8 +387,6 @@ min_age = min(titanic$Age)
 max_age = max(titanic$Age)
 ```
 
-
-
 --------------------------------------------------------------------------------
 
 # Part 3
@@ -397,7 +395,7 @@ max_age = max(titanic$Age)
 
 R packages are a collection of R functions, complied code and sample data (https://www.tutorialspoint.com/r/r_packages.htm). Packages are usually created to address a very specific need in data analysis.
 
-Packages are created by the commnunity and so conventions and quality vary widely.
+Packages are created by the community and so conventions and quality vary widely.
 
 Packages need to be installed and loaded into the session before they can be used.
 
@@ -482,7 +480,7 @@ tail(arranged2)
 
 ### summarize() and group_by()
 group() silently divides up rows by categories
-summarize() summarizes data within groups in a data frame. This makes a new column and drops all unnecesary columns.
+summarize() summarizes data within groups in a data frame. This makes a new column and drops all unnecessary columns.
 ```{r}
 westernQuant %>%
   group_by(group_name) %>%
@@ -662,16 +660,16 @@ titanic
 ```
 Arrange the dataset by age from youngest to oldest and oldest to youngest
 ```{r}
-titanic%>%
+titanic %>%
   arrange(Age)
 
-titanic%>%
+titanic %>%
   arrange(-Age)
 ```
 
 Use filter to make two new dataframe variables with just male and female only and then calculate the mean/median values for age and fare. Basically, calculate the mean/median age and fare for men vs women
 ```{r}
-females = titanic%>%
+females <- titanic %>%
   filter(Sex == "female")
 
 mean(females$Age)
@@ -680,7 +678,7 @@ mean(females$Fare)
 median(females$Age)
 median(females$Fare)
 
-males = titanic%>%
+males <- titanic %>%
   filter(Sex == "male")
 
 mean(males$Age)
@@ -692,32 +690,32 @@ mean(males$Fare)
 
 Group the dataset by gender and calculate mean fare and age
 ```{r}
-titanic%>%
-  group_by(Sex)%>%
+titanic %>%
+  group_by(Sex) %>%
   summarise(mean_age = mean(Age))
 
-titanic%>%
-  group_by(Sex)%>%
+titanic %>%
+  group_by(Sex) %>%
   summarise(mean_fare = mean(Fare))
 
-titanic%>%
-  group_by(Sex)%>%
+titanic %>%
+  group_by(Sex) %>%
   summarise(median_age = median(Age))
 
-titanic%>%
-  group_by(Sex)%>%
+titanic %>%
+  group_by(Sex) %>%
   summarise(median_fare = median(Fare))
 ```
 
 Make a new data frame selecting the following columns: Name, Age, Fare
 ```{r}
-subset = titanic%>%
+subset <- titanic %>%
   select(Name, Age, Fare)
 ```
 
 Make a new column 
 ```{r}
-subset = subset%>%
+subset <- subset %>%
   mutate(Age_group = ifelse(Age > 18, "adult", "child"))
 subset
 ```

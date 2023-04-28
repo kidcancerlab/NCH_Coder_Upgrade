@@ -35,6 +35,7 @@ packages_to_install_bc <-
       "celldex",
       "SingleR",
       "limma",
+      "GenomicFeatures",
       "ComplexHeatmap")
 
 # You'll get a popup windows that says:
@@ -46,7 +47,7 @@ BiocManager::install(packages_to_install_bc, update = FALSE)
 
 devtools::install_github("satijalab/seurat-data")
 devtools::install_github("saeyslab/nichenetr")
-devtools::install_github("rrrSingleCellUtils")
+devtools::install_github("kidcancerlab/rrrSingleCellUtils")
 devtools::install_github("dynverse/dyno")
 
 
