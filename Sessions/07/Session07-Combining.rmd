@@ -453,3 +453,258 @@ picked <- guidelines_shiny(dyn_obj)
 # Run the trajectory inferrence algorithms
 
 ```
+
+
+#########################################################################
+## Section 2: Comparing two integration methods: Harmony and CCA.     
+#########################################################################
+
+# Introduction to compare current integration methods (10-15 min)
+
+    -- Different integration method overview
+    -- Factors to consider when chooseing an integration methods: project biological variations, batch effect.
+    -- Visualization and intepretion of integrated data
+    -- Assessment of integration quality
+    -- Challenges and limitations
+
+
+# Training session: this section will compare two widely used methods -- harmony and CCA. (20-30 min)
+
+Method Description:
+    -- Merge objects
+    -- Run with harmony
+    -- Run with CCA
+    -- Visualie results from haramony and CCA
+
+Dataset Description: this tutorial will have four samples, 
+    -- two replicates from human normal kidney (GSM5627690, GSM5627691), 
+    -- two replicates from  autosomal dominant polycystic kidney disease (GSM5627695 and GSM5627696).
+    
+Note: The dataset can be downloaded from GEO:GSE185948 : https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE185948 
+Dataset reference: Muto Y, Dixon EE, Yoshimura Y, Wu H et al. Defining cellular complexity in human autosomal dominant polycystic kidney disease by multimodal single cell analysis. Nat Commun 2022 Oct 30;13(1):6497. PMID: 36310237
+To reduce the time, We randomly select 1000 of cells in each sample. Please download the datasets from OneDrive.
+https://nationwidechildrens-my.sharepoint.com/:u:/r/personal/katherine_miller_nationwidechildrens_org/Documents/SCRGOT/2023%20Coder%20Upgrade/Sessions/07-Integration/KidneyDatasets.zip?csf=1&web=1&e=cSDEwB
+
+
+# Step 2.1: Load the packages and setting the working environment.
+
+```{r setup, include=FALSE}
+# Load the packages. 
+# If you cannot load the packages, please download and install them: install.packages("harmony"); install.packages("gridExtra")
+library(harmony)
+library(Seurat)
+library(gridExtra)
+library(ggplot2)
+library(tidyverse)
+
+# Please remember to set up your work directory. 
+# We set up the directory into folder where we downloaded the datasets
+getwd() # if you want to get the current directory.
+setwd("/Users/XXW004/Documents/Projects/LectureForSingleCellGroup/IntegrationSection/TestDatasets/") # If you want to set up the work diretory
+
+# Check the files in the current directory. 
+Datafiles<-list.files(path = "./", recursive = F, full.names = F)
+Datafiles
+
+```
+
+# Step 2.2: Read the objects.
+
+```{r}
+# We used for loop to read the objects, add group column for each meta object, and save the object into a list accordingly to their names.
+
+# Create an empty list to store the objects
+myobjectlist<- list()
+
+# Read the objects, assigan the name to the object, create a group to show the name of sample, and store these objects into a list
+
+for (x in Datafiles){
+
+  ## find the file with the substring of ".small.rds", then replace with empty string
+  name <- gsub (".small.rds","", x)
+  
+  ## loading the RDS file
+  rds<- readRDS(file = x)
+  
+  ## check the size of each objects
+  dim(rds)
+ 
+  ## using the assign the name to the objects
+  assign (name, rds)
+  
+  ## create a group that show the name of samples
+  rds$group <- rep(name, length(rds$orig.ident))
+  
+  ## store these objects into list
+  myobjectlist[[name]] <-rds
+}
+
+```
+
+# Step 2.3: Briefly go through these objects to confirm the lists: size of the list, meta data
+
+```{r}
+# check the lists. In the list, we will have four objects with their corresponding names
+myobjectlist
+
+# Check how many objects in the list
+length(myobjectlist)
+
+# Check the first object meta data
+myobjectlist[[1]]@meta.data
+
+# Step 2.4: Merge the objects
+## Merge multiple objects from the list, add cell id with different prefix, and create a project for the merged object.
+scrna<-merge(x=myobjectlist[[1]], 
+    y=c(myobjectlist[[2]], myobjectlist[[3]],myobjectlist[[4]]), 
+    add.cell.ids = c("A","B","C","D"), 
+    project="Integration")
+
+# Check the structure of meta data
+str(scrna@meta.data)
+
+# View the meta data
+View(scrna@meta.data)
+
+```
+
+# Step 2.4: Quality control of merged objects
+
+```{r}
+## QC & filtering
+## calculate mitochondrial percentatge
+scrna$mitoPercent <-PercentageFeatureSet(scrna, pattern = '^MT-')
+
+# let's check the quality of datasets by eveluating the mitochondrial percentage, number of Counts, number of features.
+head(scrna@meta.data)
+VlnPlot(scrna, features = c("mitoPercent", "nCount_RNA", "nFeature_RNA"))
+VlnPlot(scrna, features = c("mitoPercent", "nCount_RNA", "nFeature_RNA") , split.by = 'group')
+
+# filtering
+scrna <- subset (scrna, subset =mitoPercent <10 & nFeature_RNA >500 & nCount_RNA >200 )
+
+```
+
+# Step 2.5: Standard normalization, variable feature finding, PCA and UMAP analyses, and Plot the merged objects
+
+```{r}
+
+# perform the standard workflow to figure out if there are any batch effects
+scrna<- NormalizeData(object = scrna)
+scrna<- FindVariableFeatures(object = scrna, nfeatures = 3000)
+scrna<- ScaleData(object = scrna)
+scrna<- RunPCA(object = scrna, npcs =15)
+scrna<- RunUMAP(scrna, dims = 1:15)
+
+# Visualize the dimplot by the merge function
+BeforeHarmony<- DimPlot(scrna, reduction = "umap",split.by = 'group')
+BeforeHarmony
+
+```
+
+# Step 2.6: Run with the harmony 
+
+```{r}
+
+# Before running Harmony, we need to confirm the metadata of our Seurat object contains one or several variables describing the factors we want to integrate on.
+# We have defined the variable "group" to distinguish different samples.
+# Double check:
+levels(factor(scrna@meta.data$group))
+scrna@meta.data
+
+# note: we add a new reduction of 15 harmony 
+seurat.harmony.integrated <- RunHarmony(scrna, group.by.vars = 'group', dims.use = 1:15, plot_convergence= FALSE, project.dim = F)
+
+# Check the reduction after running harmony
+seurat.harmony.integrated@reductions
+seurat.harmony.integrated.embed <- Embeddings(seurat.harmony.integrated, "harmony")
+seurat.harmony.integrated.embed[1:10,1:10]
+
+# Check whether harmony integration is reflected in the visualization, we also generate UMAP using harmony reduction.
+# Run Umap and clustering using Harmony reduction
+
+seurat.harmony.integrated <- RunUMAP(seurat.harmony.integrated,reduction='harmony', dim=1:15)
+
+# Run the cluster also need to set up the harmony reduction to find neighbor and clusters.
+seurat.harmony.integrated<-FindNeighbors(seurat.harmony.integrated, reduction = 'harmony', dims = 1:15)
+seurat.harmony.integrated<- FindClusters(seurat.harmony.integrated, resolution=1)
+
+
+# Visualization of the dimplot using the harmony 
+DimHarmony<-DimPlot(seurat.harmony.integrated, reduction = 'umap', split.by = 'group')
+DimHarmony
+
+```
+
+# Step 2.7: Run with the canonical correlation analysis (CCA)
+
+# Let's compare between CCA and Harmony.. 
+
+```{r}
+# Find integration anchor (CCA)
+# for four split objects to perform the CCA method
+# As we have already performed the QC, we used the objects listed above.
+
+# Split the objects based on the group
+SplitedObjects<- SplitObject(scrna, split.by = 'group')
+
+# Check the split objects
+SplitedObjects
+length(SplitedObjects)
+
+# Normalized dataset and Find variable features
+for (i in 1: length(SplitedObjects)){
+  SplitedObjects[[i]] <-NormalizeData(object = SplitedObjects[[i]])
+  SplitedObjects[[i]] <- FindVariableFeatures(object = SplitedObjects[[i]],selection.method = "vst")
+}
+
+# Select integration features
+features<- SelectIntegrationFeatures(object.list = SplitedObjects)
+head(features)
+
+# Find the integration anchor (CCA)
+anchors<- FindIntegrationAnchors(object.list = SplitedObjects, anchor.features = features)
+
+# Integrate data. This might take a longer time ...
+seurat.integrated <- IntegrateData(anchorset = anchors)
+
+# Scale data, run PCA and UMAP and visualize integrated data
+seurat.integrated <- ScaleData(object = seurat.integrated)
+seurat.integrated <- RunPCA(object = seurat.integrated)
+
+# We can see from the PCA that a good overlay of several condtions by PCA
+seurat.integrated<- FindNeighbors(seurat.integrated, dims = 1:15, reduction = "pca")
+seurat.integrated <- FindClusters(seurat.integrated)
+# Now, we can also visualize with UMAP.
+
+seurat.integrated <- RunUMAP(object = seurat.integrated, dims = 1:15, reduction = "pca")
+
+# Plot UMAP
+DimPlot(seurat.integrated)
+
+DimCCA <- DimPlot(seurat.integrated, reduction = 'umap', split.by  = 'group')
+DimCCA
+
+```
+
+# Step 2.8: Compare two methods
+
+```{r}
+
+# Plot UMAPs from Harmony and CCA.
+grid.arrange(DimHarmony, DimCCA,  ncol = 1, nrow=2)
+
+# Potential way to evaluate the integration methods:
+# Use the biomarkers from endothelium cells
+FeaturePlot(seurat.harmony.integrated, features = c("PECAM1"), split.by = 'group', min.cutoff = 0.1)
+FeaturePlot(seurat.integrated, features = c("PECAM1"), split.by = 'group', min.cutoff = 0.1)
+
+```
+
+## Break: 10 min
+
+## Activity (20 min): Run the harmony with tumor datasets, and visualize the differences among harmony, merge and CCA.
+
+
+
+
