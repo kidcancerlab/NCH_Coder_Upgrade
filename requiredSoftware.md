@@ -28,6 +28,10 @@
 - qlcMatrix
 - JASPAR2020
     - BiocManager::install("JASPAR2020")
+- TFBSTools
+    - BiocManager::install("TFBSTools")
+- motifmatchr
+    - BiocManager::install("motifmatchr")
 
 # R packages - on local machine
 - Seurat
