@@ -395,9 +395,10 @@ qs::qsave(activity_1_output,
 ## Infer ligand activity
 Ligand activity analysis results: a prioritizing ligands based on predicted ligand acitvity. 
 ```{r}
+
 nichenet_easy_output$ligand_activities
 
-#The different ligand activity measures (auroc, aupr, pearson correlation coefficient) are a measure for how well a ligand can predict the observed differentially expressed genes compared to the background of expressed genes.
+# The different ligand activity measures (auroc, aupr, pearson correlation coefficient) are a measure for how well a ligand can predict the observed differentially expressed genes compared to the background of expressed genes.
 
 ## ligand predicted based on DEG
 Potential_ligands <-
@@ -544,7 +545,102 @@ nichenet_selected_ligand_link %>%
 
 
 # Activity 2 (2:30 - 3ish)
-Make plots from nichenetr outputs? 
+Make plots from nichenetr outputs (nichenet_easy_output)
+
+We need: 
+Extract ligands that have pearson value greater than 0.004: 
+    1) Make heatmap for these ligand acitivities, 
+    2) Use these ligands to generate the FeaturePlot,
+    3) Draw heatmap for LFC in sender cells after LCMV infection
+    4) Draw heatmap to visualize these ligand-receptor links. 
+    
+## 2.1) Get data to use from nichenetr output and make ligand activity heatmap
+
+```{r}
+# Check the ligand activies and found the pearson column
+nichenet_output$ligand_activities
+# Extract the ligands that have peasron value greater than 0.004
+Potential_ligands_PearsonCut <- nichenet_output$ligand_activities %>% filter (pearson >0.004) %>% pull(test_ligand)
+
+# Check these ligands pearson
+nichenet_output$ligand_activities %>% 
+    filter(pearson >0.004) %>% 
+    select(test_ligand, pearson) 
+
+# Draw the heatmap for these ligands activity
+
+# We need to transfer into matrix that contain the rownames, colnames and pearson values
+Potential_ligands_PearsonCut_activity <- nichenet_output$ligand_activities %>% 
+  filter(test_ligand %in% Potential_ligands_PearsonCut) %>% 
+  select(pearson) %>% 
+  as.matrix(ncol=1) %>% 
+  magrittr::set_colnames("Pearson") %>%
+  magrittr::set_rownames(Potential_ligands_PearsonCut)
+
+# Draw the pearson for these ligands
+
+Potential_ligands_PearsonCut_activity_heatmap <- Potential_ligands_PearsonCut_activity %>% 
+    make_heatmap_ggplot("Prioritized CAF-ligands","Ligand activity", 
+    color = "darkorange",
+    legend_position = "top", x_axis_position = "top", 
+
+Potential_ligands_PearsonCut_activity_heatmap 
+
+```
+## 2.2) Use these ligands to generate the FeaturePlot,
+```{r}
+FeaturePlot(seuratObj, features =Potential_ligands_PearsonCut )
+```
+
+## 2.3)  Draw heatmap for LFC in sender cells after LCMV infection
+```{r}
+# generate the Log fold change for sender cells
+# define the sender cell type
+sender = c("CD4 T","Treg", "Mono", "NK", "B", "DC")
+# perform differentially expressed analyses for all the genes between two conditions in the sender
+DE_table_all = Idents(seuratObj) %>% levels() %>% intersect(sender) %>% lapply(get_lfc_celltype, seurat_obj = seuratObj, condition_colname = "aggregate", condition_oi = "LCMV", condition_reference = "SS", expression_pct = 0.10, celltype_col = NULL) %>% reduce(full_join) # use this if cell type labels are the identities of your Seurat object -- if not: indicate the celltype_col properly
+# Define the NA into zero
+DE_table_all[is.na(DE_table_all)] = 0
+
+# Select the expression profile of these ligands in sender cell types
+ligands_PearsonCut_DEG = DE_table_all %>% filter(gene %in% Potential_ligands_PearsonCut)
+
+ligands_PearsonCut_DEG
+# Transfer the tibble into matrix
+
+ligands_PearsonCut_DEG_Mtx <- ligands_PearsonCut_DEG %>% 
+  select(-gene) %>% 
+  as.matrix() %>% 
+  magrittr::set_rownames(ligands_PearsonCut_DEG$gene) 
+ligands_PearsonCut_DEG_Mtx
+## confirm the row name and column name
+rownames(ligands_PearsonCut_DEG_Mtx)
+colnames(ligands_PearsonCut_DEG_Mtx) <- colnames(ligands_PearsonCut_DEG_Mtx) %>% make.names()
+ligands_PearsonCut_DEG_Mtx
+
+ligands_PearsonCut_DEG_Mtx %>%
+ make_threecolor_heatmap_ggplot("Prioritized ligands","LFC in Sender", 
+  low_color = "midnightblue",mid_color = "white", 
+   mid = median(Potential_ligands_PearsonCut_DEG), high_color = "red",
+  legend_position = "top", x_axis_position = "top", legend_title = "LFC") +
+  theme(axis.text.y = element_text(face = "italic"))
+
+```
+## 2.4) Draw heatmap to visualize these ligand-receptor links. 
+
+The ligand and receptor links were stored in the ligand_target_matrix
+```{r}
+nichenet_selected_ligand_link_PearsonCut<-     
+    nichenet_output$ligand_target_matrix[rownames(nichenet_output$ligand_target_matrix)%in%Potential_ligands_PearsonCut,]
+
+nichenet_selected_ligand_link_PearsonCutHeatmap<-
+    nichenet_selected_ligand_link_PearsonCut %>% 
+    make_heatmap_ggplot("Prioritized ligands","Predicted target genes", 
+    color = "purple",legend_position = "top", x_axis_position = "top",
+    legend_title = "Regulatory potential")  + 
+    theme(axis.text.x = element_text(face = "italic")) + scale_fill_gradient2(low = "whitesmoke",  high = "purple", breaks = c(0,0.0045,0.0090))
+
+```
 
 # Section 3: Interpreting nichenetr results
 
