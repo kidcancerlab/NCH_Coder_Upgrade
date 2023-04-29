@@ -558,19 +558,19 @@ Extract ligands that have pearson value greater than 0.004:
 
 ```{r}
 # Check the ligand activies and found the pearson column
-nichenet_output$ligand_activities
+nichenet_easy_output$ligand_activities
 # Extract the ligands that have peasron value greater than 0.004
-Potential_ligands_PearsonCut <- nichenet_output$ligand_activities %>% filter (pearson >0.004) %>% pull(test_ligand)
+Potential_ligands_PearsonCut <- nichenet_easy_output$ligand_activities %>% filter (pearson >0.004) %>% pull(test_ligand)
 
 # Check these ligands pearson
-nichenet_output$ligand_activities %>% 
+nichenet_easy_output$ligand_activities %>% 
     filter(pearson >0.004) %>% 
     select(test_ligand, pearson) 
 
 # Draw the heatmap for these ligands activity
 
 # We need to transfer into matrix that contain the rownames, colnames and pearson values
-Potential_ligands_PearsonCut_activity <- nichenet_output$ligand_activities %>% 
+Potential_ligands_PearsonCut_activity <- nichenet_easy_output$ligand_activities %>% 
   filter(test_ligand %in% Potential_ligands_PearsonCut) %>% 
   select(pearson) %>% 
   as.matrix(ncol=1) %>% 
@@ -631,7 +631,7 @@ ligands_PearsonCut_DEG_Mtx %>%
 The ligand and receptor links were stored in the ligand_target_matrix
 ```{r}
 nichenet_selected_ligand_link_PearsonCut<-     
-    nichenet_output$ligand_target_matrix[rownames(nichenet_output$ligand_target_matrix)%in%Potential_ligands_PearsonCut,]
+    nichenet_easy_output$ligand_target_matrix[rownames(nichenet_easy_output$ligand_target_matrix)%in%Potential_ligands_PearsonCut,]
 
 nichenet_selected_ligand_link_PearsonCutHeatmap<-
     nichenet_selected_ligand_link_PearsonCut %>% 
