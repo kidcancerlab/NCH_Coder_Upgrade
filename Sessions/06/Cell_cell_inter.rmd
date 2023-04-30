@@ -491,6 +491,9 @@ DE_table_all <-
            celltype_col = NULL) %>%
     reduce(full_join) # use this if cell type labels are the identities of your Seurat object -- if not: indicate the celltype_col properly
 
+# Define the NA into zero
+DE_table_all[is.na(DE_table_all)] = 0
+
 # Select the expression profile of top10 bona fide ligands in sender cell types.
 ligand_DEG <- DE_table_all %>%
     filter(gene %in% Bona_fide_ligands_top10)
