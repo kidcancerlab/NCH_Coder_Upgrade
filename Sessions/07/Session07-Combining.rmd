@@ -66,67 +66,15 @@ The first element of the merge() is the first object that you want to combine, T
 6. In this example, we have tumor cells that seem very different one from the next, but stromal cells that might be similar. Repeat this process with the "pt_stroma" Seurat objects and compare results.
 
 ```{r}
-# Build a list of samples to import
-sample_list <- c("0Weeks", "2Weeks", "3Weeks", "5Weeks")
+# Merge the datasets and process
+merged_tumor <- merge(pt_tumor[[1]], pt_tumor[2:length(pt_tumor)],
+    add.cell.ids = names(pt_tumor))
 
-# Write a function to import a sample (be sure to label where it came from)
-create_seurat <- function(x) {
-    message(paste("Loading", x, "..."))
-    s <- tenx_load_qc(paste0("Datasets/XenoTumors/", x), species_pattern = "^mm10-") 
-    s$src <- x
-    message(paste("Sample", x, "is loaded."))
-    return(s)
+make.unique()
+
+for(i in 1:6) {
+    print(table(duplicated(rownames(pt_tumor[[i]]@assays$RNA@counts))))
 }
-
-# Map the sample_list to the create_seurat function with lapply to generate
-# a list of Seurat objects
-stroma <- mclapply(sample_list, create_seurat, mc.cores = 4L)
-names(stroma) <- sample_list
-
-violins <- list()
-for(t in names(stroma)) {
-    violins[[t]] <- VlnPlot(stroma[[t]],
-        features = c("nFeature_RNA", "nCount_RNA", "percent.mt")) +
-        plot_annotation(title = t,
-            theme = theme(plot.title = element_text(size = 16)))
-}
-
-wrap_plots(violins, ncol = 2)
-
-qc <- data.frame(
-    sample = sample_list,
-    ncount = c(20000, 6500, 25000, 25000),
-    mtpercent = c(13, 13, 13, 13)
-)
-
-patient_tumor <- mclapply(seq_along(stroma), function(i) {
-    x <- stroma[[i]] %>%
-        subset(subset = nCount_RNA < qc$ncount[i] &
-            percent.mt < qc$mtpercent[i]) %>%
-        NormalizeData() %>%
-        FindVariableFeatures() %>%
-        ScaleData() %>%
-        RunPCA() %>%
-        FindNeighbors() %>%
-        FindClusters() %>%
-        RunUMAP(dims = 1:30)
-    return(x)
-})
-names(patient_tumor) <- names(stroma)
-
-dsample <- 500
-stroma <- lapply(patient_tumor, function(x) {
-    s <- x
-    cell_list <- colnames(s)
-    samp_number <- min(dsample, length(cell_list))
-    cell_list <- sample(cell_list, samp_number)
-    s <- subset(s, cells = cell_list)
-    return(s)
-})
-
-
-
-
 
 ```
 
