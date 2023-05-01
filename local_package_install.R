@@ -2,7 +2,11 @@
 
 
 # To install the R packages you need for the workshop, begin by opening RStudio
-# and then copy the code below into the console.
+# and then copy the code below into the console. You don’t need to copy any lines
+# that start with a pound sign (#). Run the commands in order.
+
+# You don’t need to copy each line individually, you can copy all of the lines together
+# for each command
 
 # If you get a message about a package already being loaded, select "Yes" to
 # restart R prior to installing the packages

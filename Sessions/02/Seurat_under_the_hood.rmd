@@ -144,6 +144,10 @@ There are only a handful of slots in a Seurat object
 
 But, each slot can contain objects, which then have their own slots
 
+```{r}
+str(pbmc_small)
+```
+
 Ends up looking really complex if you don't break it down by level
 
 - assays = 'list'
@@ -200,7 +204,8 @@ Pull the metadata out of the object and save it as a new variable
 ```{r}
 
 ```
-What data are in the rownames of the metadata?
+
+What information is encoded by the rownames of the metadata?
 
 --------------------------------------------------------------------------------
 
@@ -221,7 +226,7 @@ Each element of the list is an assay object
 - scale.data = 'matrix'
     - Scaled counts
 - key = 'character'
-    - Not used externally 
+    - Not used externally
 - assay.orig = 'character'
     - Label for the assay
 - var.features = 'vector'
@@ -305,15 +310,35 @@ Pull the raw counts out of `rna_assay`, save it as a new variable named "rna_cou
 
 ```
 
+Make a vector that contains the names of the cells in the object
+```{r}
+
+```
+
+What is the length of this vector? How many cells are in the object?
+```{r}
+
+```
+
+Use the square bracket notation to randomly sub-sample your seurat object down to 50 cells and 100 genes
+```{r}
+
+```
+
 --------------------------------------------------------------------------------
 
 # Section 3: Interacting with Seurat objects
-## The "right way"
+## The "right" way
 Use Seurat functions to interact with the object instead of diving into the object
 
 Key functions
+https://satijalab.org/seurat/reference/index.html
 
 ## Set active Idents
+
+The active idents is essentially the default metadata your cells are grouped by
+
+Can specify either a metadata column name, or provide your own vector of values
 ```{r}
 Idents(pbmc_small) <- "letter.idents"
 table(Idents(pbmc_small))
@@ -330,6 +355,7 @@ DimPlot(pbmc_small)
 ## Get list of cells
 ```{r}
 cells <- Cells(pbmc_small)
+head(cells)
 ```
 
 ## Get expression data
@@ -339,8 +365,13 @@ cells <- Cells(pbmc_small)
 - scale.data - scaled counts
 
 Returns sparse matrix
+Can convert to a matrix with `as.matrix()`
+Rownames are the gene names
 ```{r}
-my_data <- GetAssayData(pbmc_small, assay = "RNA", slot = "counts")
+my_data <-
+    GetAssayData(pbmc_small,
+                 assay = "RNA",
+                 slot = "counts")
 
 GetAssayData(pbmc_small, slot = "counts")[1:5, 1:5] %>%
     as.matrix()
@@ -366,6 +397,7 @@ pbmc_small_borked <-
 ```
 
 ## Subset a Seurat object
+Can subset by cells, idents, features, gene expression, etc...
 ```{r}
 # Note that there is only one equal sign here
 just_a <- subset(pbmc_small, idents = "A")
@@ -376,11 +408,15 @@ just_a <- subset(pbmc_small, letter.idents == "A")
 a_cells <- WhichCells(pbmc_small, idents = "A")
 
 just_a <- subset(pbmc_small, cells = a_cells)
+
+high_cd19 <- subset(pbmc_small, subset = CD19 > 1)
 ```
 
 ## Calculate average expression per group
 ```{r}
-ave_expr <- AverageExpression(pbmc_small, group.by = "letter.idents")$RNA
+ave_expr <- AverageExpression(pbmc_small,
+                              assays = "RNA",
+                              group.by = "letter.idents")$RNA
 ave_expr[1:5, ]
 ```
 
@@ -388,9 +424,10 @@ ave_expr[1:5, ]
 If adding a dataframe of metadata, need rownames of cell names
 When adding with "$", or passing a vector to `AddMetaData`, it doesn't check if cells match
 ```{r}
-pbmc_small$nonsense <- sample(LETTERS[1:5],
-                              ncol(pbmc_small),
-                              replace = TRUE)
+pbmc_small$nonsense <-
+    sample(LETTERS[1:5],
+           ncol(pbmc_small),
+           replace = TRUE)
 
 metadata_table <-
     data.frame(totally_true = sample(c("alive", "dead", "undead"),
@@ -429,7 +466,9 @@ length(group_b)
 ## Get data for specific cells
 ```{r}
 high_cd79b_data <-
-    FetchData(pbmc_small, vars = rownames(pbmc_small), cells = high_cd79b)
+    FetchData(pbmc_small,
+              vars = rownames(pbmc_small),
+              cells = high_cd79b)
 
 high_cd79b_data[1:5, 1:5]
 
@@ -462,16 +501,56 @@ This should make a lot more sense now!
 str(pbmc_small)
 ```
 
+--------------------------------------------------------------------------------
 
 # Activity 3:
 
+Lets redo some of what we did in activity 2, but lets do it the "right" way
 
 
+Use the `GetAssayData()` method to pull the raw counts out of `rna_assay`, save it as a new variable named "rna_counts" and look at the first 6 rows. Why are there periods? How can you turn the periods into zeros?
+```{r}
+
+```
+
+Use a Seurat function to make a vector that contains the names of the cells in the object
+```{r}
+
+```
+
+What is the length of this vector? How many cells are in the object?
+```{r}
+
+```
+
+Use the `subset()` function to sub-sample the pbmc_small object down to those cells where letter.idents == "A"
+```{r}
+
+```
+
+Use the `subset()` function to sub-sample your seurat object down to the 50 cells with the highest expression of the gene "SAT1"
+```{r}
+
+```
+
+--------------------------------------------------------------------------------
 
 # Session challenge
 
+Strangely, Seurat has no built in `summary` function, but you can write your own!
+Write a function named summary.seurat() that takes a Seurat object as an argument and prints out the following information:
 
+- Number of cells
+- Number of features
+- Current active idents
+- Current default assay
+- Print a DimPlot() of the object if the @reductions slot has something in it
 
+```{r}
+
+```
+
+--------------------------------------------------------------------------------
 
 # Helpful references
 
