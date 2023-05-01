@@ -510,13 +510,12 @@ Lets redo some of what we did in activity 2, but lets do it the "right" way
 
 Use the `GetAssayData()` method to pull the raw counts out of `rna_assay`, save it as a new variable named "rna_counts" and look at the first 6 rows. Why are there periods? How can you turn the periods into zeros?
 ```{r}
-rna_counts <- GetAssayData(pbmc_small, slot = "counts")
-rna_counts[1:6, 1:10]
+
 ```
 
 Use a Seurat function to make a vector that contains the names of the cells in the object
 ```{r}
-cell_names <- Cells(pbmc_small)
+
 ```
 
 What is the length of this vector? How many cells are in the object?
@@ -526,22 +525,12 @@ What is the length of this vector? How many cells are in the object?
 
 Use the `subset()` function to sub-sample the pbmc_small object down to those cells where letter.idents == "A"
 ```{r}
-sub_data <- subset(pbmc_small, letter.idents == "A")
+
 ```
 
 Use the `subset()` function to sub-sample your seurat object down to the 50 cells with the highest expression of the gene "SAT1"
 ```{r}
-expr_data <-
-    GetAssayData(pbmc_small) %>%
-    as.matrix() %>%
-    t() %>%
-    as.data.frame() %>%
-    select(SAT1) %>%
-    arrange(desc(SAT1)) %>%
-    head(n = 50)
 
-high_cd19 <-
-    subset(pbmc_small, cells = rownames(expr_data))
 ```
 
 --------------------------------------------------------------------------------
