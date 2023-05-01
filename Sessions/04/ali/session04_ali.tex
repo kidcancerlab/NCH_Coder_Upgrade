@@ -88,6 +88,7 @@ Mac:
 \end{frame}
 
 
+
 % Make 2 column, add icons to the right
 \begin{frame}
 \frametitle{What do you use your computer for?}
@@ -104,6 +105,12 @@ Mac:
     \item Doing analysis.
 \end{itemize}
 \end{frame}
+
+\begin{frame}
+\frametitle{What is a computer?}
+Jargon here
+\end{frame}
+
 
 
 \begin{frame}
@@ -177,7 +184,7 @@ Examples :
     \item Matrix multiplication and other linear algebra operations   %% ADD IMAGE HERE
     \medskip
     \pause
-    \item Large $N$-body or hydrodynamic simulations (e.g. weather models)      %% ADD IMAGE HERE
+    \item Large $N$-body or hydrodynamic simulations (e.g. bacteria models)      %% ADD IMAGE HERE
 \end{itemize}
 \end{frame}
 
@@ -249,7 +256,13 @@ Many tools already have parallelization built in, e.g.
     \item \code{hisat2 -p 12 -x index ... }
     \bigskip
     \pause
+    \item \code{STAR --runThreadN 5 ... }
+    \bigskip
+    \pause
     \item \code{parapply}
+    \bigskip
+    \pause
+    \item \code{mclapply}
     \bigskip
     \pause
     \item \code{numpy} with LAPACK
@@ -258,7 +271,6 @@ Many tools already have parallelization built in, e.g.
     \item Slurm
 \end{itemize}
 \end{frame}
-
 
 \begin{frame}
 \frametitle{Increasing Benefits of Parallelization}
@@ -293,6 +305,31 @@ Many tools already have parallelization built in, e.g.
 \end{picture}
 \end{frame}
 
+
+\begin{frame}
+\frametitle{What is Slurm?}
+Slurm Commands
+\begin{itemize}
+    \pause
+    \item \code{squeue} : See what jobs are running on the cluster
+    \bigskip
+    \item \code{srun} : Get an \textbf{interactive} allocation on the cluster
+    \bigskip
+    \pause
+    \item \code{sbatch} : Get an \textbf{non-interactive} allocation on the cluster
+    \bigskip
+    \pause
+    \item \code{scontrol} : See details of a specific pending or running job
+    \bigskip
+    \pause
+    \item \code{sacct} : See details of a past job
+    \bigskip
+    \pause
+    \begin{enumerate}
+        \item e.g. \code{sacct
+    \end{enumerate}
+\end{itemize}
+\end{frame}
 
 
 %\begin{frame}
@@ -444,6 +481,29 @@ Submit with \code{sbatch myscript.sh}
 \end{frame}
 
 
+
+\begin{frame}
+\frametitle{Stop for exercise here}
+Run batch script that submits multiple STAR jobs to align to the cluster
+run from login node
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Stop for exercise here}
+Show example of array job
+run from login node
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Stop for exercise here}
+Do Numpy example with setting OMP_NUM_THREADS + top
+srun from 5 core compute node
+\end{frame}
+
+
+
 %\begin{frame}[fragile]
 %\frametitle{sbatch}
 %Output from batch script (\code{slurm-1795906.out}), will have some of the below information (some columns abbreviated for clarity)
@@ -498,24 +558,24 @@ Submit with \code{sbatch myscript.sh}
 
 
 
-\begin{frame}[fragile]
-\frametitle{sbatch}
-Broken Example \code{myscript\_broken.sh}: 
-\begin{lstlisting}[backgroundcolor = \color{codegray}, language = Bash,showstringspaces=false]
-    #!/bin/bash
-    #SBATCH --cpus-per-task=2
-    #SBATCH --partition=himem
-    #SBATCH --mail-user=First.Last@gmail.com
-    #SBATCH --mail-type=FAIL,TIME_LIMIT_90
-    set -e
-    echo "I'm looking in the forbidden location"
-    ls /root/
-    echo "I never make it here"
-\end{lstlisting}
-\bigskip
-\bigskip
-Submit with \code{sbatch myscript\_broken.sh}
-\end{frame}
+%\begin{frame}[fragile]
+%\frametitle{sbatch}
+%Broken Example \code{myscript\_broken.sh}: 
+%\begin{lstlisting}[backgroundcolor = \color{codegray}, language = Bash,showstringspaces=false]
+%    #!/bin/bash
+%    #SBATCH --cpus-per-task=2
+%    #SBATCH --partition=himem
+%    #SBATCH --mail-user=First.Last@gmail.com
+%    #SBATCH --mail-type=FAIL,TIME_LIMIT_90
+%    set -e
+%    echo "I'm looking in the forbidden location"
+%    ls /root/
+%    echo "I never make it here"
+%\end{lstlisting}
+%\bigskip
+%\bigskip
+%Submit with \code{sbatch myscript\_broken.sh}
+%\end{frame}
 
 
 
@@ -557,42 +617,42 @@ Submit with \code{sbatch myscript\_broken.sh}
 %\end{frame}
 
 
-\begin{frame}
-\frametitle{Monitoring Jobs Progress}
-There are several ways to monitor jobs progress.  
-\bigskip
-\begin{itemize}
-    \item \code{squeue}
-    \pause
-    \bigskip
-    \item \code{scontrol}
-\end{itemize}
-\end{frame}
-
-
-\begin{frame}[fragile]
-\frametitle{Monitoring Jobs Progress}
-\code{squeue}, e.g. 
-\begingroup
-\tiny
-\begin{lstlisting}[backgroundcolor = \color{codegray},showstringspaces=false]
-   JOBID PARTITION          NAME     USER ST       TIME  NODES      CPUS NODELIST(REASON)
- 1791312   general gromacs_test_   user01  R 9-21:30:30      1        20 node02
- 1791313   general gromacs_test_   user01  R 9-21:30:09      1        20 node03
- 1791316   general          his1   user01  R 9-21:28:56      1        20 node06
- 1791317   general          his1   user01  R 9-21:28:53      1        20 node07
- 1794106   general          test   user02  R 3-20:17:31      1        20 gpu03
- 1794236   general          bash   user03  R 2-23:33:53      1         1 node01
-\end{lstlisting}
-\endgroup
-\end{frame}
-
-
-
-\begin{frame}[fragile]
-\frametitle{Monitoring Jobs Progress}
-\code{scontrol}, e.g. \code{ scontrol show jobid 1794106}
-\begingroup
+%\begin{frame}
+%\frametitle{Monitoring Jobs Progress}
+%There are several ways to monitor jobs progress.  
+%\bigskip
+%\begin{itemize}
+%    \item \code{squeue}
+%    \pause
+%    \bigskip
+%    \item \code{scontrol}
+%\end{itemize}
+%\end{frame}
+%
+%
+%\begin{frame}[fragile]
+%\frametitle{Monitoring Jobs Progress}
+%\code{squeue}, e.g. 
+%\begingroup
+%\tiny
+%\begin{lstlisting}[backgroundcolor = \color{codegray},showstringspaces=false]
+%   JOBID PARTITION          NAME     USER ST       TIME  NODES      CPUS NODELIST(REASON)
+% 1791312   general gromacs_test_   user01  R 9-21:30:30      1        20 node02
+% 1791313   general gromacs_test_   user01  R 9-21:30:09      1        20 node03
+% 1791316   general          his1   user01  R 9-21:28:56      1        20 node06
+% 1791317   general          his1   user01  R 9-21:28:53      1        20 node07
+% 1794106   general          test   user02  R 3-20:17:31      1        20 gpu03
+% 1794236   general          bash   user03  R 2-23:33:53      1         1 node01
+%\end{lstlisting}
+%\endgroup
+%\end{frame}
+%
+%
+%
+%\begin{frame}[fragile]
+%\frametitle{Monitoring Jobs Progress}
+%\code{scontrol}, e.g. \code{ scontrol show jobid 1794106}
+%\begingroup
 \tiny
 \begin{lstlisting}[backgroundcolor = \color{codegray},showstringspaces=false]
 JobId=1794106 JobName=test
@@ -691,6 +751,7 @@ JobId=1794106 JobName=test
 \begin{itemize}
     \item \href{https://hpc.llnl.gov/documentation/tutorials/introduction-parallel-computing-tutorial}{\color{blue}Introduction to Parallel Computing Tutorial - LLNL}
     \item \href{https://stackoverflow.com/a/46532581/4021436}{\color{blue}How Slurm Tasks, jobs and steps relate - Stackoverflow}
+    \item \href{https://dept.stat.lsa.umich.edu/~jerrick/courses/stat701/notes/parallel.html}{\color{blue}Parallel Processing in R - Univ. of Michigan}
     \bigskip
 \end{itemize}
 \end{frame}
