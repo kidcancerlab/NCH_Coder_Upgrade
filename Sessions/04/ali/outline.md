@@ -44,6 +44,19 @@ header-includes:
 \tableofcontents
 
 
+Short Outline 
+==================================
+1. Background : 
+    a) What is a computer? 
+    #) Jargon!
+#. Concepts of parallelization
+    a) Shared vs. Distributed memory parallelization
+    #) Mostly describe 'embarrassingly parallelizable' problems
+    #) Just b/c it is parallel doesn't make it faster
+#. HPC architecture
+#. Using SLURM
+#. How to parallelize your workflow 
+
 
 
 Outline - Slides
