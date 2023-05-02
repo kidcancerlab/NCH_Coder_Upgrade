@@ -398,7 +398,7 @@ Exercise 1 :
         \pause
         \item Now, in parallel, use \code{\scriptsize parallel\_all.sh} to analyze the data
         \pause
-        \item e.g. \code{\scriptsize sbatch serial\_all.sh}
+        \item e.g. \code{\scriptsize sbatch parallel\_all.sh}
         \pause
         \item Question :
         \begin{enumerate}
@@ -421,21 +421,25 @@ Exercise 2 :
 \begin{itemize}
     \item Get an interactive allocation
     \pause
-    \item e.g. \code{\tiny srun --cpus-per-task=7 --account=gdworkshop --reservation=workshop --pty bash}
+    \item \code{\tiny srun --cpus-per-task=7 --account=gdworkshop --reservation=workshop --pty bash}
     \pause
     \item Run STAR interactively and change the number of threads being used
     \pause
     \begin{enumerate}
         \item Hint : Look at \code{\scriptsize serial\_all.sh} and change the \code{\scriptsize --runThreadN} option
+        \pause
+        \item Hint : use the \code{time} command to help get the wall time, e.g. \code{time ls}
+        \pause
+        \item Hint : use the \code{top} command to monitor how many processors are being used
     \end{enumerate}
     \pause
     \item Questions :
     \begin{enumerate}
-        \item  Are there diminishing returns on increasing the number of processors?
+        \item Are there diminishing returns on increasing the number of processors?
         \pause
         \item What happens to the run time when \code{--runThreadN} $>$  7?  
-        \pause
-        \item Using \code{top}, how many `processors' are being used when \code{--runThreadN = 10}?
+        %\pause
+        %\item How many `processors' are being used when \code{--runThreadN = 20}?
     \end{enumerate}
 \end{itemize}
 \end{frame}
