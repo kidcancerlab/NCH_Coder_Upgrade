@@ -23,6 +23,15 @@
     - BiocManager::install("biovizBase")
 - org.Hs.eg.db
     - BiocManager::install("org.Hs.eg.db")
+- BSgenome.Mmusculus.UCSC.mm10
+    - BiocManager::install("BSgenome.Mmusculus.UCSC.mm10")
+- qlcMatrix
+- JASPAR2020
+    - BiocManager::install("JASPAR2020")
+- TFBSTools
+    - BiocManager::install("TFBSTools")
+- motifmatchr
+    - BiocManager::install("motifmatchr")
 
 # R packages - on local machine
 - Seurat

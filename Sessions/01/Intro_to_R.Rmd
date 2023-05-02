@@ -197,49 +197,30 @@ my_name == MY_NAME
 
 # Activity 1
 
-Create a new Rmd file. Use ctrl+shift+i to insert a new R chunk.
+Create a new Rmd file. Use ctrl+alt+i to insert a new R chunk.
 
 Within that file, create two variables holding numerical data.
 Knowing that +, -, /, and * work like regular arithmetic operators in R, add your two variables together.
 ```{r}
-var_1 <- 1
-var_2 <- 2
 
-var_1 + var_2
 ```
 
 Create two variables holding the following values: "10" and "1". Make sure to enclose your variables in quotes.
 Try adding your two new variables together. Observe the error message.
 ```{r eval=FALSE}
-v1 <- "1"
-v2 <- "10"
 
-v1 + v2
 ```
 
 Using as.numeric() function, try to fix the error.
 ```{r}
-v1 <- "1"
-v2 <- "10"
 
-as.numeric(v1) + as.numeric(v2)
 ```
 
 Create a set of categorical variables specifying days of the week. Convert them to factors, specifying the correct order.
 
 Use sort() function to make sure everything worked.
 ```{r}
-days <- c("Monday", "Tuesday", "Thursday", "Wednesday", "Friday")
 
-sort(days)
-
-days_f <- factor(days, levels = c("Monday",
-                                  "Tuesday",
-                                  "Wednesday",
-                                  "Thursday",
-                                  "Friday"))
-
-sort(days_f)
 ```
 
 If you're fast:
@@ -344,27 +325,38 @@ hist(westernQuant$intensity_gene1)
 
 -- Make sure to save the summary output to a variable 
 
-### Read in data
+Read in data the titanic dataset
 Use read.delim()
-```{r readData}
+```{r}
 
 ```
 
-### Summarize the data.frame
-Use summary()
-```{r summaryWestern}
+Summarize the dataset
+```{r}
 
 ```
 
-### Test for group differences -- use help()
-Use t.test() function
-```{r testDiff}
+Use the head() and tail() functions to take a closer look at the dataset
+```{r}
 
 ```
 
-### Barplots
-Use barplot()
-```{r plots}
+Access the 3rd column of the data frame, i.e. the "Name" column. Save it to a variable. 
+```{r}
+
+```
+
+Access the third row of the dataset, save the output to a variable. 
+```{r}
+
+```
+Retrieve the name of the person specified in row 3 using square brackets. 
+```{r}
+
+```
+
+Make variables that contain the Mean/median/min/max of age/fare
+```{r}
 
 ```
 
@@ -376,7 +368,7 @@ Use barplot()
 
 R packages are a collection of R functions, complied code and sample data (https://www.tutorialspoint.com/r/r_packages.htm). Packages are usually created to address a very specific need in data analysis.
 
-Packages are created by the commnunity and so conventions and quality vary widely.
+Packages are created by the community and so conventions and quality vary widely.
 
 Packages need to be installed and loaded into the session before they can be used.
 
@@ -461,7 +453,7 @@ tail(arranged2)
 
 ### summarize() and group_by()
 group() silently divides up rows by categories
-summarize() summarizes data within groups in a data frame. This makes a new column and drops all unnecesary columns.
+summarize() summarizes data within groups in a data frame. This makes a new column and drops all unnecessary columns.
 ```{r}
 westernQuant %>%
   group_by(group_name) %>%
@@ -614,105 +606,54 @@ R thinks you have unfinished business here
 
 ### googling "R how do I…"
 
+### = and == have different meaning in R. 
+
+```{r}
+a <- 1
+
+b <- 4
+
+a == b
+
+a = b
+
+a
+
+a != 5
+```
+
 --------------------------------------------------------------------------------
 
 ## Activity 3
 
-### Read in and check out the Titanic data
+Read in and check out the Titanic data
+```{r}
+
+```
+Arrange the dataset by age from youngest to oldest and oldest to youngest
 ```{r}
 
 ```
 
-### Make variables that contain the Mean/median/min/max of age/fare
+Use filter to make two new dataframe variables with just male and female only and then calculate the mean/median values for age and fare. Basically, calculate the mean/median age and fare for men vs women
 ```{r}
 
 ```
 
-### Use filter to make two new dataframe variables with just male and female only and then calculate the mean/median values for age and fare
-Basically, calculate the mean/median age and fare for men vs women
+Group the dataset by gender and calculate mean fare and age
 ```{r}
 
 ```
 
-### Make a histogram of the age all passengers
+Make a new data frame selecting the following columns: Name, Age, Fare
 ```{r}
 
 ```
 
-### Make another histogram for only passengers who survived
-
-## If you're super fast
-
-### Use `aov()` to test which factors influenced who survived the titanic disaster
+Make a new column 
 ```{r}
 
 ```
-
-### Use table() to compare how many women vs men survived
-```{r}
-
-```
-
-
-### Read in our data
-We have two tables of data:
-- weather_temps.txt
-    - Has monthly average temperatures for cities around the world
-- weather_precip.txt
-    - Has monthly average precipitation for cities around the world
-```{r}
-
-```
-
-
-### Combine the datasets into a single data.frame
-```{r}
-
-```
-
-### Pivot the data to long form
-Columns should be patient, day, exercise_min, glucose
-```{r}
-
-```
-
-### Save the pivoted data.frame to a text file with write.table() or write_tsv()
-```{r}
-
-```
-
-### Make a new column where glucose is multiplied by 1000
-```{r}
-
-```
-
-### Calculate the average daily minutes of exercise per patient
-```{r}
-
-```
-
-## If you're super fast
-
-### Plot glucose levels for each group (treated/control)
-```{r}
-
-```
-
-### Test if glucose levels are statistically different between groups
-```{r}
-
-```
-
-### Plot daily exercise minutes per group
-```{r}
-
-```
-
-### Test if exercise minutes is statistically different between groups
-```{r}
-
-```
-
 
 # Part 4
 
@@ -914,44 +855,19 @@ I downloaded their figure data and made it easier to import:
 
 #### Figure 1A - geom_boxplot()
 ```{r}
-read_tsv("Sessions/01/Fig1A_partial.txt") %>%
-    pivot_longer(cols = -cancer_type,
-                 names_to = "week",
-                 values_to = "mRNA_levels") %>%
-    mutate(week = factor(week, levels = c("2wk", "4wk", "6wk", "20wk"))) %>%
-    ggplot(aes(x = week,
-               y = mRNA_levels,
-               fill = cancer_type)) +
-    geom_boxplot() +
-    facet_wrap(~ cancer_type,
-               ncol = 2,
-               scales = "free")
+
 ```
 
 #### Figure 2F - geom_point()
 ```{r}
-read_tsv("Sessions/01/Fig2F.txt") %>%
-    mutate(p_val = -log10(Bonferroni_pvalue)) %>%
-    ggplot(aes(x = Pearson_coefficient,
-               y = p_val)) +
-    geom_point()
-# Oops, they messed up their data submission and we only have some of the data!
+
 ```
 
 #### Figure 3F - geom_col
 use geom_errorbars()
 and facet_wrap() to split the plots by cell_line
 ```{r}
-data <- read_tsv("Sessions/01/Fig3F.txt")
 
-ggplot(data,
-       aes(x = BMS_777607_concentration,
-           y = Avg,
-           fill = treatment)) +
-    geom_col(position = "dodge") +
-    facet_wrap(~ cell_line,
-               ncol = 2,
-               scales = "free")
 ```
 
 ## Session challenge
