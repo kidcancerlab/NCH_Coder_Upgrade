@@ -582,11 +582,12 @@ Potential_ligands_PearsonCut_activity <- nichenet_output$ligand_activities %>%
 Potential_ligands_PearsonCut_activity_heatmap <- Potential_ligands_PearsonCut_activity %>% 
     make_heatmap_ggplot("Prioritized CAF-ligands","Ligand activity", 
     color = "darkorange",
-    legend_position = "top", x_axis_position = "top", 
+    legend_position = "top",
+    x_axis_position = "top")
 
 Potential_ligands_PearsonCut_activity_heatmap 
-
 ```
+
 ## 2.2) Use these ligands to generate the FeaturePlot,
 ```{r}
 FeaturePlot(seuratObj, features =Potential_ligands_PearsonCut )
@@ -630,16 +631,21 @@ ligands_PearsonCut_DEG_Mtx %>%
 
 The ligand and receptor links were stored in the ligand_target_matrix
 ```{r}
-nichenet_selected_ligand_link_PearsonCut<-     
+nichenet_selected_ligand_link_PearsonCut <-
     nichenet_output$ligand_target_matrix[rownames(nichenet_output$ligand_target_matrix)%in%Potential_ligands_PearsonCut,]
 
 nichenet_selected_ligand_link_PearsonCutHeatmap<-
-    nichenet_selected_ligand_link_PearsonCut %>% 
-    make_heatmap_ggplot("Prioritized ligands","Predicted target genes", 
-    color = "purple",legend_position = "top", x_axis_position = "top",
-    legend_title = "Regulatory potential")  + 
-    theme(axis.text.x = element_text(face = "italic")) + scale_fill_gradient2(low = "whitesmoke",  high = "purple", breaks = c(0,0.0045,0.0090))
-
+    nichenet_selected_ligand_link_PearsonCut %>%
+    make_heatmap_ggplot("Prioritized ligands",
+                        "Predicted target genes",
+                        color = "purple",
+                        legend_position = "top",
+                        x_axis_position = "top",
+    legend_title = "Regulatory potential") +
+    theme(axis.text.x = element_text(face = "italic")) +
+    scale_fill_gradient2(low = "whitesmoke",
+                         high = "purple",
+                         breaks = c(0, 0.0045, 0.0090))
 ```
 
 # Section 3: Interpreting nichenetr results
