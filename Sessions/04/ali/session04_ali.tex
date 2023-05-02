@@ -327,20 +327,20 @@ Slurm Commands
 \end{frame}
 
 
-\begin{frame}[fragile]
-\frametitle{sbatch}
-Example \code{myscript.sh}: 
-\begin{lstlisting}[backgroundcolor = \color{codegray}, language = Bash, showstringspaces=false]
-    #!/bin/bash
-    #SBATCH --cpus-per-task=10
-    set -e
-    echo "Hello World"
-    sleep 30
-\end{lstlisting}
-\bigskip
-\bigskip
-Submit with \code{sbatch myscript.sh}
-\end{frame}
+%\begin{frame}[fragile]
+%\frametitle{sbatch}
+%Example \code{myscript.sh}: 
+%\begin{lstlisting}[backgroundcolor = \color{codegray}, language = Bash, showstringspaces=false]
+%    #!/bin/bash
+%    #SBATCH --cpus-per-task=10
+%    set -e
+%    echo "Hello World"
+%    sleep 30
+%\end{lstlisting}
+%\bigskip
+%\bigskip
+%Submit with \code{sbatch myscript.sh}
+%\end{frame}
 
 
 \begin{frame}
@@ -368,27 +368,77 @@ Submit with \code{sbatch myscript.sh}
 %\end{itemize}
 %\end{frame}
 %
-
 \begin{frame}
-\frametitle{Stop for exercise here}
-Run batch script that submits multiple STAR jobs to align to the cluster
-run from login node
+\frametitle{Exercises}
+If you haven't already, clone the github repository : 
+\pause
+\begin{enumerate}
+    \item \code{\scriptsize git clone https://github.com/kidcancerlab/2023CoderUpgrade.git}
+    \pause
+\end{enumerate}
+Navigate to Session 04
+\begin{enumerate}
+    \item \code{\scriptsize cd 2023CoderUpgrade/Sessions/04/code}
+\end{enumerate}
 \end{frame}
 
 
+
 \begin{frame}
-\frametitle{Stop for exercise here}
-Show example of array job
-run from login node
+\frametitle{Exercises}
+Analyzing the data in \code{\scriptsize /gpfs0/home1/gdworkshop/lab/session\_data/04/data/*.fq}
+\bigskip
+
+Exercise 1 : 
+\begin{itemize}
+        \item In serial, use \code{\scriptsize serial\_all.sh} to analyze the data
+        \pause
+        % \item \code{\tiny sbatch --account=gdworkshop --reservation=workshop serial\_all.sh}
+        \item e.g. \code{\scriptsize sbatch serial\_all.sh}
+        \pause
+        \item Now, in parallel, use \code{\scriptsize parallel\_all.sh} to analyze the data
+        \pause
+        \item e.g. \code{\scriptsize sbatch serial\_all.sh}
+        \pause
+        \item Question :
+        \begin{enumerate}
+            \item  Which run was faster in wall time and in cpu time?
+        \end{enumerate}
+\end{itemize}
 \end{frame}
 
 
-\begin{frame}
-\frametitle{Stop for exercise here}
-%Do Numpy example with setting \code{OMP_NUM_THREADS} + top
-srun from 5 core compute node
-\end{frame}
+%\begin{frame}
+%\frametitle{Stop for exercise here}
+%Show example of array job
+%run from login node
+%\end{frame}
 
+
+\begin{frame}
+\frametitle{Exercises}
+Exercise 2 : 
+\begin{itemize}
+    \item Get an interactive allocation
+    \pause
+    \item e.g. \code{\tiny srun --cpus-per-task=7 --account=gdworkshop --reservation=workshop --pty bash}
+    \pause
+    \item Run STAR interactively and change the number of threads being used
+    \pause
+    \begin{enumerate}
+        \item Hint : Look at \code{\scriptsize serial\_all.sh} and change the \code{\scriptsize --runThreadN} option
+    \end{enumerate}
+    \pause
+    \item Questions :
+    \begin{enumerate}
+        \item  Are there diminishing returns on increasing the number of processors?
+        \pause
+        \item What happens to the run time when \code{--runThreadN} $>$  7?  
+        \pause
+        \item Using \code{top}, how many `processors' are being used when \code{--runThreadN = 10}?
+    \end{enumerate}
+\end{itemize}
+\end{frame}
 
 
 \begin{frame}
