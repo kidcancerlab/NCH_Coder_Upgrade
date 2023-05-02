@@ -107,88 +107,10 @@ tumors_serial <- lapply(geo_data_2, create_seurat)
 # Set the completion time for above and start time for below
 message("Moving on to parallel processing for loading/creating Seurat objects...")
 t[2] <- Sys.time()
-
-# Now repeat the function using mclapply
-tumors_parallel <- mclapply(geo_data_2, create_seurat, mc.cores = 4L)
-
-# Mark completion time for the parallel operation and calculate processing
-message("Done.")
-t[3] <- Sys.time()
 print(paste("Serial processing time:",
     difftime(t[2], t[1], units = "secs"),
     "seconds"))
-print(paste("Parallel processing time:",
-    difftime(t[3], t[2], units = "secs"),
-    "seconds"))
 
-# Test to see of the two results are the same
-print("Are the objects the same?")
-identical(tumors_serial, tumors_parallel)
-
-# Create a function to process from normalize to umap
-process_seurat <- function(x) {
-    x <- x %>%
-        NormalizeData(verbose = FALSE) %>%
-        FindVariableFeatures(verbose = FALSE) %>%
-        ScaleData(verbose = FALSE) %>%
-        RunPCA(verbose = FALSE) %>%
-        FindNeighbors(verbose = FALSE) %>%
-        FindClusters(verbose = FALSE) %>%
-        RunUMAP(dims = 1:20, verbose = FALSE)
-    return(x)
-}
-
-# Set the time for starting the serial processing
-message("Starting serial processing of the Seurat objects...")
-t[4] <- Sys.time()
-
-# Map the function to the list of Seurat objects using lapply
-tumors_serial <- lapply(tumors_serial, process_seurat)
-
-# Mark completion of the previous operation and start of the next
-message("Starting parallel processing of the Seurat objects...")
-t[5] <- Sys.time()
-
-# Map the function using mclapply
-tumors_parallel <- mclapply(tumors_serial, process_seurat, mc.cores = 4L)
-
-# Mark completion and calculate times
-message("Done.")
-t[6] <- Sys.time()
-print(paste("Serial processing time:",
-    difftime(t[5], t[4], units = "secs"),
-    "seconds"))
-print(paste("Parallel processing time:",
-    difftime(t[6], t[5], units = "secs"),
-    "seconds"))
-
-# Are these two objects identical?
-print("Are these two objects identical?")
-identical(tumors_serial, tumors_parallel)
-
-# Compare jobs run within a single operation
-single_op <- function(x) {
-    id <- x$id
-    message(paste(id, "is starting..."))
-    x <- create_seurat(x) %>%
-        process_seurat()
-    message(paste(id, "has completed."))
-    return(x)
-}
-
-message("Starting the combined creating/processing approach...")
-t[7] <- Sys.time()
-
-tumors_parallel_2 <- mclapply(geo_data_2, single_op, mc.cores = 4L)
-
-t[8] <- Sys.time()
-
-print(paste("Total time for create, then process:",
-    difftime(t[3], t[2], units = "secs") + difftime(t[6], t[5], units = "secs"),
-    "seconds"))
-print(paste("Total time for create + process in a single step:",
-    difftime(t[8], t[7], units = "secs"),
-    "seconds"))
 ```
 
 ## Practice 2: Be a good doobie (time permitting)
@@ -201,39 +123,15 @@ While interactive sessions like this can be helpful for development and debuggin
 So, is there a way to be more efficient AND be a good citizen of our cyberspace?
 
 YES! Here are some options:
-1. Break your code down into sections that can be run as batch submissions through slurm.
-2. Automate the above using the rslurm package. Run your interactive session on a single core (only requesting a single core in your srun or salloc interactive session scheduling request).
+1. Break your code down into sections that can be run as batch submissions through slurm. It sometimes works well to divide your initial processing steps (which are often embarrasingly parallel) from your final processing steps (where you often end up with large/merged objects, performing operations that are difficult to parallelize). You can then run your initial steps with an srun call to rscript with many cores, then bring the resulting processed objects into your interactive session using a handful of cores.
+2. Automate submissions to slurm using the rslurm package. Run your interactive session on a single core (only requesting a single core in your srun or salloc interactive session scheduling request).
 3. Find a middle ground. Requesting 3 cores will still speed up your data-intense operations about 3-fold, but leaves a lot more computing resources for others. (Or costs a lot less if you're paying for your wall hours.)
-4. Make sure you turn things on and off to reduce your footprint. Use srun ... R to start your R sessions
+4. Make sure you turn things on and off to reduce your footprint. Use srun ... R to start your R sessions whenever you load an interactive session using many cores.
 
-Try one of these potential solutions above and see how it affects performace using benchmarks.
+Assignment: Let's go back to our exercise above, but approach it as if you needed to process all 12 samples. Process these samples from load/create Seurat object through to a panel of clustered UMAP plots. Select at least two strategies for speeding up your computational pipeline with a parallel processing strategy. Use benchmarking tools to evaluate the efficiency of your approaches. Be prepared to share the results of your strategy with the rest of the group--we'll learn from what worked well and what didn't. Note that some of these strategies will work well, while others won't--this is part of the exercise.
 
 ```{r parallel-slurm-r}
-# Run the same block of code above as a slurm batch submission using rslurm
-library(rslurm)
-
-# Mark completion of the previous operation and start of the next
-message("Starting parallel processing of the Seurat objects...")
-t[9] <- Sys.time()
-
-# Map the function using slurm_map
-slurm_job <- slurm_map(tumors_serial,
-    process_seurat,
-    nodes = 1,
-    cpus_per_node = length(tumors_serial))
-tumors_parallel_3 <- get_slurm_out(slurm_job,
-    outtype = "raw",
-    wait = TRUE)
-
-# Mark completion and calculate times
-message("Done.")
-t[10] <- Sys.time()
-print(paste("Parallel processing time - mclapply:",
-    difftime(t[5], t[4], units = "secs"),
-    "seconds"))
-print(paste("Parallel processing time - slurm_map:",
-    difftime(t[6], t[5], units = "secs"),
-    "seconds"))
+# Let the race begin!
 ```
 
 ## Discussion about parallel computing (especially in R)
@@ -257,6 +155,7 @@ In order to qualify for judging, you need to incorporate parallel computing into
  - how creative the approach is
  - how well the approach is documented
  - how beautifully/accessibly the results are presented
+ - how efficiently you leveraged a parallel computing strategy
 
 To submit your code for judging, just save a new file titled "Session04-Challenge-Ryan_Roberts.Rmd" (replacing my name with yours, obviously) in the "Challenges" folder on the SCRGOT Coder Upgrade OneDrive.
 
