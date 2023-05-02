@@ -63,6 +63,7 @@
 
 \begin{frame}
 \frametitle{How to Connect}
+\scriptsize
 Windows:
 \begin{itemize}
     \item Open PuTTY
@@ -90,30 +91,39 @@ Mac:
 
 \begin{frame}
 \frametitle{What is a computer?}
+\begin{picture}(320,250) 
+% 
+\visible<2>{\put(175, 105){\includegraphics[height=1.25in]{images/amd_7302.png}}}
+% 
+\visible<3>{\put(150, 105){\includegraphics[height=0.750in]{images/sr665.jpg}}}
+\visible<4>{\put(165, 50){\includegraphics[height=2.20in]{images/franklin_face.pdf}}}
+\put(-20, 200){\begin{minipage}[t]{0.6 \linewidth}
+{
+\small
 Jargon :
 \begin{itemize}
-    \item node == computer
-    \bigskip
+    \item job == an allocation on cluster
     \pause
     \item core == processor == cpu (sort of)
-    \bigskip
+    \pause
+    \item node == computer
     \pause
     \item cluster == a group of computers connected together
-    \bigskip
-    \pause
-    \item job == an allocation on cluster
-    \bigskip
 %    \pause
 %    \item job == an allocation on cluster
 %    \bigskip
 %    \pause
 \end{itemize}
+}
+\end{minipage}}
+\end{picture}
 \end{frame}
 
 
 % Make 2 column, add icons to the right
 \begin{frame}
 \frametitle{What do you use your computer for?}
+\small
 \begin{itemize}
     \item Composing and checking email.
     \bigskip
@@ -133,7 +143,6 @@ Jargon :
 \begin{frame}
 \frametitle{What do you use your computer for?}
 Have you ever had an analysis that was too big or bogged down your computer?
-%\pause
 %\bigskip
 %Enter : supercomputing
 \end{frame}
@@ -141,34 +150,48 @@ Have you ever had an analysis that was too big or bogged down your computer?
 
 \begin{frame}
 \frametitle{Why use a supercomputer?}
+\small
+\begin{picture}(320,250) 
+% 
+\visible<1>{\put(170, 80){\includegraphics[height=1.5in]{images/elephant.png}}}
+\visible<2>{\put(170, 80){\includegraphics[height=1.5in]{images/turtle_pd.png}}}
+\visible<3>{\put(170, 80){\includegraphics[height=1.5in]{images/turtle_elephant.png}}}
+% 
+\put(0, 180){\begin{minipage}[t]{0.6 \linewidth}
+{
+Issues
 \begin{itemize}
     \item Data set too large
-    \bigskip
     \pause
     \item Analysis takes too much time
-    \bigskip
     \pause
     \item Combination of the two
 \end{itemize}
+}
+\end{minipage}}
+\end{picture}
 \end{frame}
 
 
 \begin{frame}
 \frametitle{Why use a supercomputer?}
+\begin{picture}(320,250) 
+\visible<2-4>{\put(190, 60){\includegraphics[height=2.2in]{images/franklin_face.pdf}}}
+\visible<4-7>{\put(190, 60){\includegraphics[height=2.2in]{images/franklin_hac.pdf}}}
+\visible<8>{\put(190, 60){\includegraphics[height=2.2in]{images/Tux.png}}}
+\put(-20, 235){\begin{minipage}[t]{0.6 \linewidth}
+{
+\small
 Advantages :
 \begin{itemize}
     \pause
     \item Offload analysis to a server so you can use your laptop again
-    \medskip
     \pause
     \item Can do many tasks at once, less wall time
-    \medskip
     \pause
     \item Have access to beefy machines that can handle large datasets
-    \medskip
     \pause
     \item Expert support, e.g. software installation, advice, programming expertise.
-    \medskip
     \pause
     \item Free in cost at NCH.
     \pause
@@ -179,11 +202,20 @@ Disadvantages :
     \pause
     \item Learning curve (e.g. Linux, Slurm)
 \end{itemize}
+}
+\end{minipage}}
+\end{picture}
 \end{frame}
 
 
 \begin{frame}
 \frametitle{How do you use a supercomputer?}
+\begin{picture}(320,250) 
+\visible<5>{\put(165, 60){\includegraphics[height=1.5in]{images/matrix_mult.png}}}
+\visible<6>{\put(165, 60){\includegraphics[height=1.5in]{images/membrane_md_simulation.jpg}}}
+\put(-20, 235){\begin{minipage}[t]{0.6 \linewidth}
+{
+\small
 Use parallelization 
 \pause
 \begin{itemize}
@@ -201,8 +233,32 @@ Examples :
     \item Matrix multiplication and other linear algebra operations   %% ADD IMAGE HERE
     \medskip
     \pause
-    \item Large $N$-body or hydrodynamic simulations (e.g. bacteria models)      %% ADD IMAGE HERE
+    \item Large $N$-body or hydrodynamic simulations (e.g. bacteria models, molecular dynamics)      %% ADD IMAGE HERE
 \end{itemize}
+}
+\end{minipage}}
+\end{picture}
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Parallel Computing Example}
+\small
+\begin{picture}(320,250) 
+\visible<1-2>{\put(0, 100){\includegraphics[height=1.0in]{images/one_fish_v2.png}}}
+\visible<2>{\put(150, 40){\includegraphics[height=2.5in]{images/more_fish.png}}}
+\put(-20, 235){\begin{minipage}[t]{0.6 \linewidth}
+{
+One fish
+}
+\end{minipage}}
+\pause
+\put(150, 235){\begin{minipage}[t]{0.6 \linewidth}
+{
+More fish!
+}
+\end{minipage}}
+\end{picture}
 \end{frame}
 
 
@@ -221,9 +277,9 @@ Examples :
 \end{picture}
 \end{frame}
 
-
 \begin{frame}
 \frametitle{Parallelization Concepts}
+\small
 \begin{picture}(320,250) 
 \visible<2-7>{\put(200, 145){\includegraphics[height=1.25in]{images/shared_mem.jpg}}}
 \visible<5-7>{\put(165, 50){\includegraphics[height=0.95in]{images/distributed_mem.jpg}}}
@@ -246,7 +302,6 @@ Examples :
                 \end{itemize}
         \end{enumerate}
     \pause
-    \bigskip
     \item Distributed memory
         \begin{enumerate}
             \item Memory is distributed amongst multiple computers
@@ -268,22 +323,20 @@ Examples :
 
 \begin{frame}
 \frametitle{How to use parallelization}
+\small
+\bigskip
+\bigskip
 Many tools already have parallelization built in, e.g.
 \begin{itemize}
     \item \code{hisat2 -p 12 -x index ... }
-    \bigskip
     \pause
     \item \code{STAR --runThreadN 5 ... }
-    \bigskip
     \pause
     \item \code{parapply}
-    \bigskip
     \pause
     \item \code{mclapply}
-    \bigskip
     \pause
     \item \code{numpy} with LAPACK
-    \bigskip
     \pause
     \item Slurm
 \end{itemize}
@@ -300,20 +353,17 @@ Many tools already have parallelization built in, e.g.
 
 \begin{frame}
 \frametitle{What is Slurm?}
+\small
 Slurm Commands
 \begin{itemize}
     \pause
     \item \code{squeue} : See what jobs are running on the cluster
-    \bigskip
     \pause
     \item \code{srun} : Get an \textbf{interactive} allocation on the cluster
-    \bigskip
     \pause
     \item \code{sbatch} : Get an \textbf{non-interactive} allocation on the cluster
-    \bigskip
     \pause
     \item \code{scontrol} : See details of a specific pending or running job
-    \bigskip
     \pause
     \item \code{sacct} : See details of a past job
     \smallskip
@@ -370,6 +420,7 @@ Slurm Commands
 %
 \begin{frame}
 \frametitle{Exercises}
+\small
 If you haven't already, clone the github repository : 
 \pause
 \begin{enumerate}
@@ -386,6 +437,7 @@ Navigate to Session 04
 
 \begin{frame}
 \frametitle{Exercises}
+\small
 Analyzing the data in \code{\scriptsize /gpfs0/home1/gdworkshop/lab/session\_data/04/data/*.fq}
 \bigskip
 
@@ -417,6 +469,7 @@ Exercise 1 :
 
 \begin{frame}
 \frametitle{Exercises}
+\small
 Exercise 2 : 
 \begin{itemize}
     \item Get an interactive allocation
@@ -448,9 +501,27 @@ Exercise 2 :
 \begin{frame}
 \frametitle{Resources}
 \begin{itemize}
+    \small
     \item \href{https://hpc.llnl.gov/documentation/tutorials/introduction-parallel-computing-tutorial}{\color{blue}Introduction to Parallel Computing Tutorial - LLNL}
     \item \href{https://stackoverflow.com/a/46532581/4021436}{\color{blue}How Slurm Tasks, jobs and steps relate - Stackoverflow}
     \item \href{https://dept.stat.lsa.umich.edu/~jerrick/courses/stat701/notes/parallel.html}{\color{blue}Parallel Processing in R - Univ. of Michigan}
+    \item \href{https://shareok.org/bitstream/handle/11244/15465/sipe_overview.pdf?sequence=1&isAllowed=y}{\color{blue}Introduction to High Performance Computing - Henry Neeman}
+    \bigskip
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Images}
+\begin{itemize}
+    \small
+    \item \href{https://www.sciencedirect.com/science/article/pii/S0005273616300190}{\color{blue}Molecular Dynamics Membrane - Pavlova et al. 2016}
+    \item \href{https://allinpython.com/matrix-multiplication-in-python-with-user-input/}{\color{blue}Matrix Mult. by Yagyavendra Tiwari}
+    \item \href{https://hpc.llnl.gov/documentation/tutorials/introduction-parallel-computing-tutorial}{\color{blue}Share, Distributed and Payroll images - LLNL}
+    \item \href{https://en.wikipedia.org/wiki/Tux_(mascot)\#/media/File:Tux.png}{\color{blue}Tux - lewing@isc.tamu.edu}
+    \item \href{https://commons.wikimedia.org/wiki/File:Turtle_clip_art.svg}{\color{blue}Turtle by badama - Public Domain}
+    \item \href{https://lenovopress.lenovo.com/lp1269-thinksystem-sr665-server}{\color{blue}Lenovo SR665}
+    \item \href{https://buy.hpe.com/asia_pac/en/options/processors/amd-epyc-processors/amd-epyc-processors/amd-epyc-7302-3-0ghz-16-core-155w-processor-kit-for-hpe-proliant-xl225n-gen10-plus/p/p24264-b21}{\color{blue}HPE : AMD-7302}
+    \item \href{https://shareok.org/bitstream/handle/11244/15465/sipe_overview.pdf?sequence=1&isAllowed=y}{\color{blue}Elephant, fish - Henry Neeman}
     \bigskip
 \end{itemize}
 \end{frame}
