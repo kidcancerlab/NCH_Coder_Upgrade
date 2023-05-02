@@ -554,9 +554,6 @@ full_join(long_temps,
 
 inner_join(long_temps,
            rain)
-
-outer_join(long_temps,
-           rain)
 ```
 
 ### Write a table out to a text file
