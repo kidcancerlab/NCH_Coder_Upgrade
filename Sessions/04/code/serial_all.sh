@@ -11,6 +11,7 @@
 set -e
 ml purge
 ml load STAR/2.7.9a
+echo "Running in Serial:"
 for((i=0; i<=4; i++)); do 
     STAR --outSAMtype BAM Unsorted --runThreadN 1 --outSAMstrandField intronMotif --genomeDir /reference/homo_sapiens/GRCh38/ensembl/release-96/Sequence/STARIndex/2.7.9/ --outFileNamePrefix serial_all_${i} --readFilesIn /gpfs0/home1/gdworkshop/lab/session_data/04/data/sample${i}.fq
 done
