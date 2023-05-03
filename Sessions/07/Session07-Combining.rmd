@@ -25,10 +25,18 @@ The "patient_tumors.RData" file contains two data objects, each of these in turn
 
 The "xeno_tumors.RData" file contains two similarly-structured lists of Seurat objects from a mouse xenograft experiment, where immunodeficient mice were injected by tail vein with human bone tumor cells to produce metastatic lung tumors. Lungs were then harvested at several timepoints and processed on the day of harvest to produce single cell libraries that were sequenced. These samples each contain the same tumor cells, harvested at different stages along the path toward metastatic colonization, but also contain the surrounding lung cells (isolated using a niche labeling technique). Importantly, the "xeno_tumors" object is a list containing human tumor cells, while the "xeno_stroma" object contains murine stromal cells--the sequenced libraries were aligned to a mixed human/mouse genome.
 
-Start by practicing your skills learned yesterday in the Intro session to take one Seurat object within the "pt_tumor" list to a UMAP plot. HINT: Read10x,  CreateSeuratObject, PercentageFeatureSet, VlnPlot, subset are all done. You'll need to run NormalizeData, FindVariableFeatures, ScaleData, RunPCA, FindNeighbors, FindClusters, RunUMAP, DimPlot.
+Start by practicing your skills learned yesterday in the Intro session to take one Seurat object within the "pt_tumor" list to a UMAP plot. HINT: Read10x, CreateSeuratObject, PercentageFeatureSet, VlnPlot, and QC subsetting have already been done on the Seurat objects contained within this dataset. You'll need to run NormalizeData, FindVariableFeatures, ScaleData, RunPCA, FindNeighbors, FindClusters, RunUMAP, DimPlot.
 
 ```{r}
+# MAKE SURE YOU HAVE YOUR DATASETS DOWNLOADED and stored within a folder named "Datasets"
+# To ensure that you are ready to go, run this command to load the pt_tumor object:
 load("Datasets/patient_tumors.RData")
+
+cells <- colnames(pt_tumor[[4]])
+cells <- cells[!cells %in% c("CTGCTCATCACTTTGT-1")]
+
+pt_tumor[[4]] <- subset(pt_tumor[[4]], cells = cells)
+length(colnames(pt_tumor[[4]]))
 
 t1 <- pt_tumor[[5]] %>%
     NormalizeData() %>%
@@ -68,13 +76,31 @@ The first element of the merge() is the first object that you want to combine, T
 ```{r}
 # Merge the datasets and process
 merged_tumor <- merge(pt_tumor[[1]], pt_tumor[2:length(pt_tumor)],
-    add.cell.ids = names(pt_tumor))
+    add.cell.ids = names(pt_tumor)) %>%
+    NormalizeData() %>%
+    FindVariableFeatures() %>%
+    ScaleData() %>%
+    RunPCA() %>%
+    FindNeighbors() %>%
+    FindClusters() %>%
+    RunUMAP(dims = 1:30)
 
-make.unique()
+# Plot the overall results
+DimPlot(merged_tumor, pt.size = 1, label = TRUE) +
+    ggtitle("Merged Tumors - clusters") +
+    coord_fixed()
 
-for(i in 1:6) {
-    print(table(duplicated(rownames(pt_tumor[[i]]@assays$RNA@counts))))
-}
+# Plot colored by tumor source
+DimPlot(merged_tumor, pt.size = 1, label = TRUE, group.by = "src") +
+    ggtitle("Merged Tumors - sources") +
+    coord_fixed()
+
+# Plot separated by tumor source
+DimPlot(merged_tumor, pt.size = 1, label = FALSE, split.by = "src") +
+    ggtitle("Merged Tumors - sources") +
+    coord_fixed()
+
+
 
 ```
 
