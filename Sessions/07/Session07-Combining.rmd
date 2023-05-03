@@ -8,10 +8,10 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
-library(ggplot2)
 library(patchwork)
 library(rrrSingleCellUtils)
 library(Seurat)
+library(harmony)
 library(parallel)
 
 theme_set(theme_classic())
@@ -80,12 +80,12 @@ merged_tumor <- merge(pt_tumor[[1]], pt_tumor[2:length(pt_tumor)],
     NormalizeData() %>%
     FindVariableFeatures() %>%
     ScaleData() %>%
-    RunPCA() %>%
-    FindNeighbors() %>%
+    RunPCA(npcs = 30) %>%
+    FindNeighbors(k.param = 30) %>%
     FindClusters() %>%
     RunUMAP(dims = 1:30)
 
-# Plot the overall results
+# Plot the overall results by cluster
 DimPlot(merged_tumor, pt.size = 1, label = TRUE) +
     ggtitle("Merged Tumors - clusters") +
     coord_fixed()
@@ -100,8 +100,104 @@ DimPlot(merged_tumor, pt.size = 1, label = FALSE, split.by = "src") +
     ggtitle("Merged Tumors - sources") +
     coord_fixed()
 
+# Do these need to be integrated/batch corrected?
+# If so, perform batch correction with Harmony
+aligned_tumor <- RunHarmony(merged_tumor,
+    group.by.vars = "src",
+    dims.use = 1:30) %>%
+    RunUMAP(reduction = "harmony", dims = 1:30)
 
+# Plot the overall results by cluster
+DimPlot(aligned_tumor, pt.size = 1, label = TRUE) +
+    ggtitle("Aligned Tumors - clusters") +
+    coord_fixed()
 
+# Plot colored by tumor source
+DimPlot(aligned_tumor, pt.size = 1, label = TRUE, group.by = "src") +
+    ggtitle("Aligned Tumors - sources") +
+    coord_fixed()
+
+# Plot separated by tumor source
+DimPlot(aligned_tumor, pt.size = 1, label = FALSE, split.by = "src") +
+    ggtitle("Aligned Tumors - sources") +
+    coord_fixed()
+
+# Now, transition to the stromal cells
+# Combine the stromal cell Seurat objects into a single Seurat object
+merged_stroma <- merge(pt_stroma[[1]], pt_stroma[2:length(pt_stroma)],
+    add.cell.ids = names(pt_stroma)) %>%
+    NormalizeData() %>%
+    FindVariableFeatures() %>%
+    ScaleData() %>%
+    RunPCA(npcs = 30) %>%
+    FindNeighbors(k.param = 30) %>%
+    FindClusters() %>%
+    RunUMAP(dims = 1:30)
+
+# Plot the overall results by cluster
+DimPlot(merged_stroma, pt.size = 1, label = TRUE) +
+    ggtitle("Merged Stroma - clusters") +
+    coord_fixed()
+
+# Plot colored by tumor source
+DimPlot(merged_stroma, pt.size = 1, label = TRUE, group.by = "src") +
+    ggtitle("Merged Stroma - sources") +
+    coord_fixed()
+
+# Plot separated by tumor source
+DimPlot(merged_stroma, pt.size = 1, label = FALSE, split.by = "src") +
+    ggtitle("Merged Stroma - sources") +
+    coord_fixed()
+
+# Do these need to be integrated/batch corrected?
+# If so, perform batch correction with Harmony
+aligned_stroma <- RunHarmony(merged_stroma,
+    group.by.vars = "src",
+    dims.use = 1:30) %>%
+    RunUMAP(reduction = "harmony", dims = 1:30)
+
+# Plot the overall results by cluster
+DimPlot(aligned_stroma, pt.size = 1, label = TRUE) +
+    ggtitle("Aligned Stroma - clusters") +
+    coord_fixed()
+
+# Plot colored by tumor source
+DimPlot(aligned_stroma, pt.size = 1, label = TRUE, group.by = "src") +
+    ggtitle("Aligned Stroma - sources") +
+    coord_fixed()
+
+# Plot separated by tumor source
+DimPlot(aligned_stroma, pt.size = 1, label = FALSE, split.by = "src") +
+    ggtitle("Aligned Stroma - sources") +
+    coord_fixed()
+
+# One more time with some mouse lung tissues
+# Load the xeno_tumors datasets and merge
+load("Datasets/xeno_tumors.RData")
+merged_mouse_stroma <- merge(xeno_stroma[[1]], xeno_stroma[2:length(xeno_stroma)],
+    add.cell.ids = names(xeno_stroma)) %>%
+    NormalizeData() %>%
+    FindVariableFeatures() %>%
+    ScaleData() %>%
+    RunPCA(npcs = 30) %>%
+    FindNeighbors(k.param = 30) %>%
+    FindClusters() %>%
+    RunUMAP(dims = 1:30)
+
+# Plot the overall results by cluster
+DimPlot(merged_mouse_stroma, pt.size = 1, label = TRUE) +
+    ggtitle("Merged Mouse Stroma - clusters") +
+    coord_fixed()
+
+# Plot colored by tumor source
+DimPlot(merged_mouse_stroma, pt.size = 1, label = TRUE, group.by = "src") +
+    ggtitle("Merged Mouse Stroma - sources") +
+    coord_fixed()
+
+# Plot separated by tumor source
+DimPlot(merged_mouse_stroma, pt.size = 1, label = FALSE, split.by = "src") +
+    ggtitle("Merged Mouse Stroma - sources") +
+    coord_fixed()
 ```
 
 #########################################################################
