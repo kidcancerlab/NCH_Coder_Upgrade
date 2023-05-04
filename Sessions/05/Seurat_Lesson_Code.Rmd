@@ -1,0 +1,651 @@
+---
+title: 'Seurat Lesson: Code'
+author: "Emily Franz and Jack Hedberg"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 5
+    number_sections: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  tidy = TRUE,
+  echo = TRUE,
+  cache = TRUE,
+  collapse = TRUE,
+  tidy.opts = list(width.cutoff = 95),
+  message = FALSE,
+  warning = FALSE,
+  cache.lazy = FALSE)
+```
+
+```{r lib, cache = FALSE}
+# Load necessary packages
+library(Seurat)
+library(tidyverse) # This package contains ggplot2 and dplyr
+library(patchwork)
+
+# Set the random generator seed so that results are reproducible.
+set.seed(132)
+```
+
+
+Link to download the example dataset we are using: https://cf.10xgenomics.com/samples/cell/pbmc3k/pbmc3k_filtered_gene_bc_matrices.tar.gz
+
+
+# Load in scRNAseq dataset: 
+***YOU WILL NEED TO MODIFY THE CODE BELOW SO THAT THE FOLDER PATH POINTS R TO 
+WHEREVER THE RAW DATA IS LOCATED ON YOUR COMPUTER. Make sure that you include the 
+necessary folders in the path to the below folders. 
+Be careful with forward slashes. Folders always have a forward slash in front of 
+them, and files do not.
+```{r load}
+# Load pbmc scRNAseq dataset
+pbmc.data <- Read10X(data.dir = "pbmc3k_filtered_gene_bc_matrices/hg19")
+```
+
+# Create Seurat Object
+```{r createobj}
+pbmc <- CreateSeuratObject(counts = pbmc.data,
+                           project = "pbmc3k",
+                           min.cells = 3,
+                           min.features = 200)
+
+# We can now remove the previous object
+rm(pbmc.data)
+```
+
+# Perform Subsetting for Quality Control
+All subsetting will depend on your sample and its quality and conditions. For 
+instance, if one sample is a tumor treated with effective chemotherapy, you may 
+expect to see a higher percent of mitochondrial genes and may want to include 
+more of these dying cells in your subsetting (say, 25% mitochondrial genes). 
+All subsetting should depend on the spread of your data, with outliers (both 
+high and low) typically targeted for exclusion.
+**Feature subsetting:**
+nFeature_RNA: number of genes (features) detected per cell. 
+Subsetting the number of features per cells can help to remove doublets (two cells
+that grouped together as "one" -> high nFeature_RNA) and non-cells, such as 
+dead cells or free mRNA that grouped together (low nFeature_RNA).
+
+**Count subsetting:**
+nCount_RNA: number of unique molecule identifiers (UMIs) per cell
+High nCount_RNA also indicates doublets, and so is another method for 
+filtering out those doublets. Some prefer using this method to using nFeatures to remove 
+doublets. Using both, one can be fairly confident of removing doublets. 
+
+**Mitochondrial gene subsetting:**
+Subsetting the data by percent mitochondrial genes helps remove poor quality 
+cells, such as dead cells or cells with a broken membrane (this causes leakage of
+mRNA). These cells have a higher percentage of mitochondrial genes. Typically, 
+25% and lower is preferred; however, again, this depends on your data spread 
+and your expectations for the sample. 
+Note: "^MT-" = all genes beginning with "MT-", which is how all mitochondrial 
+gene names begin.
+
+**Ribosomal and hemoglobin gene subsetting:**
+These are other options for identifying low quality samples based on the percent
+of these genes in each cell. Ribosomal genes begin with either "RPS" or "RPL". 
+Hemoglobin genes begin with either "HBA" or "HBB".
+```{r qc}
+#### Visualize Outliers ####
+pbmc[["percent.mt"]] <- PercentageFeatureSet(pbmc, pattern = "^MT-")
+pbmc[["percent.ribo"]] <- PercentageFeatureSet(pbmc, pattern = "^RP[SL]")
+pbmc[["percent.hb"]] <- PercentageFeatureSet(pbmc, pattern = "^HB[AB]")
+
+# Violin plot to visualize outliers
+VlnPlot(pbmc,
+        features = c("nFeature_RNA",
+                     "nCount_RNA",
+                     "percent.mt"))
+VlnPlot(pbmc,
+        features = c("percent.mt",
+                     "percent.ribo",
+                     "percent.hb"))
+
+# Scatter plots to visualize outliers using combinations of criteria for subsetting
+## For instance, cells with both high nCount and nFeature are likely doublets.
+## Low nCount and high mitochondrial percentage can indicate dead/dying cells 
+## where membrane leakage has occured.
+plot1 <- FeatureScatter(pbmc,
+                        feature1 = "nCount_RNA",
+                        feature2 = "percent.mt") + 
+  theme(legend.position="none")
+plot2 <- FeatureScatter(pbmc,
+                        feature1 = "nCount_RNA",
+                        feature2 = "nFeature_RNA") + 
+  theme(legend.position="none")
+# Plots can be assigned to an object and then patchwork uses the below 
+# to plot these side by side
+plot1 + plot2
+
+#### Subset ####
+pbmc <- subset(pbmc,
+               subset = nFeature_RNA > 300 &
+                 nFeature_RNA < 2000 &
+                 nCount_RNA < 8000 &
+                 percent.mt < 10 &
+                 percent.hb < 2)
+```
+
+# Normalize
+Normalization is the process of adjusting gene expression values to eliminate/reduce 
+the influence of technical effects impacting all genes the same way.
+```{r normalize}
+pbmc <- NormalizeData(pbmc,
+                      normalization.method = "LogNormalize",
+                      scale.factor = 10000)
+```
+
+# Identify Highly Variable Features
+This function identifies the n most highly variable features. By default, n = 2000 
+(defined by nfeatures=2000). This is used by the next step, scaling, to speed it
+up. Often, many biologically important features will be captured in this step, 
+however, you may lose important data, depending on your dataset. 
+```{r varfeatures}
+pbmc <- FindVariableFeatures(pbmc,
+                             selection.method = "vst",
+                             nfeatures = 2000)
+```
+
+# Scale Features
+Scaling applies linear transformation. Importantly, this step ensures that 
+highly-expressed genes do not dominate and drown out relatively lower-expressed 
+genes that have biological importance. This is a standard pre-processing step 
+prior to principle component analysis (dimensional reduction).
+  -Shifts the expression of each gene (feature), so that the mean expression across cells is 0
+  -Scales the expression of each gene (feature), so that the variance across cells is 1
+  -Results are stored in pbmc[["RNA"]]@scale.data
+  
+Note that if the features parameter is undefined, this function will perform 
+scaling on only 2,000 of the most variable features by default (may lose data).
+```{r scale}
+#### Scale data ####
+# The rownames of the pbmc object are ALL of the genes (features).
+pbmc <- ScaleData(pbmc,
+                  features = rownames(pbmc))
+```
+
+# Perform Principle Component Analysis (PCA)
+This step can also be known as linear dimensional reduction. Numerous methods 
+exist for visualization of principle components (PCs). A common method is 
+*ElbowPlot*, which plots the standard deviations of the principle components. 
+The left of the 'elbow' tends to represent the significant dimensions. 
+
+Other visualization methods include *JackStraw* (slow) and *DimHeatmap*. Note that 
+higher dimensions can be chosen, especially if certain rare cell-type signatures 
+are distinguishable in these PCs. *DimHeatmap* is helpful in seeing these genes.
+More information can be found at: 
+[Seurat - Guided Clustering Tutorial: Perform linear dimensional reduction](https://satijalab.org/seurat/articles/pbmc3k_tutorial.html).
+```{r pca}
+#### Run PCA ####
+pbmc <- RunPCA(pbmc,
+               features = VariableFeatures(object = pbmc))
+
+#### Elbow Plot ####
+# Note the elbow around PC 9 or 10
+# (more specifically, the PCs from above PC 10 show nearly no difference in y-axis 
+# value to that of PC 10). Thus, we will proceed with dims = 1:10.
+ElbowPlot(pbmc,
+          ndims = 25)
+```
+
+# Cluster Single Cells.
+This portion includes two steps. The first, *FindNeighbors*, takes the principle 
+components selected above and constructs a graph based on the euclidean distance 
+from the PCA and finds the similarities between two cells based on overlap of 
+their local neighborhoods. The selected PCs are defined in the *dims* parameter. 
+The second step, *FindClusters*, iteratively groups cells together with the ability 
+to set the resolution, or granularity, of the clustering. The higher the 
+resolution, the greater the number of clusters in the output.
+```{r cluster}
+#### Find Neighbors ####
+pbmc <- FindNeighbors(pbmc,
+                      dims = 1:10)
+
+#### Find Clusters ####
+# Low resolution (low number of clusters)
+pbmc <- FindClusters(pbmc,
+                     resolution = 0.1)
+```
+
+# Run Non-linear Dimensional Reduction (UMAP/tSNE)
+Using the same PCs and resolution as defined above, this step places similar 
+cells together in a low-dimension (2D) space. Those cells calculated as co-localized 
+in the clusters generated above should co-localize in the UMAP or tSNE space. 
+Cells are colored by their cluster or identity class.
+
+As for differences between tSNE and UMAP, UMAP lowers the dimensions of the high 
+dimensional graph from above using compression, whereas t-SNE moves the high 
+dimensional graph to a lower dimensional space points by points. Their parameters,
+thus, differ, but both can be used as graph-based methods for non-linear 
+dimensional reduction. Neither is perfect, but UMAP tends to provide better balance
+between local versus global structure and is more time-effective. For more information, 
+please see [Comparing UMAP vs t-SNE in Single-cell RNA-Seq Data Visualization, Simply Explained](https://blog.bioturing.com/2022/01/14/umap-vs-t-sne-single-cell-rna-seq-data-visualization/) 
+and [Understanding UMAP](https://pair-code.github.io/understanding-umap/).
+
+*RunTSNE()* is used, similarly to below, to acheive a TSNE plot.
+```{r umap}
+#### Run UMAP ####
+# Use the same dimensions as those in FindNeighbors()
+pbmc <- RunUMAP(pbmc,
+                dims = 1:10)
+
+#### Plot UMAP ####
+DimPlot(pbmc,
+        reduction = "umap")
+
+# Visualize cluster labels on UMAP
+## Note: reduction parameter, if not specified, first searches for umap, then tsne, then pca
+## By default, then, it will select whichever dimensional reduction method is used above,
+## unless both umap and tsne have been generated. 
+DimPlot(pbmc,
+        label = TRUE,
+        repel = TRUE)
+```
+
+# Practice 1
+Generate a dimplot with a higher clustering resolution of 0.5. (You do not need 
+to rerun anything prior to this clustering section).
+
+```{r practice1}
+
+```
+
+# Differentially Expressed Genes
+*Tomorrow's lesson will be devoted to exploring this topic in more depth.*
+
+*FindAllMarkers* finds all the genes that make each cluster most different from 
+all of the other clusters. If you want to look at the genes that make cluster (A)
+most different from another cluster (B), you can use *FindMarkers* and set ident.1 
+equal to the cluster of interest (A) and ident.2 equal to its comparison (B).
+
+```{r idents}
+# Make sure the identities are what you want (clustering, cell ids, etc.)
+# You can find current identity labels using:
+levels(pbmc)
+head(Idents(pbmc))
+
+# You can access the metadata labels using "$" (tab to see meta.data options)
+# Here, we choose our lower resolution clustering assignments from above
+Idents(pbmc) <- pbmc$RNA_snn_res.0.1
+```
+
+```{r deg}
+#### FindAllMarkers ####
+# Find differential markers for every cluster compared to all remaining cells
+# Report only the positive values and set a log-fold-change threshold of 0.25
+# Note that different statistical tests can be used; default is wilcox
+pbmc.markers <- FindAllMarkers(pbmc,
+                               only.pos = TRUE,
+                               logfc.threshold = 0.25)
+#### View Markers ####
+pbmc.markers %>%
+    group_by(cluster) %>%
+    slice_max(n = 5,
+              order_by = avg_log2FC)
+```
+
+# Feature Plotting Techniques 
+Seurat and other packages offer numerous methods for plotting genes of interest.
+Here we present some of the most popular Seurat-based methods for plotting.
+
+```{r idents-repeated}
+# Make sure the identities are what you want (clustering, cell ids, etc.)
+# You can find current identity labels using:
+levels(pbmc)
+head(Idents(pbmc))
+
+# You can access the metadata labels using "$" (tab to see meta.data options)
+# Here, we choose our lower resolution clustering assignments from above
+Idents(pbmc) <- pbmc$RNA_snn_res.0.1
+```
+
+## Feature Plot
+Colors single cells on a dimensional reduction plot by feature (typically gene expression level,
+but could be  PC scores, number of genes detected, module score, etc.)
+```{r feature}
+#### Default FeaturePlot ####
+# Plots each feature separately
+FeaturePlot(pbmc,
+            features = c("MS4A1",
+                         "NKG7",
+                         "CD3E",
+                         "LYZ"),
+            label = TRUE,
+            repel = TRUE)
+```
+
+```{r rename}
+# Change cluster names - add identities
+pbmc <- RenameIdents(pbmc,
+                     "0" = "T cells",
+                     "1" = "Monocytes",
+                     "2" = "NK cells",
+                     "3" = "B cells")
+# Stash/save current identities into the metadata under a name
+pbmc <- StashIdent(pbmc,
+                   save.name = 'cellid')
+
+# Check under the new metadata category name
+levels(pbmc$cellid)
+
+# Plot with new names (uses our active.ident, which is currently 'cellid' labels)
+DimPlot(pbmc,
+        label = TRUE,
+        pt.size = 0.5) +
+  NoLegend()
+```
+
+```{r}
+#### Split.by ####
+# split.by plots each feature in each identity separately (labels would still
+# be defined as the default, or that specified in group.by)
+## very helpful for different treatment groups
+FeaturePlot(pbmc,
+            features = c("MS4A1",
+                         "NKG7"),
+            split.by = "cellid")
+
+# Plots by the defined groups even if the active identity is a different
+Idents(pbmc) <- pbmc$RNA_snn_res.0.1
+FeaturePlot(pbmc,
+            features = c("MS4A1",
+                         "NKG7"),
+            split.by = "cellid",
+            label = T)
+```
+
+```{r}
+# Cutoffs help visualize features if signal too weak or too strong in certain cells
+# Note that the expression units are arbitrary units, specific for each feature
+FeaturePlot(pbmc,
+            features = "LYZ")
+
+#### Max cutoff ####
+FeaturePlot(pbmc,
+            features = "LYZ",
+            max.cutoff = 4)
+
+#### Min cutoff ####
+FeaturePlot(pbmc,
+            features = "LYZ",
+            min.cutoff = 2)
+```
+
+```{r}
+#### Change plot colors ####
+# (note that a linear color scale works best)
+FeaturePlot(pbmc,
+            features = "LYZ",
+            cols = c("gray", "red"))
+
+```
+
+## Violin Plot
+
+```{r vln}
+#### Default VlnPlot ####
+# Each feature is plotted separately
+# violins are colored by feature (can change to color by identity with fill.by)
+VlnPlot(pbmc,
+        features = c("MS4A1",
+                     "NKG7",
+                     "CD3E",
+                     "LYZ"))
+```
+
+```{r}
+#### Group.by and RotateAxis() ####
+# group.by allows expression to be shown for identity classes of interest
+# RotatedAxis() rotates x-axis labels
+VlnPlot(pbmc,
+        features = c("MS4A1",
+                     "NKG7",
+                     "CD3E",
+                     "LYZ"),
+        group.by = "cellid") +
+  RotatedAxis()
+```
+
+## Ridge Plot
+
+```{r ridge}
+### Default ridgeplot ####
+# plots by feature
+RidgePlot(pbmc,
+          features = c("MS4A1",
+                       "NKG7",
+                       "CD3E",
+                       "LYZ"))
+```
+
+```{r}
+#### Group.by, fill.by, sort ####
+# Can group by certain identities, sort by average expression, and more
+RidgePlot(pbmc,
+          features = c("MS4A1",
+                       "NKG7",
+                       "CD3E",
+                       "LYZ"),
+          group.by = "cellid",
+          sort = TRUE,
+          fill.by = "feature") # fill.by is also an option in VlnPlot()
+```
+
+## DotPlot
+Be careful using this plotting method - it works to emphasize differences and 
+therefore may appear misleading (visual differences are exaggerated)
+
+```{r dot}
+#### Default DotPlot ####
+DotPlot(pbmc,
+        features = c("MS4A1",
+                       "NKG7",
+                       "CD3E",
+                       "LYZ"),
+          group.by = "cellid")
+```
+
+```{r}
+#### Remove plot scaling ####
+# (less exaggerated, more representative of true differences)
+DotPlot(pbmc,
+        features = c("MS4A1",
+                     "NKG7",
+                     "CD3E",
+                     "LYZ"),
+        group.by = "cellid",
+        scale = FALSE)
+```
+
+```{r}
+#### Change Dotplot colors ####
+# (note that a linear color scale works best)
+DotPlot(pbmc,
+        features = c("MS4A1",
+                     "NKG7",
+                     "CD3E",
+                     "LYZ"),
+        group.by = "cellid",
+        scale = FALSE,
+        cols = c("gray", "red"))
+```
+
+# Practice 2
+Change your active identities to your resolution of 0.5 (RNA_snn_res.0.5).
+Plot the expression of "CD8A" to identify CD8 T cells using a feature plot 
+(label cluster numbers on plot), violin plot (group by cellid and rotate the x-axis 
+labels), ridgeplot, and dotplot (not scaled).
+
+```{r practice2}
+
+```
+
+# Saving Seurat Objects
+
+```{r seuratsave}
+# Save
+save(pbmc,
+     file = "Data/pbmc.RData")
+# saveRDS
+saveRDS(pbmc,
+     file = "Data/pbmc.rds")
+```
+
+# Loading Seurat Objects
+
+```{r seuratload}
+# Load
+load("Data/pbmc.RData")
+# readRDS
+pbmc <- readRDS("Data/pbmc.rds")
+```
+
+# Bonus: Cell Type Annotation
+There are many methods of cell type annotation. Here we show a reference-
+based technique, *SingleR*. A reference based technique uses a
+list of genes associated with a certain cell type to suggest cell identities.
+A simpler, but often time-consuming approach, is to analyze the top 
+differentially expressed genes for each cluster (shown above) or certain unique 
+genes your lab or others have used to identify specific cell types, if 
+applicable (see techniques for feature plotting). Note: this is not from 
+the Seurat package.
+
+## SingleR
+```{r singler}
+# Automatic prediction of cell types using SingleR
+library(SingleCellExperiment)
+library(celldex)
+library(SingleR)
+
+# Convert the Seurat object to a SCE object
+pbmc_sce <- as.SingleCellExperiment(pbmc)
+
+# Load human reference of interest from celldex
+## Mouse reference & immune-specific mouse reference are helpful for mouse data.
+## ref_mouse <- celldex::MouseRNAseqData()
+## ref_mouse_immune <- celldex::ImmGenData()
+ref1 <- celldex::HumanPrimaryCellAtlasData()
+
+# Make cell type predictions using SingleR
+## Note that you can use ref1$label.fine for more specific predictions
+predictions <- SingleR(test = pbmc_sce,
+                       ref = list(ref1),
+                       labels = list(ref1$label.main))
+
+# Clean up environment
+rm(pbmc_sce, ref1)
+```
+
+```{r singler_cont, dependson= "singler"}
+# Transfer labels back to the Seurat object metadata and plot
+pbmc$singleR <- predictions$labels
+
+# Label cells with singlr label
+Idents(pbmc) <- pbmc$singleR 
+
+# Plot on UMAP
+## Note the use of group.by to label cells by certain identifiers (singleR here)
+## Seurat uses ggplot, so plot titles (and more) can be edited with ggplot2 functions
+## NoLegend() (Seurat) removes DimPlot legend, useful if plot is labeled
+
+DimPlot(pbmc,
+        reduction = "umap",
+        group.by = "singleR",
+        label = T,
+        repel = T) +
+  ggtitle("Human Reference Annotation") +
+  NoLegend()
+```
+
+# Challenge:
+Perform single cell analysis of a human bone marrow mononuclear cell dataset (10x): 
+
+## Load in bone marrow dataset
+```{r} 
+datasetbone_marrow_data <- Read10X(data.dir = "Challenge Dataset/hg19") 
+```
+
+## Create Seurat Object
+```{r} 
+
+```
+
+## Perform Subsetting for Quality Control
+```{r qc} 
+
+```
+
+## Normalize
+```{r normalize} 
+
+```
+
+## Identify Highly Variable Features
+```{r varfeatures} 
+
+```
+
+## Scale Data
+```{r} 
+
+```
+
+## Run PCA
+```{r pca} 
+
+```
+
+## Find Neighbors and Find Clusters
+```{r cluster} 
+
+```
+
+## Run UMAP
+```{r umap} 
+
+```
+
+## FindMarkers of Clusters
+```{r} 
+
+```
+
+## DotPlot:
+Dot plot showing cluster-wise expression of selected genes:
+MS4A1, NKG7, CD3E, LYZ, CD4
+```{r} 
+
+```
+
+## FeaturePlot:
+Feature Plots showing expression of selected genes:
+MS4A1, NKG7, CD3E, LYZ
+```{r}
+
+```
+
+## Bonus: Let's make a Nebulosa density plot!
+Density Plot (Nebulosa Package) Showing Density of LYZ Expression
+
+Use this code to install Nebulosa and get started
+```{r} 
+if (!require("BiocManager", quietly = TRUE)) 
+  install.packages("BiocManager") 
+BiocManager::install("Nebulosa") 
+library(Nebulosa) 
+
+#plot_density(seurat object, "GENE SYMBOL") 
+#above is an example of how to use the density plot function from the Nebulosa package 
+#Below, make your own density plot of LYZ
+ 
+```
+
+```{r}
+sessionInfo()
+```
+
