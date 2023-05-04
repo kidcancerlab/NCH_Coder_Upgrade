@@ -103,6 +103,7 @@ library(ggrepel)
 library(DESeq2)
 library(pheatmap)
 
+
 set.seed(888)
 
 
@@ -119,6 +120,18 @@ data <- readRDS("ifnb_myeloid.rds")
 
 # check / set default assay
 DefaultAssay(data) # <- "RNA"
+
+# what do we have in the meta data?
+head(data@meta.data)
+
+# set identity for the dataset
+Idents(data) <- "seurat_annotations"
+
+# how many cells do we have per condition?
+table(data@meta.data$seurat_annotations, data@meta.data$stim)
+
+# how many cells do we have per patient per ?
+table(data@meta.data$seurat_annotations, data@meta.data$sample_ID)
 ```
 
 ## Visualize data as a UMAP
@@ -201,7 +214,7 @@ display the average expression level (color) and the percentage of cells
 expressing the gene (bubble size).
 
 ```{r}
-# reduce data
+# reduce data further
 top_markers <- top_markers %>%
                     group_by(cluster) %>%
                     slice_max(avg_log2FC, n = 3)
@@ -234,16 +247,33 @@ ridgeplot
 
 ## Activity 1 (9:30-10ish)
 
-### Read in T-cell data, set assay to the RNA slot, and set idents to cell types:
+### Read in T-cell data, set assay to the RNA slot, and set idents to *clusters*:
 ```{r}
+tcells <- readRDS("ifnb_lymphoid.rds")
+DefaultAssay(tcells) <- "RNA"
+head(tcells@meta.data)
+Idents(tcells) <- "seurat_clusters"
 ```
 
 ### Visualize *clusters* as a UMAP split by treatment
 ```{r}
+DimPlot(tcells, 
+        split.by = "stim")
 ```
 
 ### Find markers that define *clusters* and visualize top 2 markers using a dotplot
 ```{r}
+# make sure identity is set to cell types
+Idents(tcells) %>% head # <- "seurat_annotations"
+# find markers for each cell type
+markers <- FindAllMarkers(tcells,
+                min.pct = 0.25) # only markers that are in 25% of cells
+# reduce data
+top_markers <- as.data.frame(markers %>%
+                group_by(cluster) %>% # group by cluster (cell type)
+                slice_max(avg_log2FC, n = 5)) # sort by log2FC and get top 5
+# explore top markers
+head(top_markers)
 ```
 
 
@@ -487,26 +517,37 @@ bubble
 
 ### Find genes differentially expressed in activated T cells between ctrl and stim
 ```{r}
+
 ```
 
 ### Explore the results and save as a .csv file
 ```{r}
+
 ```
 
 ### Visualize top 3 most significantly different genes using FeaturePlot
 ```{r}
+
 ```
 
 ### Visualize top 3 most significantly different genes using VlnPlot
 ```{r}
+
 ```
 
 ## Perform GSEA analysis on the activated T cell DEGs using the Hallmark geneset
 ```{r}
+# this gets your geneset
+hallmark <- msigdbr(species = "Homo sapiens",
+                category = "H") %>% 
+                split(x = .$gene_symbol,
+                f = .$gs_name)
+
 ```
 
 ### Visualize GSEA results as a bubble plot
 ```{r}
+
 ```
 
 
@@ -526,7 +567,7 @@ conditions we need to pseudobulk our cells.
 
 ## Prepare data for pseudobulk analysis
 First, generate DEG tables from pseudobulk clusters, treating all cells
-from each cluster from each sample as independent groups of cells/data.
+from each ident from each sample as independent groups of cells/data.
 Then, graph each of those DEG datasets using a volcano plot.
 
 ```{r}
@@ -548,8 +589,8 @@ for (cell in unique(data$seurat_annotations)) {
             idents = cell)
     # change idents for the subtype to sample ID
     Idents(sub) <- data$sample_ID
-    # get average expression for each gene for each sample ID across all cells
-    df <- AverageExpression(sub,
+    # get summed expression for each gene for each sample ID across all cells
+    df <- AggregateExpression(sub,
             assays = "RNA",
             slot = "counts") %>%
             as.data.frame()
@@ -578,6 +619,9 @@ pb <- round(pb)
 # can save this pseudobulked data for later
 write.csv(pb, "pb.csv")
 
+# what's the spread of gene expression for one group?
+summary(pb$CD14_Mono_CTRL_1016)
+hist(pb$CD14_Mono_CTRL_1016)
 
 
 # Create a separate column (meta) data table as required for DESeq2 input
@@ -652,7 +696,7 @@ pdc_deg <- deseq2[["pDC"]]
 # pull out the names of the genes that are most significantly DE
 labs <- head(pdc_deg, n = 15)
 # make a violin plot for the DEGs for each cell type
-plot <- ggplot(deseq2[[cell]],
+plot <- ggplot(pdc_deg,
             aes(x = log2FoldChange, y = -log10(padj))) +
             geom_point() +
             geom_label_repel(
@@ -669,19 +713,22 @@ plot
 
 ## Activity 3 (11:15-11:30ish)
 
-### Create pseudobulk dataset
+### Create pseudobulk dataset for *cell types*
  
-Note: if we are short on time just load in pseudobulk data provided.
+Note: if we are short on time just load in lymphoid pseudobulk data provided.
 
 ```{r}
+
 ```
 
 ### Run DESeq2
 ```{r}
+
 ```
 
 ### Pull out the T activated DEGs and plot a Volcano plot
 ```{r}
+
 ```
 
 
@@ -768,8 +815,7 @@ other metadata column (sex, treatment, age, etc.)
 
 ```{r TransferAnchors, eval = FALSE}
 # load reference from whatever source
-cool_ref <- load(coolReference.RData)
-ref <- cool_ref
+ref <- load(coolReference.RData)
 # note: reference and query dataset need to be analyzed with the same
 # normalization method, so you may have to extract raw data and then
 # re-normalize set identity to your goal idents
@@ -828,3 +874,6 @@ https://github.com/dviraran/SingleR
 Tutorial: guidelines for annotating single-cell transcriptomic maps using
 automated and manual methods
 https://www.nature.com/articles/s41596-021-00534-0
+
+Multimodal Reference Mapping
+https://satijalab.org/seurat/articles/multimodal_reference_mapping.html
