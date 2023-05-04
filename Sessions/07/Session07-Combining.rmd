@@ -245,7 +245,7 @@ library(tidyverse)
 # Please remember to set up your work directory. 
 # We set up the directory into folder where we downloaded the datasets
 getwd() # if you want to get the current directory.
-setwd("/Users/XXW004/Documents/Projects/LectureForSingleCellGroup/IntegrationSection/TestDatasets/") # If you want to set up the work diretory
+setwd("/gpfs0/home1/gdworkshop/lab/session_data/07/Datasets") # If you want to set up the work diretory
 
 # Check the files in the current directory. 
 Datafiles<-list.files(path = "./", recursive = F, full.names = F)
