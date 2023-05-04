@@ -400,16 +400,18 @@ nichenet_easy_output$ligand_activities
 
 # The different ligand activity measures (auroc, aupr, pearson correlation coefficient) are a measure for how well a ligand can predict the observed differentially expressed genes compared to the background of expressed genes.
 
-## ligand predicted based on DEG
+## Ligand predicted based on DEG
 Potential_ligands <-
     nichenet_easy_output$ligand_activities %>%
     pull(test_ligand)
 
-# we can select the top 20 ligands with default output from nichenet_easy_output$top_ligands
+# We can select the top 20 ligands with default output from nichenet_easy_output$top_ligands
 Ligands_top20 <-
     nichenet_easy_output$top_ligands
 
-# we can selected top 10 ligands based on the rank and bon_fide_ligand 
+# We can also select top 10 ligands based on the rank and bon_fide_ligand 
+# The column ‘bona_fide_ligand’ indicates whether the ligand is part of ligand-receptor interactions that are documented in public databases (‘bona_fide_ligand = TRUE’) and not of ligand-receptor interactions that we predicted based on annotation as ligand/receptor and protein-protein interaction databases (‘bona_fide_ligand = FALSE’).
+
 Bona_fide_ligands_top10 <-
     nichenet_easy_output$ligand_activities %>%
     filter(bona_fide_ligand == "TRUE") %>%
@@ -489,6 +491,9 @@ DE_table_all <-
            celltype_col = NULL) %>%
     reduce(full_join) # use this if cell type labels are the identities of your Seurat object -- if not: indicate the celltype_col properly
 
+# Define the NA into zero
+DE_table_all[is.na(DE_table_all)] = 0
+
 # Select the expression profile of top10 bona fide ligands in sender cell types.
 ligand_DEG <- DE_table_all %>%
     filter(gene %in% Bona_fide_ligands_top10)
@@ -558,31 +563,36 @@ Extract ligands that have pearson value greater than 0.004:
 
 ```{r}
 # Check the ligand activies and found the pearson column
-nichenet_output$ligand_activities
+nichenet_easy_output$ligand_activities
 # Extract the ligands that have peasron value greater than 0.004
-Potential_ligands_PearsonCut <- nichenet_output$ligand_activities %>% filter (pearson >0.004) %>% pull(test_ligand)
+Potential_ligands_PearsonCut <- 
+    nichenet_easy_output$ligand_activities %>% 
+    filter (pearson >0.004) %>% 
+    pull(test_ligand)
 
 # Check these ligands pearson
-nichenet_output$ligand_activities %>% 
+nichenet_easy_output$ligand_activities %>% 
     filter(pearson >0.004) %>% 
     select(test_ligand, pearson) 
 
 # Draw the heatmap for these ligands activity
 
 # We need to transfer into matrix that contain the rownames, colnames and pearson values
-Potential_ligands_PearsonCut_activity <- nichenet_output$ligand_activities %>% 
-  filter(test_ligand %in% Potential_ligands_PearsonCut) %>% 
-  select(pearson) %>% 
-  as.matrix(ncol=1) %>% 
-  magrittr::set_colnames("Pearson") %>%
-  magrittr::set_rownames(Potential_ligands_PearsonCut)
+Potential_ligands_PearsonCut_activity <- 
+    nichenet_easy_output$ligand_activities %>% 
+    filter(test_ligand %in% Potential_ligands_PearsonCut) %>% 
+    select(pearson) %>% 
+    as.matrix(ncol=1) %>% 
+    magrittr::set_colnames("Pearson") %>%
+    magrittr::set_rownames(Potential_ligands_PearsonCut)
 
 # Draw the pearson for these ligands
 
-Potential_ligands_PearsonCut_activity_heatmap <- Potential_ligands_PearsonCut_activity %>% 
+Potential_ligands_PearsonCut_activity_heatmap <- 
+    Potential_ligands_PearsonCut_activity %>% 
     make_heatmap_ggplot("Prioritized CAF-ligands","Ligand activity", 
     color = "darkorange",
-    legend_position = "top", x_axis_position = "top", 
+    legend_position = "top", x_axis_position = "top")
 
 Potential_ligands_PearsonCut_activity_heatmap 
 
@@ -631,7 +641,7 @@ ligands_PearsonCut_DEG_Mtx %>%
 The ligand and receptor links were stored in the ligand_target_matrix
 ```{r}
 nichenet_selected_ligand_link_PearsonCut<-     
-    nichenet_output$ligand_target_matrix[rownames(nichenet_output$ligand_target_matrix)%in%Potential_ligands_PearsonCut,]
+    nichenet_easy_output$ligand_target_matrix[rownames(nichenet_easy_output$ligand_target_matrix)%in%Potential_ligands_PearsonCut,]
 
 nichenet_selected_ligand_link_PearsonCutHeatmap<-
     nichenet_selected_ligand_link_PearsonCut %>% 
