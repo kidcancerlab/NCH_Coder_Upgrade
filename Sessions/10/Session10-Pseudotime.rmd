@@ -8,7 +8,6 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
-library(ggplot2)
 library(patchwork)
 library(rrrSingleCellUtils)
 library(Seurat)
@@ -129,10 +128,9 @@ Now, perform a differential expression analysis with your favorite trajectory to
 
 1. Using a cell_data_set object generated above, find genes whose expression differentiates branches and leaves from each other (use graph_test from monocle3). Be sure to specify "neighbor_graph" as "principal_graph", or it will default to the knn method, which will give you degs between clusters (the default behavior).
 2. Explore the resulting data frame. This shows how each gene within your object vary across the trajectory while being similar within spatially-nearby cells (Moran's I).
-3. 
-2. Pick a leaf or two of interest.
-3. Explore the genes that distinguish those leaves from each other. Pick 2-4 genes of interest. Find at least one gene whose expression is lost over the trajectory.
-4. Plot those genes of interest visually on the UMAP to show how expression changes over time. 
+3. Pick a leaf or two of interest.
+4. Explore the genes that distinguish those leaves from each other. Pick 2-4 genes of interest. Find at least one gene whose expression is lost over the trajectory.
+5. Plot those genes of interest visually on the UMAP to show how expression changes over time. 
 
 
 ```{r}
