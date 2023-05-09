@@ -24,7 +24,7 @@ library(tidyverse)
 library(Seurat)
 library(Signac)
 library(patchwork)
-#system("ml HDF5")
+system("ml HDF5")
 ```
 
 --------------------------------------------------------------------------------
@@ -468,13 +468,13 @@ merged_atac_data <-
 
 Quiz:
 
-1. What is my name?
-2. What is my quest?
-3. What is the airspeed velocity of an unladen swallow?
-4. T/F: for 10X multiomics data, both the RNA and ATAC data have identical read lengths
-5. How many reads per cell should you target for 10X multiome ATAC data?
-6. T/F: for 10X multiome ATAC data, we count number of peaks per gene to calculate gene activity
-7. After reading in the GEX data, how many cells are in my Seurat object?
+1. What is my name? Matthew Vesuvius Cannon
+2. What is my quest? To vanquish lines greater than 80 characters
+3. What is the airspeed velocity of an unladen swallow? 42
+4. T/F: for 10X multiomics data, both the RNA and ATAC data have identical read lengths FALSE
+5. How many reads per cell should you target for 10X multiome ATAC data? 100k
+6. T/F: for 10X multiome ATAC data, we count number of peaks per gene to calculate gene activity TRUE
+7. After reading in the GEX data, how many cells are in my Seurat object? 
 8. I filter bad cells after I merge the GEX and ATAC datasets. What problems might I run into if I filter bad cells before merging?
 9. How many cells do I lose when I filter out bad cells?
 10. T/F: Single-cell and single-nuclei GEX data would be quite different if you could magically run them both on the same cells
@@ -733,10 +733,10 @@ motif_locs
 
 Quiz:
 
-1. Why will a UMAP performed using both RNA and ATAC data be more informative than a UMAP performed using only one dataset?
-2. Why might the cells from a cluster in one of the datasets be randomly scattered in the other dataset?
-3. Why might we be interested in an ATAC peak that is correlated with the expression of a gene but is not located in the promoter region of (or even close to) that gene?
-4. What function creates a weighted nearest neighbor graph?
+1. Why will a UMAP performed using both RNA and ATAC data be more informative than a UMAP performed using only one dataset? Increased dimensionality
+2. Why might the cells from a cluster in one of the datasets be randomly scattered in the other dataset? Microenvironment/convergence
+3. Why might we be interested in an ATAC peak that is correlated with the expression of a gene but is not located in the promoter region of (or even close to) that gene? enhancer/superenhancer
+4. What function creates a weighted nearest neighbor graph? 
 5. What function finds correlations between gene expression and ATAC peaks?
 6. T/F: Correlation is equivalent to causation.
 7. T/F: Within a single nuclei you cannot find a correlation between human gene expression patterns and mouse ATAC peaks.
