@@ -1,0 +1,183 @@
+---
+Author: "Yogesh Budhathoki"
+title: "Harmony Data Integration Tutorial"
+output: 
+    html_document:
+        code_folding: hide
+always_allow_html: true
+---
+
+# Load the library
+```{r, include=FALSE}
+library(rrrSingleCellUtils)
+library(Seurat)
+library(ggrepel)
+library(tidyverse)
+library(stringr)
+library(harmony)
+```
+
+
+# Example that do not need harmony Integration
+Harmony is a powerful tool for integrating single cell RNA-seq datasets that
+originate from different conditions, batches, or technologies. However, not all
+datasets require this level of integration.
+For instance, if a single cell RNA-seq dataset is generated under the same
+conditions and using the same technology, there may be no need for Harmony
+integration. This is because the batch effects that Harmony aims to correct are
+not present.
+In the provided example, the data is loaded from a file named
+"data_dontneed_harmony.qs". This suggests that the dataset in question does not
+have significant batch effects or other sources of variation that would
+necessitate the use of Harmony.
+The data is then visualized using a dimensionality reduction plot (DimPlot),
+with cells grouped by sample name and Seurat clusters. This allows for the
+exploration of the data structure and the identification of cell clusters
+without the need for data integration.
+In summary, while Harmony is a valuable tool for integrating diverse single
+cell RNA-seq datasets, it is not always necessary. Understanding the source and
+characteristics of your data is crucial in determining the appropriate analysis
+steps.
+
+```{r}
+# Load the data
+object <- qs::qread("data_dontneed_harmony.qs")
+
+# visualize the data combined with the sample name and seurat clusters
+DimPlot(object,
+        group.by = c("sample_name", "seurat_clusters"),
+        label = TRUE,
+        repel = TRUE,
+        ncol = 2)
+
+# visualize the data combined with the sample name, seurat clusters, data source and data type
+DimPlot(object,
+        group.by = c("sample_name", "seurat_clusters", "data_source", "data_type"),
+        label = TRUE,
+        repel = TRUE,
+        ncol = 2)
+
+```
+
+
+# Simple example: data that need harmony integration
+```{r}
+# Load the data
+simple_object <- qs::qread("before_harmony_simple_example.qs")
+
+# visualize the data
+DimPlot(simple_object,
+        group.by = c("sample_name", "seurat_clusters"),
+        label = TRUE,
+        repel = TRUE,
+        ncol = 2)
+
+# visualize the data
+DimPlot(simple_object,
+        group.by = c("sample_name", "seurat_clusters", "model", "data_source"),
+        label = TRUE,
+        repel = TRUE,
+        ncol = 2)
+
+# Run Harmony integration
+harmony_simple_object <- 
+    RunHarmony(simple_object,
+               group.by.vars = "sample_name")
+
+# input the reduction as harmony embeddings
+harmony_simple_object <-
+    process_seurat(harmony_simple_object,
+                   reduction = "harmony")
+
+# visualize the data
+DimPlot(harmony_simple_object,
+        group.by = c("sample_name", "seurat_clusters"),
+        label = TRUE,
+        repel = TRUE,
+        ncol = 2)
+
+# visualize the data
+DimPlot(harmony_simple_object,
+        group.by = c("sample_name", "seurat_clusters", "model", "data_source"),
+        label = TRUE,
+        repel = TRUE,
+        ncol = 2)
+```
+
+
+# Complex example
+```{r}
+# Load the data
+object <- qs::qread("before_harmony_complex_example.qs")
+
+# visualize the data
+DimPlot(object,
+        group.by = c("sample_name", "seurat_clusters", "model", "data_source"),
+        label = TRUE,
+        repel = TRUE,
+        ncol = 2)
+
+# Run Harmony integration
+harmony_singlevars <- 
+    RunHarmony(object,
+               group.by.vars = "sample_name")
+
+# input the reduction as harmony embeddings
+harmony_singlevars <-
+    process_seurat(harmony_singlevars,
+                   reduction = "harmony")
+
+# visualize the data
+DimPlot(harmony_singlevars,
+        group.by = c("sample_name", "seurat_clusters", "model", "data_source"),
+        label = TRUE,
+        repel = TRUE,
+        ncol = 2)
+
+# did not work as good as we would like to due to a lot of batch effects
+# we can try to integrate the data using the multiple factor of batch effect
+
+# Run Harmony integration
+harmony_multivars <- 
+    RunHarmony(object,
+               group.by.vars = c("sample_name", "data_source", "model"))
+
+# input the reduction as harmony embeddings
+harmony_multivars <-
+    process_seurat(harmony_multivars,
+                   reduction = "harmony")
+
+# visualize the data
+DimPlot(harmony_multivars,
+        group.by = c("sample_name", "seurat_clusters", "model", "data_source"),
+        label = TRUE,
+        repel = TRUE,
+        ncol = 2)
+
+# didnt integrate as good as well, we can try to integrate using other featurtes of harmony
+
+# Run Harmony integration using other features example theta
+harmony_theta_features <- 
+    RunHarmony(object,
+               group.by.vars = c("sample_name", "data_source", "model"),
+               theta = c(12, 12, 12))
+
+# input the reduction as harmony embeddings
+harmony_theta_features <-
+    process_seurat(harmony_theta_features,
+                   reduction = "harmony")
+
+# visualize the data
+DimPlot(harmony_theta_features,
+        group.by = c("sample_name", "seurat_clusters", "model", "data_source"),
+        label = TRUE,
+        repel = TRUE,
+        ncol = 2)
+
+```
+
+
+# Aplication in the celltype annotation
+That it groups togther similar cells when anotated with their celltypes
+how the right level of integration might help cluster cancer cells together
+as seen in the cell culture example in mm_prim and mm_mets
