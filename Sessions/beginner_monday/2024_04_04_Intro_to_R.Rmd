@@ -1,0 +1,852 @@
+---
+title: "Intro to R 2023"
+author: "Matt Cannon and Luda Popova"
+date: '2023-04-23'
+output: html_document
+---
+```{r load_packages}
+library(tidyverse)
+```
+--------------------------------------------------------------------------------
+
+# Part 1
+
+## Overview
+
+-- RStudio overview and layout.
+
+-- Add concept of a working directory. 
+
+-- R markdown, creating an Rmd file.
+
+R markdown is a way to combine plain text, your R code, and results from your data analysis (including plots and tables) into a nicely formatted and reproducible document.
+https://intro2r.com/what-is-r-markdown.html
+
+-- To create a new R chunk in an Rmd file, use Code/Insert Chunk, ctrl + alt + i (Windows), or cmd + option + i (macOS).
+
+## Variables and basic data types 
+
+"=" or "<-" is an assignment operator, though "<-" is preferred.
+
+Variables in R can be used to store letters, numbers, and various data structures. To create a new variable, simply assign a value to a name.
+
+Fundamental data types in R include: numeric, integer, complex, character, and logical.
+
+Here, we create a variable holding character data. Characters are enclosed in quotes.
+```{r}
+my_name <- "Matt"
+my_name = "Matt"
+```
+
+You can use class(my_name) or typeof(my_name) to examine to which data type does the variable my_name belong.
+```{r}
+class(my_name)
+typeof(my_name)
+```
+
+Here, we create a variable holding numeric data.
+```{r}
+count <- 10
+
+class(count)
+```
+
+Here, we create a variable holding logical (boolean) data.
+```{r}
+bool1 <- TRUE
+
+bool2 <- FALSE
+
+class(bool1)
+
+class(bool2)
+```
+
+
+** Introduce logical operators 
+```{r}
+<, >, ==, != 
+```
+
+
+## Factors
+
+Variables can be continuous and categorical. Continuous can assume an infinite number of values within a given interval. Categorical variables have a fixed and known set of possible values.
+
+In R, factors are used to work with categorical variables. They are also useful when you want to display character vectors in a non-alphabetical order (https://r4ds.had.co.nz/factors.html#:~:text=In%20R%2C%20factors%20are%20used,to%20work%20with%20than%20characters)
+```{r}
+months <- c("Dec", "Apr", "Jan", "Mar")
+
+sort(months)
+
+months_factor <- factor(months,
+                        levels = c("Jan", "Mar", "Apr", "Dec"))
+
+sort(months_factor)
+```
+
+## Variable types
+
+### Vectors
+
+- A vector can hold multiple values, which can be joined by using c(value1, value2, value3, value4).
+- A vector holds data of a single type (all numbers, all characters, etc..)
+
+```{r}
+months <- c("Dec", "Apr", "Jan", "Mar")
+is.vector(months)
+```
+
+### Lists
+
+- Lists are like vectors, but they can hold different types of data.
+- Elements in a list can have names
+
+```{r}
+list_of_stuff <-
+    list("first",
+         2,
+         c(TRUE, TRUE, FALSE))
+list_of_stuff
+
+other_list <-
+    list("first" = "first",
+         "second" = 2,
+         "third" = c(TRUE, TRUE, FALSE))
+other_list$third
+```
+
+### Data frames
+
+- Data frames are tables of data similar to excel worksheets.
+- Each column can be of a different data type, but everything in a column has to be of the same data type.
+- A data frame is a table or a two-dimensional array-like structure in which each column contains values of one variable and each row contains one set of values from each column. This is similar to an Excel sheet. 
+- Data frames have the following characteristics (https://www.tutorialspoint.com/r/r_data_frames.htm):
+    - The column names should be non-empty.
+    - The row names should be unique.
+    - The data stored in a data frame can be of numeric, factor or character type.
+    - Each column should contain same number of data items.
+
+```{r}
+important_data <-
+    data.frame(names = c("Matt", "Luda", "John"),
+               pets = c("dog", "cat", "dog"),
+               pie_or_cake = c("pie", "cake", "pie"))
+important_data
+
+important_data$names
+```
+
+### Matrices
+
+- Matrices are like vectors, but they can have multiple dimensions.
+- Unlike dataframes, all elements in a matrix have to be of the same data type.
+
+```{r}
+my_matrix <- matrix(c(1, 2, 3, 4, 5, "bob"),
+                    nrow = 2,
+                    ncol = 3)
+my_matrix
+is.numeric(my_matrix)
+```
+
+## Getting things done with functions
+
+R uses functions to perform operations. For example, sort() and class() from above are functions. Functions are sets of statements that are designed to perform a specific task (https://www.tutorialspoint.com/r/r_functions.htm).
+
+- Functions have a name, which is used to call them.
+- They are followed by parentheses, which contain the arguments.
+- They can return a value.
+- Functions have arguments, which the user can pass to them.
+- In R, there are a lot of in-built functions. Some examples of in-built fuctions include mean(), max(), sum(), min() (https://www.tutorialspoint.com/r/r_functions.htm).
+- Also, in R users can define their own functions, but we won't go over this in this session.
+
+```{r}
+numbers <- c(1, 2, 3, 4, 5)
+
+min(numbers)
+
+max(numbers)
+
+sum(numbers)
+
+mean(numbers)
+```
+
+It's impossible (and not necessary) to know all the functions and/or their arguments.You can use the help() function to get more information about any function you want to use.
+    - Use "q" to quit the help page.
+How to read the help page
+```{r}
+help(min)
+
+help(max)
+
+help(sum)
+
+help(mean)
+```
+
+## Naming guidelines in R 
+
+There are a few rules for naming variables in R.
+
+- Names should be short and meaningful
+- Should include numbers, letters, _, and -
+- Avoid using special characters in names
+- R is case-sensitive, best practice is to use lowercase
+
+```{r}
+my_name <- "Matt"
+MY_NAME <- "Luda"
+
+my_name == MY_NAME
+```
+
+--------------------------------------------------------------------------------
+
+# Activity 1
+
+Create a new Rmd file. Use ctrl+alt+i to insert a new R chunk.
+
+Within that file, create two variables holding numerical data.
+Knowing that +, -, /, and * work like regular arithmetic operators in R, add your two variables together.
+```{r}
+
+```
+
+Create two variables holding the following values: "10" and "1". Make sure to enclose your variables in quotes.
+Try adding your two new variables together. Observe the error message.
+```{r eval=FALSE}
+
+```
+
+Using as.numeric() function, try to fix the error.
+```{r}
+
+```
+
+Create a set of categorical variables specifying days of the week. Convert them to factors, specifying the correct order.
+
+Use sort() function to make sure everything worked.
+```{r}
+
+```
+
+If you're fast:
+Think of something interesting you could do with some of your variables. Look up the function that would help you do that and read the documentation. Try it out.
+```{r}
+
+```
+
+--------------------------------------------------------------------------------
+
+# Part 2
+
+## Reading in files
+
+Data are usually available to us in form of larger files, i.e. not single variables. There are functions in R that enable us to read in files. read.delim() can be used to read in text (.txt) files.
+```{r}
+westernQuant <- read_tsv("Sessions/01/westernQuant.txt")
+
+westernQuant
+```
+
+Once we read in a data frame, we can manipulate the data it contains.
+
+Here, we use an $ operator to access a column in a data frame.
+```{r}
+westernQuant$group_name
+```
+
+Square brackets can be used to subset the data frame.
+
+data_frame[row(s), column(s)]
+data_frame[, ] (empty) means everything.
+```{r}
+# first row, first column (just one element)
+westernQuant[1, 1]
+
+# First row, all columns
+westernQuant[1, ]
+
+# First column, all rows
+westernQuant[, 1]
+
+# First 5 rows, all columns
+westernQuant[c(1:5), ]
+```
+
+-------
+** Maybe put this in the activity or make a note ** 
+
+Many functions will return an error if the data contain NAs. To overcome this issue, you need to include an na.rm = TRUE argument.
+```{r}
+min(westernQuant$intensity_gene2)
+
+max(westernQuant$intensity_gene2)
+
+mean(westernQuant$intensity_gene2)
+
+min(westernQuant$intensity_gene2, na.rm = TRUE)
+
+max(westernQuant$intensity_gene2, na.rm = TRUE)
+
+mean(westernQuant$intensity_gene2, na.rm = TRUE)
+```
+
+We can use functions to make plots. Here, we use our data to make a boxplot.
+```{r plot}
+boxplot(intensity_gene1 ~ group_name,
+        data = westernQuant)
+```
+
+Here, we make a histogram of our data. 
+```{r}
+hist(westernQuant$intensity_gene1)
+```
+
+**
+------------------
+
+
+--------------------------------------------------------------------------------
+
+## Activity 2
+
+-- Make sure to save the summary output to a variable 
+
+Read in data the titanic dataset
+Use read.delim()
+```{r}
+
+```
+
+Summarize the dataset
+```{r}
+
+```
+
+Use the head() and tail() functions to take a closer look at the dataset
+```{r}
+
+```
+
+Access the 3rd column of the data frame, i.e. the "Name" column. Save it to a variable. 
+```{r}
+
+```
+
+Access the third row of the dataset, save the output to a variable. 
+```{r}
+
+```
+Retrieve the name of the person specified in row 3 using square brackets. 
+```{r}
+
+```
+
+Make variables that contain the Mean/median/min/max of age/fare
+```{r}
+
+```
+
+--------------------------------------------------------------------------------
+
+# Part 3
+
+## Packages
+
+R packages are a collection of R functions, complied code and sample data (https://www.tutorialspoint.com/r/r_packages.htm). Packages are usually created to address a very specific need in data analysis.
+
+Packages are created by the community and so conventions and quality vary widely.
+
+Packages need to be installed and loaded into the session before they can be used.
+
+Some packages come from The Comprehensive R Archive Network (CRAN) with install.packages(), other packages can be installed through Bioconductor through BiocManager::install(). Best way to find out how to install a given package is to Google the specific package.
+
+Tidyverse is a very useful collection of packages. Tidyverse is an opinionated collection of R packages designed for data science (includes ggplot2, dplyr, and other ones). All packages share an underlying design philosophy, grammar, and data structures.
+
+https://www.tidyverse.org/
+```{r}
+#install.packages("tidyverse")
+
+library(tidyverse)
+
+# Backup plan if you run into lots of errors there...
+
+#install.packages(c("dplyr", "ggplot2"))
+
+library(dplyr)
+
+library(ggplot2)
+```
+
+## A brief intro to the tidyverse
+
+** Nice visual??
+Tidyverse packages use the pipe operator %>%
+
+This passes data from one function to the next without having to re-call the original data
+
+temp_1 <- function_1(my_data)
+temp_2 <- function_2(temp_1)
+output <- function_3(temp_2)
+rm(temp_1, temp_2)
+
+is the same as:
+
+function_3(function_2(function_1(my_data)))
+
+is the same as:
+
+output <-
+    function_1(my_data) %>%
+    function_2() %>%
+    function_3()
+
+**
+
+Several useful tidyverse functions:
+
+### mutate() adds a new column to a data frame
+```{r}
+westernQuant <-
+    westernQuant %>%
+    mutate(intensity_gene1_log = log2(intensity_gene1))
+westernQuant
+```
+
+### select() allows to select a certain column or several columns.
+```{r}
+westernQuant %>%
+  select(intensity_gene1, group_name)
+```
+
+** not sure? put in activity?? 
+### rename() allows to rename a column.
+```{r}
+westernQuant %>%
+  rename(Group = group_name)
+```
+** 
+
+### arrange() allow us to order a table by a column's values, in ascending or descending order.
+```{r}
+arranged1 <- westernQuant %>%
+  arrange(intensity_gene1)
+
+head(arranged1)
+
+tail(arranged1)
+
+arranged2 <- westernQuant %>%
+  arrange(-intensity_gene1)
+
+head(arranged2)
+
+tail(arranged2)
+```
+
+** Add an example
+```{r}
+subset()
+```
+
+### summarize() and group_by()
+group() silently divides up rows by categories
+summarize() summarizes data within groups in a data frame. This makes a new column and drops all unnecessary columns.
+```{r}
+westernQuant %>%
+  group_by(group_name) %>%
+  summarize(mean_intensity = mean(intensity_gene1)) %>%
+  ungroup()
+```
+
+
+----- maybe put it into activities
+
+wide data vs long data
+
+"tidy" data - https://www.youtube.com/watch?v=K-ss_ag2k9E explanation starts ~ 6 min in
+https://epirhandbook.com/en/images/pivoting/pivot_longer_new.png
+
+Many tidyverse functions require long data
+
+wide data is data where the same measurement is in multiple columns split by something (time, etc)
+```{r}
+temperatures <- read.delim("Sessions/01/weather_temps.txt", header = TRUE)
+temperatures
+```
+
+long data has one column for each measurement and column(s) for the variable(s) that define metadat (time, experimental groups, etc).
+
+pivot_longer() "lengthens" data, increasing the number of rows and decreasing the number of columns.
+```{r}
+long_temps <-
+    temperatures %>%
+    pivot_longer(cols = c(Jan,
+                          Feb,
+                          Mar,
+                          Apr,
+                          May,
+                          Jun,
+                          Jul,
+                          Aug,
+                          Sep,
+                          Oct,
+                          Nov,
+                          Dec),
+                 names_to = "month",
+                 values_to = "temp")
+
+long_temps <-
+    temperatures %>%
+    pivot_longer(cols = c(-Country,
+                          -City),
+                 names_to = "month",
+                 values_to = "temp")
+
+long_temps
+```
+
+# Make it wider with pivot_wider()
+```{r}
+wide_again <-
+  long_temps %>%
+  pivot_wider(names_from = "month",
+              values_from = "temp")
+
+wide_again
+```
+
+
+** get rid of put in activity 
+
+### Joining dataframes
+left_join, right_join, inner_join, full_join
+Graphical explanation of join types:
+https://www.softwaretestinghelp.com/wp-content/qa/uploads/2019/05/Capture-1.jpg
+
+Lets get some other data to use
+```{r}
+rain <- read_tsv("Sessions/01/weather_precip.tsv")
+rain
+
+rain <-
+    rain %>%
+    pivot_longer(cols = c(-Region,
+                          -Country,
+                          -City,
+                          -Yearly),
+                 names_to = "month",
+                 values_to = "rainfall")
+rain
+```
+
+```{r}
+colnames(long_temps)
+colnames(rain)
+nrow(long_temps)
+nrow(rain)
+
+left_join(long_temps,
+          rain)
+
+right_join(long_temps,
+           rain)
+
+full_join(long_temps,
+          rain)
+
+inner_join(long_temps,
+           rain)
+```
+
+### Write a table out to a text file
+```{r}
+write.table(wide_again,
+            file = "exampleOutput.txt",
+            quote = FALSE,
+            sep = "\t",
+            row.names = FALSE)
+
+write_tsv(wide_again,
+          file = "exampleOutputAlso.txt")
+```
+
+
+
+------------
+
+## General stuff
+
+### Common error messages
+```{r, eval=FALSE}
+mean(bob)
+#Error in mean(bob) : object 'bob' not found
+```
+R is looking for a variable named bob, but it doesn't exist
+-   Either make it
+-   Check spelling/capitalization
+-   You forgot to put quotes around a character string
+
+```{r, eval=FALSE}
+arbleGarble(mtcars)
+#Error in arbleGarble(mtcars) : could not find function "arbleGarble"
+```
+R is trying to use the function `arbleGarble()`, but it doesn't exist
+-   Either load in the library that has it
+    -   (or use `coolLib::arbleGarble()`)
+-   Check spelling/capitalization
+
+```{r, eval=FALSE}
+hist(mtcars$mpg, n = 20
+# +
+((((((1))))))
+```
+R thinks you have unfinished business here
+-   Hit escape to cancel the command
+-   Most likely you're missing a parenthesis or a quotation mark somewhere
+-   rainbow brackets!
+
+### googling error messages
+
+### googling "R how do I…"
+
+### = and == have different meaning in R. 
+
+```{r}
+a <- 1
+
+b <- 4
+
+a == b
+
+a = b
+
+a
+
+a != 5
+```
+
+--------------------------------------------------------------------------------
+
+## Activity 3
+
+Read in and check out the Titanic data
+```{r}
+
+```
+Arrange the dataset by age from youngest to oldest and oldest to youngest
+```{r}
+
+```
+
+Use filter to make two new dataframe variables with just male and female only and then calculate the mean/median values for age and fare. Basically, calculate the mean/median age and fare for men vs women
+```{r}
+
+```
+
+Group the dataset by gender and calculate mean fare and age
+```{r}
+
+```
+
+Make a new data frame selecting the following columns: Name, Age, Fare
+```{r}
+
+```
+
+Make a new column 
+```{r}
+
+```
+
+# Part 4
+
+## GGplot2
+
+This is a package that makes much nicer plots than the base R plotting functions
+https://ggplot2.tidyverse.org/reference/
+
+### geoms as layers
+
+When plotting with ggplot2, you're generally building the plot with layers (geoms)
+
+### ggplot
+ggplot(data_frame_here,
+       aes(x = x_here,
+           y = y_here,
+           other_stuff)) +
+    layer_1 +
+    layer_2 +
+    layer_3 +
+    . +
+    . +
+    . +
+    modify_the_plot_somehow
+
+### geom_point()
+Add a scatterplot layer to the plot
+```{r}
+ggplot(mtcars,
+       aes(x = hp,
+           y = carb)) +
+  geom_point()
+
+# Set the overall look of the plot - I like the white background better than gray
+theme_set(theme_bw())
+# Put the title in the middle of the top instead of the left
+theme_update(plot.title = element_text(hjust = 0.5))
+
+ggplot(mtcars,
+       aes(x = hp,
+           y = carb)) +
+  geom_point() +
+  theme_bw()
+```
+
+### aes(fill/color/shape/size)
+Change colors/shapes/etc
+
+If you put the argument outside of aes()
+
+-   applies to everything in that layer
+-   does not show up in the legend
+
+If you put it inside aes()
+
+-   Applies to parts of the layer
+-   Shows up in legend
+
+If it is in the aes() call inside of ggplot() `ggplot(aes(...))`
+
+-   It applies to all layers
+-   Unless that layer overwrites it
+
+```{r}
+mtcars %>%
+  ggplot(aes(x = as.factor(cyl),
+             y = hp)) +
+  geom_boxplot(color = "red",
+               fill = "blue",
+               size = 4)
+
+ggplot(mtcars,
+       aes(x = hp,
+           y = carb,
+           color = as.factor(vs),
+           shape = as.factor(gear),
+           size = disp)) +
+  geom_point()
+```
+
+#### geom_histogram()
+Better looking than hist()
+Specify how many bars to show with `bins`
+```{r}
+hist(storms$pressure, n = 200)
+
+ggplot(storms,
+       aes(x = pressure)) +
+  geom_histogram(bins = 200)
+```
+
+
+#### geom_col()
+Add a barplot layer to the plot
+```{r}
+mtcars %>%
+  rownames_to_column("car_make") %>%
+  mutate(car_make = str_remove(car_make," .+")) %>%
+  ggplot(aes(x = car_make, y = hp)) +
+  geom_col(color = "red") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  ggtitle("this is a title") +
+  theme_update(plot.title = element_text(hjust = 0.5))
+
+mtcars %>%
+  rownames_to_column("car_make") %>%
+  ggplot(aes(y = car_make, x = hp)) +
+  geom_col()
+```
+
+#### labs()
+Add labels
+```{r}
+ggplot(mtcars) +
+  geom_point(aes(x = hp, y = disp)) +
+  labs(x = "X label goes here",
+       y = "Y label goes here",
+       title = "This is a title",
+       subtitle = "Subtitle!",
+       caption = "Cannon et al, 2034!",
+       tag = "A")
+```
+
+
+----- maybe not focus on theme
+
+#### theme()
+A good guide to what theme elements are what:
+https://henrywang.nl/ggplot2-theme-elements-demonstration/
+
+You can change just about any aspect of how the plot looks with theme()
+You'll have to look up how to change each specific bit
+```{r}
+ggplot(storms,
+       aes(x = pressure,
+           fill = category)) +
+  # alpha sets transparency - 0 is clear, 1 is opaque
+  geom_density(alpha = 0.5) +
+  # The brewer color palettes are pretty, and "Set2" is color-blind friendly
+  scale_color_brewer(palette = "Set2") +
+  theme(legend.position = c(0.2, 0.9),
+        legend.direction = "horizontal",
+        legend.key.width = unit(2, "cm"),
+        legend.title = element_text(face = "bold"),
+        strip.background = element_rect(color = "white", fill = "white"),
+        strip.text.x = element_text(size = 30, face = "bold"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.line.x = element_line(color = "black"),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())
+```
+
+------ 
+
+### ggsave()
+```{r}
+ggsave("examplePlot.png",
+       width = 10,
+       height = 8)
+
+plot_in_variable <-
+  ggplot(dplyr::storms,
+         aes(x = pressure)) +
+  geom_histogram(bins = 100) +
+  facet_wrap(~ category)
+
+# ggsave will get the plot size from how big your "plot" windows is in the right pane if you don't specify it!!!!!
+ggsave("anotherExamplePlot.png",
+       plot = plot_in_variable)
+```
+
+### pdf() and png()
+```{r}
+png("examplePlot.png",
+    width = 10,
+    height = 8)
+hist(storms$pressure, n = 200)
+dev.off()
+
+pdf("examplePlot.pdf",
+    width = 10,
+    height = 8)
+hist(storms$pressure, n = 200)
+hist(storms$wind, n = 200)
+dev.off()
+```
+
