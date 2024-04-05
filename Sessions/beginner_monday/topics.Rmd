@@ -1,0 +1,66 @@
+---
+title: "Intro to R"
+author: "Matthew Gust & Liudmila Popolova"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Topics
+
+1. Overview
+
+    a. What is R/RStudio?
+    b. Create an rmd
+    c. What is a working directory
+    
+      i. what's special about an rmd compared to a regular script?
+    d. knitting
+
+2. Variables
+
+    Reading in Data
+
+    a. what is a variable
+    b. what are the different types of variables?
+    
+        i. when would you use each type
+    
+    c. how to name a variable
+    d. operations (arithmetic, logical)
+
+3. Functions
+  
+    a. How to get help on functions?
+
+4. Documentation/errors
+
+5. Packages
+
+    a. Broadly, what they are
+    b. How to install
+    c. Tidyverse
+    
+        i. maybe touch on pivoting but don't have to get too into it
+
+6. Creating/saving files
+
+7. Data structures
+
+    a. dataframes
+    b. matrices
+    c. lists
+
+8. Manipulating Data
+    
+    a. summarize
+    b. tidyverse
+
+9. Visualizing data (maybe this fits into functions?)
+    
+    a. ggplot? i think it might be too complicated for beginners and not necessary
+      powerpoint slides here
+    
