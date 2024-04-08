@@ -1,0 +1,49 @@
+---
+title: "Demo of Single Cell ATAC analysis"
+author: "Matt Cannon"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+format:
+    html:
+        toc: true
+        toc_float: true
+        toc_depth: 5
+        number_sections: false
+        code-fold: true
+        code-link: true
+        df-print: kable
+        self-contained: true
+execute:
+    cache: true
+knitr:
+    opts_chunk:
+        cache.lazy: false
+lightbox: true
+---
+
+# Sample summary
+
+- Our data
+    - stuff here
+
+# Load packages
+
+```{r lib}
+library(tidyverse)
+
+# Set random generator seed to facilitate reproducibility
+set.seed(888)
+```
+
+## Make up directory structure
+```{bash mkdirs, eval=TRUE}
+for directoryName in \
+  output \
+  output/figures \
+  output/rdata
+do
+  if [ ! -d ${directoryName} ]
+  then
+    mkdir -p ${directoryName}
+  fi
+done
+```
