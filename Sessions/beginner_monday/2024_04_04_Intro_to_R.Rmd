@@ -276,23 +276,7 @@ westernQuant[, 1]
 westernQuant[c(1:5), ]
 ```
 
--------
-** Maybe put this in the activity or make a note ** 
-
-Many functions will return an error if the data contain NAs. To overcome this issue, you need to include an na.rm = TRUE argument.
-```{r}
-min(westernQuant$intensity_gene2)
-
-max(westernQuant$intensity_gene2)
-
-mean(westernQuant$intensity_gene2)
-
-min(westernQuant$intensity_gene2, na.rm = TRUE)
-
-max(westernQuant$intensity_gene2, na.rm = TRUE)
-
-mean(westernQuant$intensity_gene2, na.rm = TRUE)
-```
+The functions max, min, mean, and median will return some summary statistics. These functions -- along with many others -- won't return the expected result if there are NA values present. Use the argument `na.rm = TRUE` to get around this issue.
 
 We can use functions to make plots. Here, we use our data to make a boxplot.
 ```{r plot}
@@ -305,8 +289,7 @@ Here, we make a histogram of our data.
 hist(westernQuant$intensity_gene1)
 ```
 
-**
-------------------
+`plot()` is another commonly used base plotting function.
 
 
 --------------------------------------------------------------------------------
@@ -315,37 +298,40 @@ hist(westernQuant$intensity_gene1)
 
 -- Make sure to save the summary output to a variable 
 
-Read in data the titanic dataset
+Read in the starwars dataset.
+
 Use read.delim()
 ```{r}
 
 ```
 
-Summarize the dataset
+Use the `head()` function to get a quick first-glance at the dataset. 
+
 ```{r}
 
 ```
 
-Use the head() and tail() functions to take a closer look at the dataset
+Access the 3rd column of the data frame, i.e. the "mass" column. Save it to a variable. 
 ```{r}
 
 ```
 
-Access the 3rd column of the data frame, i.e. the "Name" column. Save it to a variable. 
+Use the function `max()` to find the tallest height of all the characters.
 ```{r}
 
 ```
 
-Access the third row of the dataset, save the output to a variable. 
-```{r}
-
-```
-Retrieve the name of the person specified in row 3 using square brackets. 
+Access the tenth row of the dataset, save the output to a variable. 
 ```{r}
 
 ```
 
-Make variables that contain the Mean/median/min/max of age/fare
+Retrieve the name of the person specified in row 10 using square brackets. 
+```{r}
+
+```
+
+Create a scatterplot of `height` vs `weight`
 ```{r}
 
 ```
