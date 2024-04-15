@@ -289,7 +289,7 @@ Here, we make a histogram of our data.
 hist(westernQuant$intensity_gene1)
 ```
 
-`plot()` is another commonly used base plotting function.
+`plot()` is another commonly used base plotting function for creating scatterplots.
 
 
 --------------------------------------------------------------------------------
@@ -331,7 +331,7 @@ Retrieve the name of the person specified in row 10 using square brackets.
 
 ```
 
-Create a scatterplot of `height` vs `weight`
+Create a histogram of `height`. What do you expect to happen?
 ```{r}
 
 ```
@@ -693,7 +693,7 @@ ggplot(mtcars,
 ```
 
 ### aes(fill/color/shape/size)
-Change colors/shapes/etc
+Change the figure's aesthetics (colors/shapes/etc)
 
 If you put the argument outside of aes()
 
@@ -835,4 +835,3 @@ hist(storms$pressure, n = 200)
 hist(storms$wind, n = 200)
 dev.off()
 ```
-
