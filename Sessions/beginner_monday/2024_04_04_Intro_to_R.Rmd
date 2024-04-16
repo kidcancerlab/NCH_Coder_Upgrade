@@ -246,7 +246,8 @@ Think of something interesting you could do with some of your variables. Look up
 
 Data are usually available to us in form of larger files, i.e. not single variables. There are functions in R that enable us to read in files. read.delim() can be used to read in text (.txt) files.
 ```{r}
-westernQuant <- read_tsv("Sessions/01/westernQuant.txt")
+westernQuant <- read.table("Sessions/beginner_monday/westernQuant.txt",
+                           header = TRUE)
 
 westernQuant
 ```
@@ -273,7 +274,7 @@ westernQuant[1, ]
 westernQuant[, 1]
 
 # First 5 rows, all columns
-westernQuant[c(1:5), ]
+westernQuant[c(1:5),]
 ```
 
 The functions max, min, mean, and median will return some summary statistics. These functions -- along with many others -- won't return the expected result if there are NA values present. Use the argument `na.rm = TRUE` to get around this issue.
@@ -657,7 +658,9 @@ https://ggplot2.tidyverse.org/reference/
 
 ### geoms as layers
 
-When plotting with ggplot2, you're generally building the plot with layers (geoms)
+When plotting with ggplot2, you're generally building the plot with layers (geoms). A layer is just a word for a component of the plot that represents a specific aspect of the data visualization.
+
+A geom is short for "geometric object", which is ggplot-speak for the elements in your plot that represent your data, such as a point for a scatterplot, a bar for a barplot, etc.
 
 ### ggplot
 ggplot(data_frame_here,
@@ -671,6 +674,13 @@ ggplot(data_frame_here,
     . +
     . +
     modify_the_plot_somehow
+
+### Creating a Layer
+
+One argument you always need to provide when creating a ggplot object is the data. This should be a dataframe.
+
+Another important aspect of ggplots is the aesthetics. This is set in the plot above by calling `aes()` in the `ggplot()` function call above. This is necessary for specifying your x and y variables, and it is also useful in changing how geoms in your graph are colored, shaped, and/or sized (more on these last 3 later).
+
 
 ### geom_point()
 Add a scatterplot layer to the plot
@@ -693,7 +703,6 @@ ggplot(mtcars,
 ```
 
 ### aes(fill/color/shape/size)
-Change the figure's aesthetics (colors/shapes/etc)
 
 If you put the argument outside of aes()
 
@@ -712,17 +721,16 @@ If it is in the aes() call inside of ggplot() `ggplot(aes(...))`
 
 ```{r}
 mtcars %>%
-  ggplot(aes(x = as.factor(cyl),
-             y = hp)) +
-  geom_boxplot(color = "red",
-               fill = "blue",
-               size = 4)
+    ggplot(aes(x = as.factor(cyl),
+               y = hp)) +
+    geom_boxplot(color = "red",
+                 fill = "blue",
+                 size = 4)
 
 ggplot(mtcars,
        aes(x = hp,
            y = carb,
            color = as.factor(vs),
-           shape = as.factor(gear),
            size = disp)) +
   geom_point()
 ```
@@ -743,13 +751,10 @@ ggplot(storms,
 Add a barplot layer to the plot
 ```{r}
 mtcars %>%
-  rownames_to_column("car_make") %>%
-  mutate(car_make = str_remove(car_make," .+")) %>%
-  ggplot(aes(x = car_make, y = hp)) +
-  geom_col(color = "red") +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  ggtitle("this is a title") +
-  theme_update(plot.title = element_text(hjust = 0.5))
+    rownames_to_column("car_make") %>%
+    mutate(car_make = str_remove(car_make," .+")) %>%
+    ggplot(aes(x = car_make, y = hp, color = as.factor(car_make))) +
+    geom_col(fill = "black")
 
 mtcars %>%
   rownames_to_column("car_make") %>%
@@ -770,38 +775,25 @@ ggplot(mtcars) +
        tag = "A")
 ```
 
-
------ maybe not focus on theme
-
 #### theme()
 A good guide to what theme elements are what:
 https://henrywang.nl/ggplot2-theme-elements-demonstration/
 
 You can change just about any aspect of how the plot looks with theme()
 You'll have to look up how to change each specific bit
-```{r}
-ggplot(storms,
-       aes(x = pressure,
-           fill = category)) +
-  # alpha sets transparency - 0 is clear, 1 is opaque
-  geom_density(alpha = 0.5) +
-  # The brewer color palettes are pretty, and "Set2" is color-blind friendly
-  scale_color_brewer(palette = "Set2") +
-  theme(legend.position = c(0.2, 0.9),
-        legend.direction = "horizontal",
-        legend.key.width = unit(2, "cm"),
-        legend.title = element_text(face = "bold"),
-        strip.background = element_rect(color = "white", fill = "white"),
-        strip.text.x = element_text(size = 30, face = "bold"),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        axis.line.x = element_line(color = "black"),
-        axis.text.y = element_blank(),
-        axis.ticks.y = element_blank())
-```
 
------- 
+### Facet
+
+Sometimes you'll want to create subplots of your data. This is where `facet_wrap` and `facet_grid` come in. These functions allow us to split up a plot based on certain factor variables.
+
+The difference between the two is that facet_wrap will "wrap" a 1-dimensional set of panels (split by only one variable) into 2 dimensions. facet_grid will create a 2-dimensional "grid" of panels in which one variable defines the rows and another defines the columns.
+
+```{r}
+ggplot(mtcars) +
+    geom_point(aes(x = hp, y = disp)) +
+    facet_wrap(facets = "cyl") +
+    labs(title = "disp vs. hp Faceted by cyl")
+```
 
 ### ggsave()
 ```{r}
@@ -834,4 +826,18 @@ pdf("examplePlot.pdf",
 hist(storms$pressure, n = 200)
 hist(storms$wind, n = 200)
 dev.off()
+```
+
+
+
+## Activity 4 (time permitting)
+
+Using the `iris` dataset, make a scatterplot of `Sepal.Length` vs `Sepal.Width`.
+```{r}
+
+```
+
+Create the same plot, but color the points by their `Species`, and size them by their `Petal.Length`.
+```{r}
+
 ```
