@@ -1,0 +1,176 @@
+---
+title: "Intro to R 2023 Answer Key"
+author: "Matt Gust and Luda Popova"
+date: '2023-04-23'
+output: html_document
+---
+```{r load_packages}
+library(tidyverse)
+```
+--------------------------------------------------------------------------------
+
+# Part 1
+
+# Activity 1
+
+Create a new Rmd file. Use ctrl+alt+i to insert a new R chunk.
+
+Within that file, create two variables holding numerical data.
+Knowing that +, -, /, and * work like regular arithmetic operators in R, add your two variables together.
+```{r}
+
+```
+
+Create two variables holding the following values: "10" and "1". Make sure to enclose your variables in quotes.
+Try adding your two new variables together. Observe the error message.
+```{r eval=FALSE}
+
+```
+
+Using as.numeric() function, try to fix the error.
+```{r}
+
+```
+
+Create a set of categorical variables specifying days of the week. Convert them to factors, specifying the correct order.
+
+Use sort() function to make sure everything worked.
+```{r}
+
+```
+
+If you're fast:
+Think of something interesting you could do with some of your variables. Look up the function that would help you do that and read the documentation. Try it out.
+```{r}
+
+```
+
+--------------------------------------------------------------------------------
+
+# Part 2
+
+
+--------------------------------------------------------------------------------
+
+## Activity 2
+
+-- Make sure to save the summary output to a variable 
+
+Read in the starwars dataset.
+
+Use read.delim()
+```{r}
+starwars <- read.delim("Sessions/beginner_monday/starwars.txt", sep = " ")
+```
+
+Use the `head()` function to get a quick first-glance at the dataset. If things don't look right, try specifying the delimiter in read.delim in the first part.
+
+```{r}
+head(starwars)
+```
+
+Access the 3rd column of the data frame, i.e. the "mass" column. Save it to a variable. 
+```{r}
+starwars_mass <- starwars$mass
+```
+
+Use the function `max()` to find the tallest height of all the characters.
+```{r}
+max(starwars$height, na.rm = TRUE)
+```
+
+Access the tenth row of the dataset, save the output to a variable. 
+```{r}
+starwars_10th_row <- starwars[10,]
+```
+
+Retrieve the name of the person specified in row 10 using square brackets. 
+```{r}
+starwars_10th_row[1]
+
+# OR
+
+starwars[10, 1]
+```
+
+Create a histogram of `height`. What do you expect to happen?
+```{r}
+hist(starwars$height)
+```
+
+--------------------------------------------------------------------------------
+
+# Part 3
+
+--------------------------------------------------------------------------------
+
+## Activity 3
+
+Read in and check out the Titanic data
+```{r}
+
+```
+Arrange the dataset by age from youngest to oldest and oldest to youngest
+```{r}
+
+```
+
+Use filter to make two new dataframe variables with just male and female only and then calculate the mean/median values for age and fare. Basically, calculate the mean/median age and fare for men vs women
+```{r}
+
+```
+
+Group the dataset by gender and calculate mean fare and age
+```{r}
+
+```
+
+Make a new data frame selecting the following columns: Name, Age, Fare
+```{r}
+
+```
+
+Make a new column 
+```{r}
+
+```
+
+# Part 4
+
+## Activity 4 (time permitting)
+
+Using the `iris` dataset, make a scatterplot of `Sepal.Length` vs `Sepal.Width`.
+```{r}
+ggplot(iris, aes(x = Sepal.Length, y = Sepal.Width)) +
+    geom_point()
+```
+
+Create the same plot, but color the points by their `Species`, and size them by their `Petal.Length`.
+```{r}
+ggplot(iris, aes(x = Sepal.Length, y = Sepal.Width, color = Species)) +
+    geom_point()
+```
+
+Create a histogram of `Petal.Width` with, with one plot for each `Species` of flower.
+```{r}
+ggplot(iris, aes(x = Petal.Width)) +
+    geom_histogram() +
+    facet_wrap("Species")
+```
+
+Super Duper Hard Impossible Boss-Level Challenge (see slide)
+
+Hints:
+    refer to the link from the "theme" subheader to figure out how to change the panel and plot backgrounds
+
+    the panel background color is lavender, the plot background is lightgreen, the panel lines are black
+
+```{r}
+ggplot(iris, aes(x = Species, y = Sepal.Length, color = Species)) +
+    geom_boxplot() +
+    theme(panel.background = element_rect(fill = "lavender"),
+          panel.grid = element_line(color = "black", size = 0.2),
+          plot.background = element_rect(fill = "lightgreen")) +
+    labs(y = "Sepal Length",
+         title = "Super Duper Hard Impossible Boss-Level Challenge Plot")
+```

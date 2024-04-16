@@ -306,7 +306,7 @@ Use read.delim()
 
 ```
 
-Use the `head()` function to get a quick first-glance at the dataset. 
+Use the `head()` function to get a quick first-glance at the dataset. If things don't look right, try specifying the delimiter in read.delim in the first part.
 
 ```{r}
 
@@ -795,6 +795,8 @@ ggplot(mtcars) +
     labs(title = "disp vs. hp Faceted by cyl")
 ```
 
+IMPORTANT: The variable(s) that your faceting on need to be in quotes in the function call.
+
 ### ggsave()
 ```{r}
 ggsave("examplePlot.png",
@@ -838,6 +840,22 @@ Using the `iris` dataset, make a scatterplot of `Sepal.Length` vs `Sepal.Width`.
 ```
 
 Create the same plot, but color the points by their `Species`, and size them by their `Petal.Length`.
+```{r}
+
+```
+
+Create a histogram of `Petal.Width` with, with one plot for each `Species` of flower.
+```{r}
+
+```
+
+Super Duper Hard Impossible Boss-Level Challenge (see slide)
+
+Hints:
+    refer to the link from the "theme" subheader to figure out how to change the panel and plot backgrounds
+
+    the panel background color is lavender, the plot background is lightgreen, the panel lines are black
+
 ```{r}
 
 ```
