@@ -244,10 +244,11 @@ Think of something interesting you could do with some of your variables. Look up
 
 ## Reading in files
 
-Data are usually available to us in form of larger files, i.e. not single variables. There are functions in R that enable us to read in files. read.delim() can be used to read in text (.txt) files.
+Data are usually available to us in form of larger files, i.e. not single variables. There are functions in R that enable us to read in files. read.delim() and read.table() can be used to read in text (.txt) files.
 ```{r}
-westernQuant <- read.table("Sessions/beginner_monday/westernQuant.txt",
-                           header = TRUE)
+westernQuant <-
+    read.table("Sessions/beginner_monday/westernQuant.txt",
+               header = TRUE)
 
 westernQuant
 ```
@@ -277,7 +278,7 @@ westernQuant[, 1]
 westernQuant[c(1:5),]
 ```
 
-The functions max, min, mean, and median will return some summary statistics. These functions -- along with many others -- won't return the expected result if there are NA values present. Use the argument `na.rm = TRUE` to get around this issue.
+The functions max, min, mean, and median will return summary statistics. These functions -- along with many others -- won't return the expected result if there are NA values present. Use the argument `na.rm = TRUE` to get around this issue.
 
 We can use functions to make plots. Here, we use our data to make a boxplot.
 ```{r plot}
