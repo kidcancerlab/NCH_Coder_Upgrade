@@ -1,0 +1,40 @@
+## Download raw data for ATAC reference
+from https://atlas.gs.washington.edu/mouse-atac/data/
+
+
+```{bash get_raw}
+wget http://krishna.gs.washington.edu/content/members/ajh24/mouse_atlas_data_release/matrices/atac_matrix.tfidf.qc_filtered.mtx.gz
+wget http://krishna.gs.washington.edu/content/members/ajh24/mouse_atlas_data_release/matrices/atac_matrix.tfidf.qc_filtered.peaks.txt
+wget http://krishna.gs.washington.edu/content/members/ajh24/mouse_atlas_data_release/matrices/atac_matrix.tfidf.qc_filtered.cells.txt
+wget http://krishna.gs.washington.edu/content/members/ajh24/mouse_atlas_data_release/metadata/cell_metadata.txt
+```
+
+```{r}
+raw_data_dir <- "/home/gdworkshop/lab/Sessions/adv_tuesday"
+
+metadata <-
+    read_tsv(paste0(raw_data_dir, "/cell_metadata.txt"),
+             show_col_types = FALSE) %>%
+    filter(tissue == "WholeBrain")
+
+ref_matrix <-
+    Matrix::readMM(paste0(raw_data_dir, "/atac_matrix.tfidf.qc_filtered.mtx.gz"))
+
+rownames(ref_matrix) <-
+    read_tsv(paste0(raw_data_dir, "/atac_matrix.tfidf.qc_filtered.peaks.txt"),
+             col_names = FALSE) %>%
+    pull(X1)
+
+colnames(ref_matrix) <-
+    read_tsv(paste0(raw_data_dir, "/atac_matrix.tfidf.qc_filtered.cells.txt"),
+             col_names = FALSE) %>%
+    pull(X1)
+
+ref_matrix <- ref_matrix[, metadata$cell]
+
+# This should be TRUE
+all(metadata$cell == colnames(ref_matrix))
+
+ref_labels <- metadata$cell_label
+
+```
