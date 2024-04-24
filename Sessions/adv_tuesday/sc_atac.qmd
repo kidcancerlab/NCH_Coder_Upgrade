@@ -144,6 +144,8 @@ seurat_obj$percent_mito <-
 
 This adds in information about where the genes are located in the genome. You'll need to use an annotation version appropriate for the species and genome version you used to align the data to. If you can't find one, you can use a gtf, but getting the object format correct can be tricky. We're using EnsDb.Mmusculus.v79 since our data was aligned to mm10.
 
+We also change the seqlevels to be in the format "chr1", "chr2", etc. and set the genome to "mm10" to match the rest of the data such as the rownames.
+
 ```{r add_gene_info}
 annotations <-
     GetGRangesFromEnsDb(ensdb = EnsDb.Mmusculus.v79::EnsDb.Mmusculus.v79)
@@ -200,6 +202,8 @@ seurat_obj@meta.data %>%
     labs(title = "Number of ATAC Fragments per Cell",
          x = "Number of ATAC fragments",
          y = "Number of cells")
+
+ggsave("figures/ncount_peaks.png")
 ```
 
 ```{r plot_nucleosome}
@@ -210,6 +214,8 @@ seurat_obj@meta.data %>%
     labs(title = "Nucleosome Signal",
          x = "Nucleosome signal",
          y = "Number of cells")
+
+ggsave("figures/nucleosome_signal.png")
 ```
 
 ```{r}
@@ -220,6 +226,8 @@ seurat_obj@meta.data %>%
     labs(title = "TSS Enrichment",
          x = "TSS enrichment",
          y = "Number of cells")
+
+ggsave("figures/tss_enrichment.png")
 ```
 
 ```{r plot_mitochondrial}
@@ -230,6 +238,8 @@ seurat_obj@meta.data %>%
     labs(title = "Percent Mitochondrial Reads",
          x = "Percent mitochondrial reads",
          y = "Number of cells")
+
+ggsave("figures/mitochondrial_reads.png")
 ```
 
 ```{r plot_frip}
@@ -240,6 +250,8 @@ seurat_obj@meta.data %>%
     labs(title = "Percent Reads in Peaks",
          x = "Percent reads in peaks",
          y = "Number of cells")
+
+ggsave("figures/frip.png")
 ```
 
 Generally want:
@@ -292,13 +304,17 @@ seurat_obj <-
 seurat_obj$ATAC_cluster <- Idents(seurat_obj)
 
 DimPlot(seurat_obj,
-        group.by = "cell_type",
+        group.by = "ATAC_cluster",
         reduction = "umap_atac",
         label = TRUE)
 
 qs::qsave(seurat_obj, paste0(data_path,
                              "mouse_brain_5k_sobj_3.qs"))
 ```
+
+## Assigning cell types
+https://atlas.gs.washington.edu/mouse-atac/data/
+
 
 ### Find differential accessibility between cell types
 Also add in annotation for nearest feature
