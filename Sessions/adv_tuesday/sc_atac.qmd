@@ -25,11 +25,31 @@ lightbox: true
 - Our data
     - stuff here
 
+## Set up environment
+The HPC support folks set up a module for us to use on Franklin. We can load it with the following command:
+`ml gdworkshop_2024`  # Or whatever it ends up getting named
+ml HDF5
+
+
+This module includes the R packages we'll be using for the workshop.
+
+If you're on the IGM cluster, you can...
+
+
+```{bash setup}
+ml purge
+ml gdworkshop_2024 # or whatever it ends up getting named
+```
+
 # Load packages
 
 ```{r lib}
 library(tidyverse)
+library(Signac)
+library(Seurat)
 
+theme_set(theme_bw())
+theme_update(plot.title = element_text(hjust = 0.5))
 # Set random generator seed to facilitate reproducibility
 set.seed(888)
 ```
@@ -46,4 +66,316 @@ do
     mkdir -p ${directoryName}
   fi
 done
+```
+
+A lot of the code is adapted from https://stuartlab.org/signac/articles/pbmc_vignette
+
+
+## Load in data
+```{r load_data}
+data_directory <- "/home/gdworkshop/lab/Sessions/adv_tuesday/"
+
+raw_atac <-
+    Read10X_h5(paste0(data_directory,
+                      "8k_mouse_cortex_ATACv2_nextgem_Chromium_X_filtered_peak_bc_matrix.h5"))
+```
+
+The output from Read10X_h5 here is a sparse matrix. We'll pass this to another function to create a chromatin assay object.
+
+Something to be aware of, here we have ATAC data. When I've run cellranger on multiomics data, the output h5 file contains both the ATAC and GEX data in a file named `filtered_feature_bc_matrix.h5`. When this is the case, the output from Read10X_h5 will be a named list with two elements, one for the ATAC data and one for the GEX data. You can access the ATAC data with raw_atac$Peaks and the GEX data with raw_atac$`Gene Expression`. Note the tick marks (not single quotes) around the second element name because of the space in the name. You'll get a message "Genome matrix has multiple modalities, returning a list of matrices for this genome" informing you of this.
+
+Lets check what we need to pass for the `sep` argument
+```{r check_sep}
+head(rownames(raw_atac))
+```
+
+The format is `chr:start-end`, so we'll pass c(":", "-") to the `sep` argument.
+## Create chromatin assay object
+```{r create_chromatin_object}
+chrom_obj <-
+    CreateChromatinAssay(counts = raw_atac,
+                         fragments = paste0(data_directory,
+                                            "8k_mouse_cortex_ATACv2_nextgem_Chromium_X_fragments.tsv.gz"),
+                         sep = c(":", "-"),
+                         min.cells = 10,
+                         min.features = 200)
+
+rm(raw_atac)
+```
+
+## Create Seurat object
+We will then create a Seurat object from this chromatin assay object.
+
+```{r create_seurat_object}
+seurat_obj <-
+    CreateSeuratObject(counts = chrom_obj,
+                       assay = "peaks")
+
+rm(chrom_obj)
+```
+
+### Add in metadata output by cellranger
+
+Cellranger outputs a nice csv file with metadata about the cells. We can read this in and add it to the Seurat object to aid in filtering the data. This file may have different names depending on the version of cellranger you used.
+
+We have to be sure the barcodes are the rownames of the metadata so that AddMetaData can match the metadata to the cells in the Seurat object.
+
+```{r add_metadata}
+metadata <-
+    read_csv(paste0(data_directory,
+                    "8k_mouse_cortex_ATACv2_nextgem_Chromium_X_singlecell.csv")) %>%
+    filter(barcode != "NO_BARCODE") %>%
+    column_to_rownames("barcode")
+
+seurat_obj <-
+    AddMetaData(object = seurat_obj,
+                metadata = metadata)
+```
+
+### Calculate the percent mitochondrial reads
+You may not need to do this depending on the version of cellranger you used. The newer versions of cellranger output the percent mitochondrial reads in the metadata file. I'll add a caveat here that I don't know if in the metadata, the number of mitochondrial reads is pre- or post-UMI PCR duplicate removal. Here, I'm assuming it's pre-UMI PCR duplicate removal, because some cells have more mitochondrial reads than reads that passed the filtering, and so I'm using "total" as the denominator.
+
+```{r}
+seurat_obj$percent_mito <-
+    seurat_obj$mitochondrial / seurat_obj$total * 100
+```
+
+## Add gene annotation information
+
+This adds in information about where the genes are located in the genome. You'll need to use an annotation version appropriate for the species and genome version you used to align the data to. If you can't find one, you can use a gtf, but getting the object format correct can be tricky. We're using EnsDb.Mmusculus.v79 since our data was aligned to mm10.
+
+```{r add_gene_info}
+annotations <-
+    GetGRangesFromEnsDb(ensdb = EnsDb.Mmusculus.v79::EnsDb.Mmusculus.v79)
+
+seqlevels(annotations)
+seqlevels(annotations) <- paste0('chr', seqlevels(annotations))
+genome(annotations) <- "mm10"
+
+Annotation(seurat_obj) <- annotations
+```
+
+## QC
+
+Lets calculate a bunch of QC metrics. After we calculate them all we'll plot them and then use them to filter out poor quality data.
+
+### Nucleosome signal
+
+Calculate the strength of the nucleosome signal per cell. Computes the ratio of fragments between 147 bp and 294 bp (mononucleosome) to fragments < 147 bp (nucleosome-free)
+
+A really high ratio could indicate that the transposition step of the ATAC-seq protocol did not work well, so we'll filter that out later
+
+```{r nucleosome_signal}
+seurat_obj <- NucleosomeSignal(seurat_obj)
+```
+
+### Transcription start site enrichment
+
+Calculate the enrichment of fragments around transcription start sites (TSS). This is a measure of the signal-to-noise ratio of the ATAC-seq data. In theory, the ATAC-seq signal should be enriched around TSSs. We can filter out cells with low enrichment later
+
+From https://www.encodeproject.org/data-standards/terms/:
+> "The reads around a reference set of TSSs are collected to form an aggregate distribution of reads centered on the TSSs and extending to 2000 bp in either direction (for a total of 4000bp). This distribution is then normalized by taking the average read depth in the 100 bps at each of the end flanks of the distribution (for a total of 200bp of averaged data) and calculating a fold change at each position over that average read depth. This means that the flanks should start at 1, and if there is high read signal at transcription start sites (highly open regions of the genome) there should be an increase in signal up to a peak in the middle. We take the signal value at the center of the distribution after this normalization as our TSS enrichment metric."
+
+```{r tss_enrichment}
+seurat_obj <- TSSEnrichment(seurat_obj)
+```
+
+### Percent of reads in peaks
+The percentage of reads in peaks is a measure of the signal-to-noise ratio of the ATAC-seq data. In theory, the ATAC-seq signal should be enriched in peaks. We can filter out cells with low enrichment later.
+
+```{r pct_reads_in_peaks}
+seurat_obj$pct_reads_in_peaks <-
+    seurat_obj$peak_region_fragments / seurat_obj$passed_filters * 100
+```
+
+## Plot QC metrics
+It's always good to look at your data. We'll plot the QC metrics to see how best to filter out poor quality data.
+
+```{r plot_ncount}
+seurat_obj@meta.data %>%
+    ggplot(aes(x = nCount_peaks)) +
+    geom_histogram(bins = 200) +
+    geom_vline(xintercept = 5000, linetype = "dashed", color = "red") +
+    geom_vline(xintercept = 50000, linetype = "dashed", color = "red") +
+    labs(title = "Number of ATAC Fragments per Cell",
+         x = "Number of ATAC fragments",
+         y = "Number of cells")
+```
+
+```{r plot_nucleosome}
+seurat_obj@meta.data %>%
+    ggplot(aes(x = nucleosome_signal)) +
+    geom_histogram(bins = 200) +
+    geom_vline(xintercept = 4, linetype = "dashed", color = "red") +
+    labs(title = "Nucleosome Signal",
+         x = "Nucleosome signal",
+         y = "Number of cells")
+```
+
+```{r}
+seurat_obj@meta.data %>%
+    ggplot(aes(x = TSS.enrichment)) +
+    geom_histogram(bins = 200) +
+    geom_vline(xintercept = 1, linetype = "dashed", color = "red") +
+    labs(title = "TSS Enrichment",
+         x = "TSS enrichment",
+         y = "Number of cells")
+```
+
+```{r plot_mitochondrial}
+seurat_obj@meta.data %>%
+    ggplot(aes(x = percent_mito)) +
+    geom_histogram(bins = 200) +
+    geom_vline(xintercept = 10, linetype = "dashed", color = "red") +
+    labs(title = "Percent Mitochondrial Reads",
+         x = "Percent mitochondrial reads",
+         y = "Number of cells")
+```
+
+```{r plot_frip}
+seurat_obj@meta.data %>%
+    ggplot(aes(x = pct_reads_in_peaks)) +
+    geom_histogram(bins = 200) +
+    geom_vline(xintercept = 20, linetype = "dashed", color = "red") +
+    labs(title = "Percent Reads in Peaks",
+         x = "Percent reads in peaks",
+         y = "Number of cells")
+```
+
+Generally want:
+
+-   TSS enrichment > 1
+-   FRiP > 0.2
+-   Nucleosome signal < 4
+-   Low percent mitochondrial reads
+-   nCount_peaks - trim off outliers
+
+Also:
+You're going to have high PCR duplicate rates unless your sequencing depth is really shallow. Not a big deal. The number will give you an idea of how "rich" your library was.
+
+High ATAC percent mito may indicate "dirty" nuclei and point toward issues with the nuclei isolation step.
+
+```{r filter_bad_cells}
+seurat_obj <-
+    subset(seurat_obj,
+           subset = nCount_peaks > 5000 &
+                    nCount_peaks < 50000 &
+                    pct_reads_in_peaks > 10 &
+                    nucleosome_signal < 4 &
+                    TSS.enrichment > 1 &
+                    percent_mito < 10)
+```
+
+## Process the seurat data
+For ATAC, we do a couple of things differentially
+
+- We don't use the standard normalization, we use term frequency-inverse document frequency (TF-IDF) instead
+    - "This is a two-step normalization procedure, that both normalizes across cells to correct for differences in cellular sequencing depth, and across peaks to give higher values to more rare peaks."
+- We don't run PCA
+    - We run singular value decomposition (SVD) on the TD-IDF matrix generated by RunTDIDF()
+    - "In linear algebra, the singular value decomposition (SVD) is a factorization of a real or complex matrix. It generalizes the eigendecomposition of a square normal matrix with an orthonormal eigenbasis to any m x n matrix." - Wikipedia
+    - "The combined steps of TF-IDF followed by SVD are known as latent semantic indexing (LSI), and were first introduced for the analysis of scATAC-seq data by Cusanovich et al. 2015."
+    - The reduction is named "lsi"
+
+```{r}
+seurat_obj <-
+    seurat_obj %>%
+    RunTFIDF() %>%
+    FindTopFeatures(min.cutoff = "q0") %>%
+    RunSVD() %>%
+    FindNeighbors(reduction = "lsi") %>%
+    FindClusters(algorithm = 3) %>%
+    RunUMAP(reduction = "lsi",
+            dims = 2:30,
+            reduction.name = "umap_atac")
+
+seurat_obj$ATAC_cluster <- Idents(seurat_obj)
+
+DimPlot(seurat_obj,
+        group.by = "cell_type",
+        reduction = "umap_atac",
+        label = TRUE)
+
+qs::qsave(seurat_obj, paste0(data_path,
+                             "mouse_brain_5k_sobj_3.qs"))
+```
+
+### Find differential accessibility between cell types
+Also add in annotation for nearest feature
+```{r}
+Idents(seurat_obj) <- "cell_type"
+
+da_peaks <-
+    FindMarkers(seurat_obj,
+                ident.1 = "NPCs",
+                ident.2 = "Neurons",
+                test.use = "LR",
+                latent.vars = "atac_peak_region_fragments") %>%
+    rownames_to_column("region") %>%
+    left_join(ClosestFeature(seurat_obj,
+                             regions = .$region) %>%
+        dplyr::rename(region = query_region))
+```
+
+# Plot ATAC peaks
+Let's pick out three up and three down regulated regions
+```{r}
+fav_peaks <-
+    da_peaks %>%
+    filter(p_val_adj < 1e-20 &
+               abs(avg_log2FC) > 0.5 &
+               gene_biotype == "protein_coding" &
+               distance == 0) %>%
+    group_by(avg_log2FC > 0) %>%
+    arrange(avg_log2FC) %>%
+    slice_head(n = 3) %>%
+    pull(region)
+
+CoveragePlot(seurat_obj,
+             region = fav_peaks,
+             idents = c("NPCs", "Neurons"),
+             extend.upstream = 2000,
+             extend.downstream = 2000)
+```
+
+One issue:
+
+If you have multiple samples called with cellranger-arc, their peaks are different, so you can't really compare them directly.
+I'm not going to walk through this, due to time constraints, but just wanted to show a couple of options to deal with this.
+
+You can either re-call the peaks: https://stuartlab.org/signac/articles/peak_calling.html
+
+Or redefine their boundaries: https://stuartlab.org/signac/articles/merging.html
+
+https://github.com/kidcancerlab/rrrSingleCellUtils/blob/master/R/multiomics.R#L18
+
+This code won't work since the files don't exist, it's just to show you how to use the function
+```{r eval=FALSE}
+# Documentation is still a work in progress
+library(rrrSingleCellUtils)
+peak_beds <-
+    paste0(data_path,
+           c("sample_1/atac_peaks.bed",
+             "sample_2/atac_peaks.bed",
+             "sample_3/atac_peaks.bed"))
+
+frag_paths <-
+    paste0(data_path,
+           c("sample_1/atac_fragments.tsv.gz",
+             "sample_2/atac_fragments.tsv.gz",
+             "sample_3/atac_fragments.tsv.gz"))
+
+cell_ids <-
+    c("sample_1",
+      "sample_2",
+      "sample_3")
+
+# Uses {parallel} to run faster
+merged_atac_data <-
+    merge_atac(peak_beds = peak_beds,
+               frag_paths = frag_paths,
+               cell_ids = cell_ids,
+               n_regions_simul = 100000,
+               threads = 3) %>%
+    subset(nCount_ATAC > 100)
 ```
