@@ -15,8 +15,237 @@ library(ggrepel)
 library(tidyverse)
 library(stringr)
 library(harmony)
+library(scMiko)
+
 ```
 
+# Merging datasets
+Merging single cell RNA-seq datasets is a common task in the analysis of
+single cell data. It allows researchers to combine data from different
+experiments, conditions, or technologies to increase the sample size and
+improve the statistical power of the analysis.
+In this tutorial, we will demonstrate how to merge two single cell RNA-seq
+datasets using the MergeSeurat function in Seurat. The datasets used in this
+tutorial are loaded from two files named "data1.qs" and "data2.qs".
+The datasets are merged based on the common features and cells present in both
+datasets. The merged dataset is then used for downstream analysis, such as
+dimensionality reduction, clustering, and differential expression analysis.
+In summary, merging single cell RNA-seq datasets is a crucial step in the
+analysis of single cell data. It allows researchers to combine data from
+different sources and increase the sample size for more robust analysis.
+
+```{r}
+# Load the datasets from files by using their names
+sample_names <- c("S0246", "S0122", "S0067", "S0068")
+
+#create an empty list to store the seurat objects and later merge them
+sobj_list <- list()
+for (sample in sample_names) {
+	object <- qs::qread(str_c("NCH_Coder_Upgrade/Sessions/beginner_wednesday/seurat_objects/", sample, ".qs"))
+	sobj_list[[sample]] <- object
+}
+
+#merge the datasets
+merged_sobj <- merge(x = sobj_list[[1]],
+                            y = sobj_list[2:length(sobj_list)],
+                            add.cell.id = names(sobj_list))
+
+#check if it is merged
+sobj_list
+merged_sobj
+
+# reprocess the merged object together and join layers
+merged_sobj <- merged_sobj %>%
+	NormalizeData() %>%
+	FindVariableFeatures() %>%
+	ScaleData() %>%
+	RunPCA() %>%
+	FindNeighbors() %>%
+	FindClusters() %>%
+	RunUMAP(dims = 1:10) %>%
+	JoinLayers()
+
+# visualize the merged data
+DimPlot(merged_sobj,
+	group.by = "seurat_clusters")
+
+DimPlot(merged_sobj,
+	group.by = "sample_name")
+
+```
+
+
+# Add and Edit metadata column
+Adding and editing metadata columns in a single cell RNA-seq dataset is an
+important step in the analysis of single cell data. Metadata columns contain
+information about the samples, cells, and experimental conditions, which can
+be used for downstream analysis, visualization, and interpretation of the data.
+In this tutorial, we will demonstrate how to add and edit metadata columns in
+a single cell RNA-seq dataset using the AddMetaData and EditMetaData functions
+in Seurat. The dataset used in this tutorial is loaded from a file named
+"data.qs".
+The metadata columns are added and edited based on the information provided in
+the dataset. This information can include sample names, cell types, experimental
+conditions, and other relevant information.
+In summary, adding and editing metadata columns in a single cell RNA-seq dataset
+is an essential step in the analysis of single cell data. It allows researchers
+to annotate and organize the data, which can facilitate downstream analysis and
+interpretation of the results.
+
+```{r}
+# add a metadata column to the seurat object
+merged_sobj$new_metada_column <- "value"
+unique(merged_sobj$new_metada_column)
+
+# edit a metadata column in the individual seurat object by using their ID
+# lets say you forgot to add the metadata column in the individual seurat object
+merged_sobj$new_metada_column[merged_sobj$sample_name == "S0246"] <- "control"
+merged_sobj$new_metada_column[merged_sobj$sample_name == "S0122"] <- "timpoint1"
+merged_sobj$new_metada_column[merged_sobj$sample_name == "S0067"] <- "timepoint2"
+merged_sobj$new_metada_column[merged_sobj$sample_name == "S0068"] <- "timpoint4"
+
+```
+
+# Data Visualization
+Data visualization is an essential step in the analysis of single cell RNA-seq
+datasets. It allows researchers to explore the structure of the data, identify
+cell clusters, and visualize relationships between cells. In this tutorial, we
+will demonstrate how to visualize single cell RNA-seq data using the DimPlot
+function in Seurat.
+The data used in this tutorial is loaded from a file named "data_dontneed_harmony.qs".
+This dataset does not require Harmony integration, as it does not have significant
+batch effects or other sources of variation that would necessitate data integration.
+The data is visualized using the DimPlot function, with cells grouped by sample name
+and Seurat clusters. This allows for the exploration of the data structure and the
+identification of cell clusters without the need for data integration.
+In summary, data visualization is a crucial step in the analysis of single cell RNA-seq
+datasets. It provides insights into the structure of the data and helps researchers
+identify cell clusters and relationships between cells.
+
+## Data visualization using DimPlot
+The DimPlot function in Seurat is used to visualize single cell RNA-seq data in a
+dimensionality reduction plot. This plot displays cells in a reduced dimensional
+space, such as PCA or UMAP, and allows for the exploration of cell clusters and
+relationships between cells.
+In the provided example, the data is loaded from a file named "data_dontneed_harmony.qs".
+This dataset does not require Harmony integration, as it does not have significant
+batch effects or other sources of variation that would necessitate data integration.
+The data is then visualized using the DimPlot function, with cells grouped by sample
+name and Seurat clusters. This allows for the exploration of the data structure and the
+identification of cell clusters without the need for data integration.
+In summary, the DimPlot function is a powerful tool for visualizing single cell RNA-seq
+data and exploring the structure of the data. It is an essential step in the analysis
+of single cell RNA-seq datasets.
+
+```{r}
+# Load the data
+#save individual samples as seurat objects so that you can later merge
+object <- qs::qread("NCH_Coder_Upgrade/Sessions/beginner_wednesday/seurat_objects/data_dontneed_harmony.qs")
+
+# visualize the data
+DimPlot(object,
+        group.by = "seurat_clusters",
+        label = TRUE,
+        repel = TRUE)
+
+# visualize the data using multiple groupings
+DimPlot(object,
+        group.by = c("sample_name", "seurat_clusters"),
+        label = TRUE,
+        repel = TRUE,
+        ncol = 2)
+
+# visualize the data using specific colors
+DimPlot(object,
+        group.by = c("sample_name", "seurat_clusters"),
+        label = TRUE,
+        repel = TRUE,
+        ncol = 2,
+        cols = c(plot_cols, sample(rainbow(1000))))
+
+# visualize without the legend
+DimPlot(object,
+        group.by = "sample_name",
+        label = TRUE,
+        repel = TRUE,
+        cols = c(plot_cols, sample(rainbow(1000)))) +
+    NoLegend() +
+    coord_fixed()
+
+# Give a title to the plot
+DimPlot(object,
+        group.by = "seurat_clusters",
+        label = TRUE,
+        repel = TRUE,
+        cols = c(plot_cols, sample(rainbow(1000)))) +
+    NoLegend() +
+    ggtitle("Data Visualization")
+```
+
+### Quick Practice for DimPlot
+practice the visualization of the data and figure out how to:
+(1) change the size of each point/dot in the DimPlot
+(2) change colors of the clusters
+(3) change legend positions
+
+```{r}
+
+
+
+```
+
+
+## Data Visualization using FeaturePlot
+FeaturePlot is another useful function in Seurat for visualizing single cell RNA-seq
+data. It allows researchers to visualize the expression of specific genes in the
+dataset and explore the distribution of gene expression across cells.
+In the provided example, we will use the FeaturePlot function to visualize the
+expression of specific genes in the single cell RNA-seq dataset loaded from the
+file "data_dontneed_harmony.qs". This dataset does not require Harmony integration,
+as it does not have significant batch effects or other sources of variation that
+would necessitate data integration.
+The expression of specific genes is visualized using the FeaturePlot function, with
+cells grouped by sample name and Seurat clusters. This allows for the exploration of
+gene expression patterns across cells and the identification of genes that are
+differentially expressed in specific cell clusters.
+In summary, FeaturePlot is a valuable tool for visualizing gene expression patterns
+in single cell RNA-seq datasets. It provides insights into the distribution of gene
+expression across cells and helps researchers identify genes that are associated with
+specific cell clusters.
+
+```{r}
+# Load the data
+object <- qs::qread("NCH_Coder_Upgrade/Sessions/beginner_wednesday/seurat_objects/data_dontneed_harmony.qs")
+
+# visualize the expression of specific genes
+FeaturePlot(object,
+            features = c("Cd3e", "Cd4", "Cd8a"))
+
+# visualize the ncount_RNA
+FeaturePlot(object,
+            features = c("nCount_RNA"))
+
+#we have our own function customized for the feature plot
+r_feature_plot(object,
+               features = "nCount_RNA")
+
+# visualize the expression of specific genes using multiple groupings
+FeaturePlot(object,
+            features = c("Cd3e", "Cd4", "Cd8a"),
+            group.by = c("sample_name", "seurat_clusters"),
+            ncol = 2)
+```
+
+### Quick Practice for FeaturePlot
+practice the visualization of the data and figure out how to:
+(1) Visualize gene of your interest
+(2) Try identifying the potential specific celltypes (CD8, CD4) by feature plot
+
+```{r}
+
+
+
+```
 
 # Example that do not need harmony Integration
 Harmony is a powerful tool for integrating single cell RNA-seq datasets that
@@ -41,7 +270,7 @@ steps.
 
 ```{r}
 # Load the data
-object <- qs::qread("data_dontneed_harmony.qs")
+object <- qs::qread("NCH_Coder_Upgrade/Sessions/beginner_wednesday/data_dontneed_harmony.qs")
 
 # visualize the data combined with the sample name and seurat clusters
 DimPlot(object,
@@ -57,13 +286,14 @@ DimPlot(object,
         repel = TRUE,
         ncol = 2)
 
+
 ```
 
 
 # Simple example: data that need harmony integration
 ```{r}
 # Load the data
-simple_object <- qs::qread("before_harmony_simple_example.qs")
+simple_object <- qs::qread("NCH_Coder_Upgrade/Sessions/beginner_wednesday/before_harmony_simple_example.qs")
 
 # visualize the data
 DimPlot(simple_object,
@@ -102,13 +332,22 @@ DimPlot(harmony_simple_object,
         label = TRUE,
         repel = TRUE,
         ncol = 2)
+
+#run scanorama
+# scanaroma_obj <- runScanorama(simple_object, batch = "sample_name")
+
+# DimPlot(scanaroma_obj,
+#         group.by = c("sample_name", "seurat_clusters"),
+#         label = TRUE,
+#         repel = TRUE,
+#         ncol = 2)
 ```
 
 
 # Complex example
 ```{r}
 # Load the data
-object <- qs::qread("before_harmony_complex_example.qs")
+object <- qs::qread("NCH_Coder_Upgrade/Sessions/beginner_wednesday/before_harmony_complex_example.qs")
 
 # visualize the data
 DimPlot(object,
