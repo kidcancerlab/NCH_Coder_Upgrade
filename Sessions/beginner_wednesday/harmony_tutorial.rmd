@@ -15,27 +15,48 @@ library(ggrepel)
 library(tidyverse)
 library(stringr)
 library(harmony)
-library(scMiko)
-
 ```
 
-# Merging datasets
+# Single vs combined/merged seurat objects
+Single seurat objects can be plotted using the DimPlot function in Seurat. The
+DimPlot function allows researchers to visualize the structure of the data in a
+reduced dimensional space, such as PCA or UMAP. This can help identify cell
+clusters, explore relationships between cells, and visualize the distribution of
+gene expression across cells.
 Merging single cell RNA-seq datasets is a common task in the analysis of
 single cell data. It allows researchers to combine data from different
 experiments, conditions, or technologies to increase the sample size and
 improve the statistical power of the analysis.
 In this tutorial, we will demonstrate how to merge two single cell RNA-seq
 datasets using the MergeSeurat function in Seurat. The datasets used in this
-tutorial are loaded from two files named "data1.qs" and "data2.qs".
+tutorial are loaded from four different single cell experiment or samples.
 The datasets are merged based on the common features and cells present in both
 datasets. The merged dataset is then used for downstream analysis, such as
 dimensionality reduction, clustering, and differential expression analysis.
 In summary, merging single cell RNA-seq datasets is a crucial step in the
 analysis of single cell data. It allows researchers to combine data from
-different sources and increase the sample size for more robust analysis.
-
+different sources and increase the sample size for more robust and comparative
+analysis under same statistical conditions.
+Let's say we have four different datasets from four different samples or
+experiments. We can load the datasets individually and then merge them using
+the MergeSeurat function in Seurat. The merged dataset can then be used for
+downstream analysis, such as dimensionality reduction, clustering, and
+differential expression analysis.
+If we do not merge them, we cannot perform comparative analysis between the
+datasets, as they are treated as separate datasets.
 ```{r}
-# Load the datasets from files by using their names
+# Load the single data
+control <- qs::qread("NCH_Coder_Upgrade/Sessions/beginner_wednesday/seurat_objects/S0246.qs")
+timepoint1 <- qs::qread("NCH_Coder_Upgrade/Sessions/beginner_wednesday/seurat_objects/S0122.qs")
+timepoint2 <- qs::qread("NCH_Coder_Upgrade/Sessions/beginner_wednesday/seurat_objects/S0067.qs")
+timepoint4 <- qs::qread("NCH_Coder_Upgrade/Sessions/beginner_wednesday/seurat_objects/S0068.qs")
+
+#merge the datasets
+merged_sobj <- merge(x = control,
+                     y = list(timepoint1, timepoint2, timepoint4),
+                     add.cell.id = names(list(control, timepoint1, timepoint2, timepoint4)))
+
+#another way to merge is to load them as a list and merge them
 sample_names <- c("S0246", "S0122", "S0067", "S0068")
 
 #create an empty list to store the seurat objects and later merge them
@@ -44,6 +65,8 @@ for (sample in sample_names) {
 	object <- qs::qread(str_c("NCH_Coder_Upgrade/Sessions/beginner_wednesday/seurat_objects/", sample, ".qs"))
 	sobj_list[[sample]] <- object
 }
+
+sobj_list
 
 #merge the datasets
 merged_sobj <- merge(x = sobj_list[[1]],
@@ -64,45 +87,6 @@ merged_sobj <- merged_sobj %>%
 	FindClusters() %>%
 	RunUMAP(dims = 1:10) %>%
 	JoinLayers()
-
-# visualize the merged data
-DimPlot(merged_sobj,
-	group.by = "seurat_clusters")
-
-DimPlot(merged_sobj,
-	group.by = "sample_name")
-
-```
-
-
-# Add and Edit metadata column
-Adding and editing metadata columns in a single cell RNA-seq dataset is an
-important step in the analysis of single cell data. Metadata columns contain
-information about the samples, cells, and experimental conditions, which can
-be used for downstream analysis, visualization, and interpretation of the data.
-In this tutorial, we will demonstrate how to add and edit metadata columns in
-a single cell RNA-seq dataset using the AddMetaData and EditMetaData functions
-in Seurat. The dataset used in this tutorial is loaded from a file named
-"data.qs".
-The metadata columns are added and edited based on the information provided in
-the dataset. This information can include sample names, cell types, experimental
-conditions, and other relevant information.
-In summary, adding and editing metadata columns in a single cell RNA-seq dataset
-is an essential step in the analysis of single cell data. It allows researchers
-to annotate and organize the data, which can facilitate downstream analysis and
-interpretation of the results.
-
-```{r}
-# add a metadata column to the seurat object
-merged_sobj$new_metada_column <- "value"
-unique(merged_sobj$new_metada_column)
-
-# edit a metadata column in the individual seurat object by using their ID
-# lets say you forgot to add the metadata column in the individual seurat object
-merged_sobj$new_metada_column[merged_sobj$sample_name == "S0246"] <- "control"
-merged_sobj$new_metada_column[merged_sobj$sample_name == "S0122"] <- "timpoint1"
-merged_sobj$new_metada_column[merged_sobj$sample_name == "S0067"] <- "timepoint2"
-merged_sobj$new_metada_column[merged_sobj$sample_name == "S0068"] <- "timpoint4"
 
 ```
 
@@ -231,9 +215,9 @@ r_feature_plot(object,
 
 # visualize the expression of specific genes using multiple groupings
 FeaturePlot(object,
-            features = c("Cd3e", "Cd4", "Cd8a"),
-            group.by = c("sample_name", "seurat_clusters"),
+            features = c("Col1a1", "Cd4", "Cd8a"),
             ncol = 2)
+
 ```
 
 ### Quick Practice for FeaturePlot
@@ -247,7 +231,285 @@ practice the visualization of the data and figure out how to:
 
 ```
 
-# Example that do not need harmony Integration
+
+## Data Visualization using VlnPlot
+VlnPlot is a useful function in Seurat for visualizing the distribution of gene
+expression across cells in a single cell RNA-seq dataset. It allows researchers to
+explore the expression of specific genes and identify genes that are differentially
+expressed in specific cell clusters.
+In the provided example, we will use the VlnPlot function to visualize the distribution
+of gene expression across cells in the single cell RNA-seq dataset loaded from the file
+"data_dontneed_harmony.qs". This dataset does not require Harmony integration, as it
+does not have significant batch effects or other sources of variation that would
+necessitate data integration.
+The distribution of gene expression is visualized using the VlnPlot function, with cells
+grouped by sample name and Seurat clusters. This allows for the exploration of gene
+expression patterns across cells and the identification of genes that are differentially
+expressed in specific cell clusters.
+In summary, VlnPlot is a valuable tool for visualizing the distribution of gene expression
+across cells in single cell RNA-seq datasets. It provides insights into the expression
+patterns of specific genes and helps researchers identify genes that are associated with
+specific cell clusters.
+
+```{r}
+
+# violinplots by the ncounts, nfeatures and percent.mt 
+VlnPlot(object,
+        features = c("nCount_RNA", "nFeature_RNA", "percent.mt"))
+
+# violinplots by the genes of choice
+VlnPlot(control,
+        features = c("Col1a1", "Col1a2", "Cd8a"),
+        group.by = "seurat_clusters")
+```
+
+## Data Visualization using DotPlot
+DotPlot is a useful function in Seurat for visualizing the expression of specific genes
+across cell clusters in a single cell RNA-seq dataset. It allows researchers to explore
+the expression patterns of genes and identify genes that are differentially expressed in
+specific cell clusters.
+In the provided example, we will use the DotPlot function to visualize the expression of
+specific genes across cell clusters in the single cell RNA-seq dataset loaded from the
+file "data_dontneed_harmony.qs". This dataset does not require Harmony integration, as it
+does not have significant batch effects or other sources of variation that would
+necessitate data integration.
+The expression of specific genes is visualized using the DotPlot function, with cells
+grouped by sample name and Seurat clusters. This allows for the exploration of gene
+expression patterns across cell clusters and the identification of genes that are
+differentially expressed in specific cell clusters.
+In summary, DotPlot is a valuable tool for visualizing the expression of specific genes
+across cell clusters in single cell RNA-seq datasets. It provides insights into the
+expression patterns of genes and helps researchers identify genes that are associated
+with specific cell clusters.
+
+```{r}
+# Dotplots
+DotPlot(object,
+        features = c("Col1a1", "Col1a2", "Cd8a"),
+        group.by = "seurat_clusters",
+        scale = TRUE)
+
+# be careful with scale, it can be misleading sometimes when the scale is not the same for all the genes in the plot 
+# We want scale = FALSE so that scaling more representative of the gene expression level overall
+DotPlot(object,
+        features = c("Col1a1", "Col1a2", "Cd8a"),
+        group.by = "seurat_clusters",
+        scale = FALSE)
+
+```
+
+
+## Data Visualization using RidgePlot
+RidgePlot is a useful function in Seurat for visualizing the distribution of gene
+expression across cell clusters in a single cell RNA-seq dataset. It allows researchers
+to explore the expression patterns of genes and identify genes that are differentially
+expressed in specific cell clusters.
+In the provided example, we will use the RidgePlot function to visualize the distribution
+of gene expression across cell clusters in the single cell RNA-seq dataset loaded from the
+file "data_dontneed_harmony.qs". This dataset does not require Harmony integration, as it
+does not have significant batch effects or other sources of variation that would
+necessitate data integration.
+The distribution of gene expression is visualized using the RidgePlot function, with cells
+grouped by sample name and Seurat clusters. This allows for the exploration of gene
+expression patterns across cell clusters and the identification of genes that are
+differentially expressed in specific cell clusters.
+In summary, RidgePlot is a valuable tool for visualizing the distribution of gene
+expression across cell clusters in single cell RNA-seq datasets. It provides insights
+into the expression patterns of genes and helps researchers identify genes that are
+associated with specific cell clusters.
+
+```{r}
+# plots by feature of interest shows a distribution of the gene expression level
+RidgePlot(object,
+          features = c("Col1a1", "Col1a2", "Cd8a"),
+          group.by = "sample_name")
+
+#by seurat clusters
+RidgePlot(object,
+          features = c("Col1a1", "Col1a2", "Cd8a"),
+          group.by = "seurat_clusters",
+          sort = TRUE)
+
+```
+
+## Data Visualization using Heatmap
+Heatmap is a useful function in Seurat for visualizing the expression of specific genes
+across cell clusters in a single cell RNA-seq dataset. It allows researchers to explore
+the expression patterns of genes and identify genes that are differentially expressed in
+specific cell clusters.
+In the provided example, we will use the Heatmap function to visualize the expression of
+specific genes across cell clusters in the single cell RNA-seq dataset loaded from the
+file "data_dontneed_harmony.qs". This dataset does not require Harmony integration, as it
+does not have significant batch effects or other sources of variation that would
+necessitate data integration.
+The expression of specific genes is visualized using the Heatmap function, with cells
+grouped by sample name and Seurat clusters. This allows for the exploration of gene
+expression patterns across cell clusters and the identification of genes that are
+differentially expressed in specific cell clusters.
+In summary, Heatmap is a valuable tool for visualizing the expression of specific genes
+across cell clusters in single cell RNA-seq datasets. It provides insights into the
+expression patterns of genes and helps researchers identify genes that are associated
+with specific cell clusters.
+
+```{r}
+# Heatmaps
+DoHeatmap(object,
+        features = c("Col1a1", "Col1a2", "Cd8a"))
+
+# do expression heatmap for specific features and group by seurat clusters
+DoHeatmap(object,
+        features = c("Col1a1", "Col1a2", "Cd8a"),
+        group.by = "sample_name",
+        combine = TRUE)
+
+# do expression heatmap for variable features
+DoHeatmap(
+  control,
+  features =  VariableFeatures(control)[1:50],
+  group.by = "seurat_clusters",
+  assay = "RNA",
+  slot = "scale.data",
+  combine = TRUE)
+
+DoHeatmap(object,
+        features =  VariableFeatures(control)[1:50],
+        group.by = "sample_name",
+        assay = "RNA",
+        slot = "scale.data",
+        combine = TRUE)
+
+```
+
+
+
+# Add and Edit metadata column
+Adding and editing metadata columns in a single cell RNA-seq dataset is an
+important step in the analysis of single cell data. Metadata columns contain
+information about the samples, cells, and experimental conditions, which can
+be used for downstream analysis, visualization, and interpretation of the data.
+In this tutorial, we will demonstrate how to add and edit metadata columns in
+a single cell RNA-seq dataset using the AddMetaData and EditMetaData functions
+in Seurat. The dataset used in this tutorial is loaded from a file named
+"data.qs".
+The metadata columns are added and edited based on the information provided in
+the dataset. This information can include sample names, cell types, experimental
+conditions, and other relevant information.
+In summary, adding and editing metadata columns in a single cell RNA-seq dataset
+is an essential step in the analysis of single cell data. It allows researchers
+to annotate and organize the data, which can facilitate downstream analysis and
+interpretation of the results.
+
+```{r}
+# add a metadata column to the seurat object
+object$new_metada_column <- "value"
+unique(object$new_metada_column)
+
+# edit a metadata column in the individual seurat object by using their ID
+# lets say you forgot to add the metadata column in the individual seurat object
+object$new_metada_column[object$sample_name == "S0246"] <- "control"
+object$new_metada_column[object$sample_name == "S0122"] <- "timpoint1"
+object$new_metada_column[object$sample_name == "S0067"] <- "timepoint2"
+object$new_metada_column[object$sample_name == "S0068"] <- "timpoint4"
+
+
+# edit the metadata by addmetadata funtion that allows to add metadata columns by cell ids
+metadata_table <- data.frame(cell_id = colnames(object),
+                             new_info_column = "i_want_this_info")
+
+# a new information has been added to the metadata table
+metadata_table$new_info <- "another_info"
+
+# add the metadata to the seurat object
+object <- AddMetaData(object, metadata_table)
+
+```
+
+
+## Check cell cycle via plot
+Cell cycle is an important biological process that regulates the growth and
+division of cells. In single cell RNA-seq datasets, the cell cycle phase of
+each cell can be inferred from the expression of cell cycle-related genes.
+In this tutorial, we will demonstrate how to check the cell cycle phase of
+cells in a single cell RNA-seq dataset using the CellCycleScoring function in
+Seurat. The dataset used in this tutorial is loaded from a file named "data.qs".
+The cell cycle phase of each cell is inferred based on the expression of cell
+cycle-related genes, such as G2M and S phase genes. The CellCycleScoring
+function assigns a cell cycle score to each cell, which indicates the
+likelihood of the cell being in a specific cell cycle phase.
+In summary, checking the cell cycle phase of cells in a single cell RNA-seq
+dataset is an important step in the analysis of single cell data. It provides
+insights into the biological processes that regulate cell growth and division,
+and can help researchers identify cell cycle-related genes and pathways.
+
+```{r}
+# check the cell cycle phase of cells in the seurat object
+# Cellcycle plots by function we developed
+rrrSingleCellUtils::kill_cc(object,
+                            cc = "N")
+
+```
+
+## RenameIdents in the seurat object
+Renaming cluster names in a single cell RNA-seq dataset is an important step in
+the analysis of single cell data. Cluster names provide information about the
+cell types or states present in the dataset, and can help researchers interpret
+the results of downstream analysis.
+In this tutorial, we will demonstrate how to rename cluster names in a single
+cell RNA-seq dataset using the RenameIdents function in Seurat. The dataset used
+in this tutorial is loaded from a file named "data.qs".
+The cluster names are changed based on the identities of the cell types or states
+present in the dataset. This information can be obtained from the literature,
+annotation databases, or other sources of information.
+In summary, renaming cluster names in a single cell RNA-seq dataset is an
+important step in the analysis of single cell data. It allows researchers to
+annotate and interpret the results of downstream analysis, and provides insights
+into the cell types or states present in the dataset.
+
+```{r}
+# Change cluster names - add identities
+Idents(object) <- "seurat_clusters"
+
+object_reident <- RenameIdents(object,
+                                "0" = "T cells",
+                                "1" = "Monocytes",
+                                "2" = "NK cells",
+                                "3" = "B cells",
+                                "4" = "Dendritic cells",
+                                "5" = "Macrophages",
+                                "6" = "Fibroblasts")
+
+DimPlot(object_reident)
+
+```
+
+## Subsetting the seurat object
+Subsetting a single cell RNA-seq dataset is a common task in the analysis of
+single cell data. It allows researchers to focus on specific cell types, states,
+or conditions of interest, and perform downstream analysis on a subset of the
+data.
+In this tutorial, we will demonstrate how to subset a single cell RNA-seq dataset
+using the subset function in Seurat. The dataset used in this tutorial is loaded
+from a file named "data.qs".
+The dataset is subset based on the identities of the cell types or states present
+in the dataset. This information can be obtained from the cluster names, metadata
+columns, or other sources of information.
+In summary, subsetting a single cell RNA-seq dataset is a valuable tool for
+focusing on specific cell types, states, or conditions of interest. It allows
+researchers to perform targeted analysis on a subset of the data and gain insights
+into the biological processes that regulate cell growth and division.
+
+```{r}
+# Subset the seurat object based on the cluster names
+object_subset <- subset(object_reident,
+                        idents = c("T cells", "Monocytes", "NK cells"))
+
+# visualize the subsetted data
+DimPlot(object_subset)
+
+```
+
+# Data integration using Harmony
+## Example that do not need harmony Integration
 Harmony is a powerful tool for integrating single cell RNA-seq datasets that
 originate from different conditions, batches, or technologies. However, not all
 datasets require this level of integration.
@@ -270,7 +532,7 @@ steps.
 
 ```{r}
 # Load the data
-object <- qs::qread("NCH_Coder_Upgrade/Sessions/beginner_wednesday/data_dontneed_harmony.qs")
+object <- qs::qread("NCH_Coder_Upgrade/Sessions/beginner_wednesday/seurat_objects/data_dontneed_harmony.qs")
 
 # visualize the data combined with the sample name and seurat clusters
 DimPlot(object,
@@ -290,10 +552,10 @@ DimPlot(object,
 ```
 
 
-# Simple example: data that need harmony integration
+## Simple example: data that need harmony integration
 ```{r}
 # Load the data
-simple_object <- qs::qread("NCH_Coder_Upgrade/Sessions/beginner_wednesday/before_harmony_simple_example.qs")
+simple_object <- qs::qread("NCH_Coder_Upgrade/Sessions/beginner_wednesday/seurat_objects/before_harmony_simple_example.qs")
 
 # visualize the data
 DimPlot(simple_object,
@@ -333,21 +595,13 @@ DimPlot(harmony_simple_object,
         repel = TRUE,
         ncol = 2)
 
-#run scanorama
-# scanaroma_obj <- runScanorama(simple_object, batch = "sample_name")
-
-# DimPlot(scanaroma_obj,
-#         group.by = c("sample_name", "seurat_clusters"),
-#         label = TRUE,
-#         repel = TRUE,
-#         ncol = 2)
 ```
 
 
-# Complex example
+## Complex example of harmony integration
 ```{r}
 # Load the data
-object <- qs::qread("NCH_Coder_Upgrade/Sessions/beginner_wednesday/before_harmony_complex_example.qs")
+object <- qs::qread("NCH_Coder_Upgrade/Sessions/beginner_wednesday/seurat_objects/before_harmony_complex_example.qs")
 
 # visualize the data
 DimPlot(object,
@@ -415,8 +669,3 @@ DimPlot(harmony_theta_features,
 
 ```
 
-
-# Aplication in the celltype annotation
-That it groups togther similar cells when anotated with their celltypes
-how the right level of integration might help cluster cancer cells together
-as seen in the cell culture example in mm_prim and mm_mets
