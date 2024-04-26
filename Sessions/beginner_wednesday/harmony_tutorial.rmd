@@ -1,6 +1,6 @@
 ---
 Author: "Yogesh Budhathoki"
-title: "Harmony Data Integration Tutorial"
+title: "Plotting and Data Integration Tutorial"
 output: 
     html_document:
         code_folding: hide
@@ -379,7 +379,6 @@ DoHeatmap(object,
         combine = TRUE)
 
 ```
-
 
 
 # Add and Edit metadata column
