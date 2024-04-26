@@ -90,6 +90,68 @@ merged_sobj <- merged_sobj %>%
 
 ```
 
+# Edit metadata column
+Adding and editing metadata columns in a single cell RNA-seq dataset is an
+important step in the analysis of single cell data. Metadata columns contain
+information about the samples, cells, and experimental conditions, which can
+be used for downstream analysis, visualization, and interpretation of the data.
+In this tutorial, we will demonstrate how to add and edit metadata columns in
+a single cell RNA-seq dataset using the AddMetaData and EditMetaData functions
+in Seurat. The dataset used in this tutorial is loaded from a file named
+"data.qs".
+The metadata columns are added and edited based on the information provided in
+the dataset. This information can include sample names, cell types, experimental
+conditions, and other relevant information.
+In summary, adding and editing metadata columns in a single cell RNA-seq dataset
+is an essential step in the analysis of single cell data. It allows researchers
+to annotate and organize the data, which can facilitate downstream analysis and
+interpretation of the results.
+
+```{r}
+# add a metadata column to the seurat object
+object <- merged_sobj
+
+object$new_metada_column <- "value"
+unique(object$new_metada_column)
+
+# edit a metadata column in the individual seurat object by using their ID
+# lets say you forgot to add the metadata column in the individual seurat object
+object$new_metada_column[object$sample_name == "S0246"] <- "control"
+object$new_metada_column[object$sample_name == "S0122"] <- "timpoint1"
+object$new_metada_column[object$sample_name == "S0067"] <- "timepoint2"
+object$new_metada_column[object$sample_name == "S0068"] <- "timpoint4"
+
+# you can do this in a loop as well if you have too many samples
+name_and_replacement <- tribble(~name, ~replacement,
+                                "S0246", "control",
+                                "S0122", "timpoint1",
+                                "S0067", "timepoint2",
+                                "S0068", "timpoint4")
+
+object$new_metada_column2 <- "value"
+unique(object$new_metada_column2)
+
+for (i in 1:nrow(name_and_replacement)) {
+    name <- name_and_replacement$name[i]
+    replacement <- name_and_replacement$replacement[i]
+    object$new_metada_column2[object$sample_name == name] <- replacement
+}
+
+# edit the metadata by addmetadata funtion that allows to add metadata columns by cell ids
+metadata_table <- data.frame(cell_id = colnames(object),
+                             new_info_column = "i_want_this_info")
+
+# a new information has been added to the metadata table
+metadata_table$new_info <- "another_info"
+
+# add the metadata to the seurat object
+object <- AddMetaData(object, metadata_table)
+
+```
+
+
+
+
 # Data Visualization
 Data visualization is an essential step in the analysis of single cell RNA-seq
 datasets. It allows researchers to explore the structure of the data, identify
@@ -377,49 +439,6 @@ DoHeatmap(object,
         assay = "RNA",
         slot = "scale.data",
         combine = TRUE)
-
-```
-
-
-# Add and Edit metadata column
-Adding and editing metadata columns in a single cell RNA-seq dataset is an
-important step in the analysis of single cell data. Metadata columns contain
-information about the samples, cells, and experimental conditions, which can
-be used for downstream analysis, visualization, and interpretation of the data.
-In this tutorial, we will demonstrate how to add and edit metadata columns in
-a single cell RNA-seq dataset using the AddMetaData and EditMetaData functions
-in Seurat. The dataset used in this tutorial is loaded from a file named
-"data.qs".
-The metadata columns are added and edited based on the information provided in
-the dataset. This information can include sample names, cell types, experimental
-conditions, and other relevant information.
-In summary, adding and editing metadata columns in a single cell RNA-seq dataset
-is an essential step in the analysis of single cell data. It allows researchers
-to annotate and organize the data, which can facilitate downstream analysis and
-interpretation of the results.
-
-```{r}
-# add a metadata column to the seurat object
-object$new_metada_column <- "value"
-unique(object$new_metada_column)
-
-# edit a metadata column in the individual seurat object by using their ID
-# lets say you forgot to add the metadata column in the individual seurat object
-object$new_metada_column[object$sample_name == "S0246"] <- "control"
-object$new_metada_column[object$sample_name == "S0122"] <- "timpoint1"
-object$new_metada_column[object$sample_name == "S0067"] <- "timepoint2"
-object$new_metada_column[object$sample_name == "S0068"] <- "timpoint4"
-
-
-# edit the metadata by addmetadata funtion that allows to add metadata columns by cell ids
-metadata_table <- data.frame(cell_id = colnames(object),
-                             new_info_column = "i_want_this_info")
-
-# a new information has been added to the metadata table
-metadata_table$new_info <- "another_info"
-
-# add the metadata to the seurat object
-object <- AddMetaData(object, metadata_table)
 
 ```
 
