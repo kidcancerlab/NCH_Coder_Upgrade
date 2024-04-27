@@ -56,10 +56,30 @@ obj <- RunAzimuth(obj, reference = "pbmcref")
 # currently, the object has two layers in the RNA assay: counts, and data
 obj
 ```
+
+# Dataset introduction:
 The object contains data from nine different batches (stored in the `Method` column in the object metadata), representing seven different technologies. We will aim to integrate the different batches together. In previous versions of Seurat, we would require the data to be represented as nine different Seurat objects. When using Seurat v5 assays, we can instead keep all the data in one object, but simply split the layers.
+
+Introduction of nine different batches:
+1. SMART-seq2
+2. CEL-Seq2
+3. 10x_Chromium_v2_A
+4. 10x_Chromium_v2_B
+5. 10x_Chromium_v3
+6. Drop-seq # Drop-Seq analyzes mRNA transcripts from droplets of individual cells in a highly parallel fashion.
+7. Seq-Well # a portable, low-cost platform for single-cell RNA sequencing designed to be compatible with low-input, clinical biopsies.
+8. inDrops
+9. 10x_Chromium_v2
+
+
+```{r}
+obj[["RNA"]] <- split(obj[["RNA"]], f = obj$Method)
+```
+
+
+
 After splitting, there are now 18 layers (a `counts` and `data` layer for each batch). We can also run a standard scRNA-seq analysis (i.e. without integration). Note that since the data is split into layers, normalization and variable feature identification is performed for each batch independently (a consensus set of variable features is automatically identified).
 ```{r splitassay}
-obj[["RNA"]] <- split(obj[["RNA"]], f = obj$Method)
 obj
 obj <- NormalizeData(obj)
 obj <- FindVariableFeatures(obj)
