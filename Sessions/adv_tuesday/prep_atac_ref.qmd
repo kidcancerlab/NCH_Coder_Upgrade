@@ -1,3 +1,32 @@
+---
+title: "Prep Data for Demo of Single Cell ATAC analysis"
+author: "Matt Cannon"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+format:
+    html:
+        toc: true
+        toc_float: true
+        toc_depth: 5
+        number_sections: false
+        code-fold: true
+        code-link: true
+        df-print: kable
+        self-contained: true
+execute:
+    cache: true
+knitr:
+    opts_chunk:
+        cache.lazy: false
+lightbox: true
+---
+
+```{r}
+library(tidyverse)
+library(Seurat)
+library(Signac)
+dir.create("Sessions/adv_tuesday/figures", showWarnings = FALSE)
+```
+
 ## Download raw data for ATAC reference
 from https://atlas.gs.washington.edu/mouse-atac/data/
 
@@ -34,7 +63,45 @@ ref_matrix <- ref_matrix[, metadata$cell]
 
 # This should be TRUE
 all(metadata$cell == colnames(ref_matrix))
+```
 
-ref_labels <- metadata$cell_label
+```{r}
+ref_sobj <-
+    CreateChromatinAssay(counts = ref_matrix,
+                         assay = "ATAC",
+                         genome = "mm10",
+                         reference = "mouse_brain",
+                         sep = c("_", "_")) %>%
+    CreateSeuratObject(assay = "peaks",
+                       meta.data = metadata) %>%
+    RunTFIDF() %>%
+    FindTopFeatures(min.cutoff = "q0") %>%
+    RunSVD() %>%
+    FindNeighbors(reduction = "lsi") %>%
+    FindClusters(algorithm = 3) %>%
+    RunUMAP(reduction = "lsi",
+            dims = 2:30,
+            reduction.name = "umap_atac")
 
+annotations <-
+    GetGRangesFromEnsDb(ensdb = EnsDb.Mmusculus.v79::EnsDb.Mmusculus.v79)
+
+seqlevels(annotations) <- paste0('chr', seqlevels(annotations))
+genome(annotations) <- "mm10"
+
+Annotation(ref_sobj) <- annotations
+
+DimPlot(ref_sobj,
+        group.by = "cell_label",
+        label = TRUE,
+        repel = TRUE) +
+    NoLegend()
+
+ggsave("Sessions/adv_tuesday/figures/atac_ref_umap.png",
+       width = 10,
+       height = 10)
+
+qs::qsave(ref_sobj,
+          paste0(raw_data_dir,
+                 "atac_ref_sobj.qs"))
 ```

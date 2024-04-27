@@ -308,12 +308,34 @@ DimPlot(seurat_obj,
         reduction = "umap_atac",
         label = TRUE)
 
-qs::qsave(seurat_obj, paste0(data_path,
-                             "mouse_brain_5k_sobj_3.qs"))
+qs::qsave(seurat_obj, paste0(data_directory,
+                             "8k_mouse_cortex_ATACv2_nextgem_Chromium_X.qs"))
 ```
 
 ## Assigning cell types
 https://atlas.gs.washington.edu/mouse-atac/data/
+
+```{r load_ref_data}
+ref_data <-
+    qs::qread(paste0(data_directory,
+                     "brain_rna/brain_rna.qs"))
+```
+
+```{r gene_activity}
+seurat_obj[["RNA"]] <-
+    CreateAssayObject(counts = GeneActivity(seurat_obj)) %>%
+    NormalizeData(assay = 'RNA',
+                  normalization.method = 'LogNormalize',
+                  scale.factor = median(seurat_obj$nCount_RNA))
+```
+
+```{r transfer_anchors}
+DefaultAssay(seurat_obj) <- "RNA"
+anchors <-
+    FindTransferAnchors(reference = ref_data,
+                         query = seurat_obj,
+                         reduction = "cca")
+```
 
 
 ### Find differential accessibility between cell types
