@@ -97,6 +97,16 @@ I doubt the specific versions of cmake, etc. are important, those are just the o
 
 reticulate::install_python(version = "3.11")
 
+Add in:
+    R.utils
+    scran
+    quadprog
+    Rfast
+    scatterpie
+    Matrix?
+
+
+
 ## Cran dependencies:
 ```{r}
 cran_dependencies <-
