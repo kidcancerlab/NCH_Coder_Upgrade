@@ -27,10 +27,11 @@ library(SeuratWrappers)
 library(Azimuth)
 library(ggplot2)
 library(patchwork)
+library(dplyr)
 options(future.globals.maxSize = 1e9)
 
 # if you have not install the seurat data, please download and install
-devtools::install_github('satijalab/seurat-data')
+#devtools::install_github('satijalab/seurat-data')
 
 ```
 
@@ -45,12 +46,18 @@ For this vignette, we use a [dataset of human PBMC profiled with seven different
 Seurat v5 assays store data in layers. These layers can store raw, un-normalized counts (`layer='counts'`), normalized data (`layer='data'`), or z-scored/variance-stabilized data (`layer='scale.data'`). We can load in the data, remove low-quality cells, and obtain predicted cell annotations (which will be useful for assessing integration later), using our [Azimuth pipeline](https://satijalab.github.io/azimuth/articles/run_azimuth_tutorial.html).
 
 ```{r installdata, include=FALSE, eval=TRUE}
+library(SeuratData)
 InstallData("pbmcref")
+InstallData("pbmcsca")
+data("pbmcref")
+data("pbmcsca")
+AvailableData()
 ```
 
 ```{r loadannotate, message=FALSE}
 # load in the pbmc systematic comparative analysis dataset
 obj <- LoadData("pbmcsca")
+data("pbmc3k")
 obj  <- subset(obj, nFeature_RNA > 1000)
 obj <- RunAzimuth(obj, reference = "pbmcref")
 # currently, the object has two layers in the RNA assay: counts, and data
@@ -74,13 +81,13 @@ Introduction of nine different batches:
 
 ```{r}
 obj[["RNA"]] <- split(obj[["RNA"]], f = obj$Method)
+obj
 ```
 
 
 
 After splitting, there are now 18 layers (a `counts` and `data` layer for each batch). We can also run a standard scRNA-seq analysis (i.e. without integration). Note that since the data is split into layers, normalization and variable feature identification is performed for each batch independently (a consensus set of variable features is automatically identified).
 ```{r splitassay}
-obj
 obj <- NormalizeData(obj)
 obj <- FindVariableFeatures(obj)
 obj <- ScaleData(obj)
@@ -92,8 +99,10 @@ obj <- FindNeighbors(obj, dims=1:30, reduction = 'pca')
 obj <- FindClusters(obj, resolution = 2, cluster.name = "unintegrated_clusters")
 obj <- RunUMAP(obj, dims = 1:30, reduction = 'pca', reduction.name = 'umap.unintegrated')
 # visualize by batch and cell type annotation
+obj@meta.data %>% head()
 # cell type annotations were previously added by Azimuth
-DimPlot(obj, reduction = 'umap.unintegrated', group.by=c('Method','predicted.celltype.l2'))
+DimPlot(obj, reduction = 'unintegrated_clusters', group.by=c('Method'))
+DimPlot(object = obj, split.by = "Method",reduction = 'umap.unintegrated')
 ```
 
 ## Perform streamlined (one-line) integrative analysis
@@ -118,6 +127,9 @@ obj <- IntegrateLayers(
   object = obj, method = CCAIntegration,
   orig.reduction = "pca", new.reduction = 'integrated.cca',
   verbose = FALSE)
+
+DimPlot(object = obj, split.by = "Method",reduction = 'integrated.cca')
+
 ```
 
 ```{r integratelayersrpca, results='hide'}
