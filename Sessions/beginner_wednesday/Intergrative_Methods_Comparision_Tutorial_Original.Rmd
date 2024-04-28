@@ -64,6 +64,25 @@ data("pbmcsca")
 AvailableData()
 ```
 
+```{r loadannotate, message=FALSE}
+# load in the pbmc systematic comparative analysis dataset
+obj <- LoadData("pbmcsca")
+# check the obj
+obj
+# check the mata datasets
+obj@meta.data %>% head()
+
+# check the levels of the methods
+levels(as.factor(obj@meta.data$Method))
+
+# we filtered the obj that have number of feature RNA less than 1000
+obj  <- subset(obj, nFeature_RNA > 1000)
+obj <- RunAzimuth(obj, reference = "pbmcref")
+obj<-JoinLayers(obj)
+# currently, the object has two layers in the RNA assay: counts, and data
+saveRDS(object = obj, file = "IntegrativeMethods.RDS")
+```
+
 # Dataset introduction:
 The object contains data from nine different batches (stored in the `Method` column in the object metadata), representing seven different technologies. We will aim to integrate the different batches together. In previous versions of Seurat, we would require the data to be represented as nine different Seurat objects. When using Seurat v5 assays, we can instead keep all the data in one object, but simply split the layers.
 
@@ -125,11 +144,20 @@ obj@assays$RNA$`data.Smart-seq2` %>% head() # data have already changed into nor
 
 # visualize the results of a standard analysis without integration. 
 Note that cells are grouping both by cell type and by underlying method. While a UMAP analysis is just a visualization of this, clustering this dataset would return predominantly batch-specific clusters. Especially if previous cell-type annotations were not available, this would make downstream analysis extremely challenging.  
-
 ```{r unintegratedUMAP, fig.height=5, fig.width=14}
 
 obj <- FindNeighbors(obj, dims=1:30, reduction = 'pca')
 obj <- FindClusters(obj, resolution = 2, cluster.name = "unintegrated_clusters")
+
+
+#TFBSTools::colSums(obj)
+# change the version to  Matrix 1.6-3
+# my current version of matrix is , we need to change to 1.6-1.1 for Seurat V5. remotes::install_version("Matrix", version = "1.6-1.1")
+#library(Matrix)
+#BiocManager::install(version = "3.18") 
+#BiocManager::install("TFBSTools", type = "source", force = TRUE)
+#library(Matrix)
+
 obj <- RunUMAP(obj, dims = 1:30, reduction = "pca", reduction.name = "umap.unintegrated")
 
 # check the meta data now...
@@ -185,7 +213,7 @@ obj <- IntegrateLayers(
   object = obj, method = HarmonyIntegration,
   orig.reduction = "pca", new.reduction = 'harmony',
   verbose = TRUE)
-# Note: you might get ~8 Warning messages, The team is still working on fixing this so the warnings wont'c come up, but this should not affect your results.
+# Note: you might get ~9 Warning messages, The team is still working on fixing this so the warnings wont'c come up, but this should not affect your results.
 
 # visualize by batch and cell cluster using the harmony
 DimPlot(object = obj, split.by = "Method",reduction = 'harmony')
@@ -249,71 +277,44 @@ p5 <- DimPlot(obj, reduction="umap.rpca", group.by=c("cca_clusters"))
 p4 | p5 
 ```
 
-<!-- Once integrative analysis is complete, you can rejoin the layers - which collapses the individual datasets together and recreates the original `counts` and `data` layers. You will need to do this before performing any differential expression analysis. However, you can always resplit the layers in case you would like to reperform integrative analysis. -->
+Once integrative analysis is complete, you can rejoin the layers - which collapses the individual datasets together and recreates the original `counts` and `data` layers. You will need to do this before performing any differential expression analysis. However, you can always resplit the layers in case you would like to reperform integrative analysis.
 
-<!-- ```{r joinlayers} -->
-<!-- obj <- JoinLayers(obj) -->
-<!-- obj -->
-<!-- ``` -->
-
-<!-- Lastly, users can also perform integration using sctransform-normalized data (see our [SCTransform vignette](https://satijalab.org/seurat/articles/sctransform_vignette) for more information), by first running SCTransform normalization, and then setting the `normalization.method` argument in `IntegrateLayers`. -->
-
-
-<!-- ```{r sct} -->
-<!-- options(future.globals.maxSize = 3e+09) -->
-<!-- obj[["RNA"]] <- split(obj[["RNA"]], f = obj$Method) -->
-
-<!-- obj <- SCTransform(obj, vst.flavor = "v2") -->
-<!-- obj <- RunPCA(obj, npcs = 30, verbose = FALSE) -->
-
-<!-- # one-liner to run Integration -->
-<!-- obj <- IntegrateLayers(object = obj, method = HarmonyIntegration, -->
-<!--                        orig.reduction = "pca", new.reduction = 'harmony', -->
-<!--                        normalization.method = "SCT", verbose = FALSE) -->
-
-<!-- obj <- FindNeighbors(obj, reduction = "harmony", dims = 1:30) -->
-<!-- obj <- FindClusters(obj, resolution = 2, cluster.name = "harmony_clusters") -->
-
-<!-- # -->
-<!-- obj <- RunUMAP(obj, reduction = "harmony", dims = 1:30, reduction.name = "umap.harmony") -->
-<!-- p1 <- DimPlot( -->
-<!--   obj, -->
-<!--   reduction = "umap.harmony", -->
-<!--   group.by = c("Method", "CellType"), -->
-<!--   combine = FALSE -->
-<!-- ) -->
-<!-- obj <- IntegrateLayers(object = obj,  -->
-<!--   method = HarmonyIntegration, assay = "SCT", -->
-<!--   orig.reduction = "pca", new.reduction = "FastMNNIntegration", -->
-<!--   verbose = TRUE -->
-<!-- ) -->
-<!-- patchwork::wrap_plots(p1) -->
-<!-- ``` -->
-
-
-#### Training session -- please use harmony streamlined integrative analysis (IntegrateLayers function) for Yogesh's raw datasets.  (15 min) ####
-```{r}
-
-
-obj <- IntegrateLayers(
-  object = obj, method = HarmonyIntegration,
-  orig.reduction = "pca", new.reduction = 'harmony',
-  verbose = TRUE)
-# Note: you might get ~8 Warning messages, The team is still working on fixing this so the warnings wont'c come up, but this should not affect your results.
-
-# visualize by batch and cell cluster using the harmony
-DimPlot(object = obj, split.by = "Method",reduction = 'harmony')
-# for the harmony
-obj <- FindNeighbors(obj, reduction = 'harmony', dims = 1:30)
-obj <- FindClusters(obj,resolution = 2, cluster.name = 'harmony_clusters')
-obj <- RunUMAP(obj, reduction = "harmony", dims = 1:30, reduction.name = 'umap.harmony')
-p2 <- DimPlot(
-  obj, reduction = "umap.harmony",
-  group.by = c("Method", "harmony_clusters"),
-  combine = FALSE, label.size = 2) 
-
-
+```{r joinlayers}
+obj <- JoinLayers(obj)
+obj
 ```
 
+Lastly, users can also perform integration using sctransform-normalized data (see our [SCTransform vignette](https://satijalab.org/seurat/articles/sctransform_vignette) for more information), by first running SCTransform normalization, and then setting the `normalization.method` argument in `IntegrateLayers`.
 
+
+```{r sct}
+options(future.globals.maxSize = 3e+09)
+obj[["RNA"]] <- split(obj[["RNA"]], f = obj$Method)
+
+obj <- SCTransform(obj, vst.flavor = "v2")
+obj <- RunPCA(obj, npcs = 30, verbose = FALSE)
+
+# one-liner to run Integration
+obj <- IntegrateLayers(object = obj, method = HarmonyIntegration,
+                       orig.reduction = "pca", new.reduction = 'harmony',
+                       normalization.method = "SCT", verbose = FALSE)
+
+obj <- FindNeighbors(obj, reduction = "harmony", dims = 1:30)
+obj <- FindClusters(obj, resolution = 2, cluster.name = "harmony_clusters")
+
+#
+obj <- RunUMAP(obj, reduction = "harmony", dims = 1:30, reduction.name = "umap.harmony")
+p1 <- DimPlot(
+  obj,
+  reduction = "umap.harmony",
+  group.by = c("Method", "CellType"),
+  combine = FALSE
+)
+obj <- IntegrateLayers(object = obj, 
+  method = HarmonyIntegration, assay = "SCT",
+  orig.reduction = "pca", new.reduction = "FastMNNIntegration",
+  verbose = TRUE
+)
+patchwork::wrap_plots(p1)
+```
 
