@@ -21,6 +21,8 @@ raw_data <- tenx_load_qc(raw_path,
                          violin_plot = FALSE) %>%
     AddMetaData(read_csv(paste0(raw_path, "metadata.csv")) %>%
                 column_to_rownames("NAME"))
+
+raw_data$cell_type <- raw_data$cell_type__ontology_label
 ```
 
 ```{r}
