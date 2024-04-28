@@ -313,44 +313,96 @@ qs::qsave(seurat_obj, paste0(data_directory,
 ```
 
 ## Assigning cell types
-https://atlas.gs.washington.edu/mouse-atac/data/
+Lets try assigning cell types to the clusters. We'll use a scRNA reference dataset to do this. We can't directly compare the ATAC and RNA datasets, so we'll begin by inferring gene activity in the ATAC data. Then we can use that as input for FindTransferAnchors() to find anchors between the two datasets.
 
+I prepped the scRNAseq data in prep_rna_ref.qmd and saved the data to our shared directory.
+
+## Load reference data
 ```{r load_ref_data}
 ref_data <-
     qs::qread(paste0(data_directory,
                      "brain_rna/brain_rna.qs"))
 ```
 
+## Infer gene activity
 ```{r gene_activity}
 seurat_obj[["RNA"]] <-
-    CreateAssayObject(counts = GeneActivity(seurat_obj)) %>%
-    NormalizeData(assay = 'RNA',
+    CreateAssayObject(counts = GeneActivity(seurat_obj))
+
+seurat_obj <-
+    NormalizeData(seurat_obj,
+                  assay = "RNA",
                   normalization.method = 'LogNormalize',
                   scale.factor = median(seurat_obj$nCount_RNA))
+DefaultAssay(seurat_obj) <- "RNA"
 ```
 
+## Find commonalities between datasets
 ```{r transfer_anchors}
-DefaultAssay(seurat_obj) <- "RNA"
 anchors <-
     FindTransferAnchors(reference = ref_data,
-                         query = seurat_obj,
-                         reduction = "cca")
+                        query = seurat_obj,
+                        reduction = "cca")
 ```
 
+## Use the transfer data to annotate the ATAC data
+```{r transfer_data}
+seurat_obj <-
+    TransferData(anchorset = anchors,
+                 refdata = ref_data$cell_type,
+                 weight.reduction = seurat_obj[["lsi"]],
+                 dims = 2:30) %>%
+    AddMetaData(object = seurat_obj)
+seurat_obj$rna_ref_cell_type <- seurat_obj$predicted.id
+
+table(seurat_obj$rna_ref_cell_type) %>%
+    sort()
+```
+
+## Plot the ATAC data with the RNA cell types
+```{r}
+    DimPlot(seurat_obj,
+        group.by = "rna_ref_cell_type",
+        label = TRUE,
+        repel = TRUE)
+ggsave("Sessions/adv_tuesday/figures/atac_rna_cell_types.png",
+       width = 15,
+       height = 10)
+```
+
+Neuron markers:
+- GFAP - neurogenesis
+- APP - neurodegeneration
+- Eno2 - Mature neurons
+- Rbfox3 - Mature neurons
 
 ### Find differential accessibility between cell types
 Also add in annotation for nearest feature
 ```{r}
-Idents(seurat_obj) <- "cell_type"
+DefaultAssay(seurat_obj) <- "peaks"
+Idents(seurat_obj) <- "rna_ref_cell_type"
+
+just_neurons <-
+    seurat_obj %>%
+    subset(rna_ref_cell_type == "neuron") %>%
+    RunTFIDF() %>%
+    FindTopFeatures(min.cutoff = "q0") %>%
+    RunSVD() %>%
+    FindNeighbors(reduction = "lsi") %>%
+    FindClusters(algorithm = 3,
+                 resolution = 0.2) %>%
+    RunUMAP(reduction = "lsi",
+            dims = 2:30,
+            reduction.name = "umap_atac")
+
+DimPlot(just_neurons,
+        label = TRUE)
 
 da_peaks <-
-    FindMarkers(seurat_obj,
-                ident.1 = "NPCs",
-                ident.2 = "Neurons",
-                test.use = "LR",
-                latent.vars = "atac_peak_region_fragments") %>%
+    FindAllMarkers(just_neurons,
+                   test.use = "wilcox") %>%
     rownames_to_column("region") %>%
-    left_join(ClosestFeature(seurat_obj,
+    left_join(ClosestFeature(just_neurons,
                              regions = .$region) %>%
         dplyr::rename(region = query_region))
 ```
@@ -358,6 +410,39 @@ da_peaks <-
 # Plot ATAC peaks
 Let's pick out three up and three down regulated regions
 ```{r}
+da_peaks %>%
+    as_tibble() %>%
+    select(region,
+           avg_log2FC,
+           pct.1,
+           pct.2,
+           p_val_adj,
+           cluster,
+           gene_name) %>%
+    mutate(cluster = as.character(cluster) %>% as.numeric()) %>%
+    filter(!is.na(gene_name) &
+           pct.1 - pct.2 > 0.2 &
+           cluster < 4) %>%
+    distinct() %>%
+    arrange(desc(avg_log2FC))
+# Rgs14
+CoveragePlot(just_neurons,
+             region = "chr13-55371025-55371922",
+             extend.upstream = 20000,
+             extend.downstream = 20000)
+
+# Reln
+CoveragePlot(just_neurons,
+             region = "Reln",
+             extend.upstream = 20000,
+             extend.downstream = 20000)
+FeaturePlot(just_neurons, features = "chr13-55371025-55371922")
+
+CoveragePlot(just_neurons,
+             region.highlight = StringToGRanges("chr2-163208894-163209794"),
+             region = "Tox2")
+
+
 fav_peaks <-
     da_peaks %>%
     filter(p_val_adj < 1e-20 &
