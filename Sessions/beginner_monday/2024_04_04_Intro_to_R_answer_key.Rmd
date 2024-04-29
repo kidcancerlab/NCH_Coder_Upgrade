@@ -174,3 +174,45 @@ ggplot(iris, aes(x = Species, y = Sepal.Length, color = Species)) +
     labs(y = "Sepal Length",
          title = "Super Duper Hard Impossible Boss-Level Challenge Plot")
 ```
+
+Using the weather_precip dataset.
+
+```
+weather_precip %>%
+    pivot_longer(cols = c("Jan",
+                          "Feb",
+                          "Mar",
+                          "Apr",
+                          "May",
+                          "Jun",
+                          "Jul",
+                          "Aug",
+                          "Sep",
+                          "Oct",
+                          "Nov",
+                          "Dec"),
+                 names_to = "month",
+                 values_to = "precip") %>%
+    mutate(month = factor(month,
+                          levels = c("Jan",
+                                     "Feb",
+                                     "Mar",
+                                     "Apr",
+                                     "May",
+                                     "Jun",
+                                     "Jul",
+                                     "Aug",
+                                     "Sep",
+                                     "Oct",
+                                     "Nov",
+                                     "Dec"))) %>%
+    group_by(Region, month) %>%
+    summarize(avg_monthly = mean(precip)) %>%
+    ggplot(aes(x = month, y = avg_monthly, group = Region, color = Region)) +
+    geom_point() +
+    geom_line() +
+    labs(x = "Month",
+         y = "Average Monthly Precip",
+         title = "Average Precipitation in Each Region by Month")
+
+```

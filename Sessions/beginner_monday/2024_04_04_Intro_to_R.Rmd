@@ -242,12 +242,33 @@ Think of something interesting you could do with some of your variables. Look up
 
 # Part 2
 
+## Directories and Paths
+
+** See powerpoint slides for info on directories and paths **
+
+### Get Working directory
+
+The command `getwd()` will tell you what your current working directory is.
+
+```{r}
+getwd()
+```
+
+The working directory should be NCH_Coder_Upgrade. We want to make it the beginner_monday folder that's within our Sessions folder. We can do this using `setwd()`. Since we're already within NCH_Coder_Upgrade, we don't need to type the entire path up to beginner_monday, we can use the relative path from within NCH_Coder_Upgrade
+
+```{r}
+setwd("Sessions/beginner_monday/")
+getwd()
+```
+
+Now we should be in beginner_monday. Let's read some files in from our working directory!
+
 ## Reading in files
 
 Data are usually available to us in form of larger files, i.e. not single variables. There are functions in R that enable us to read in files. read.delim() and read.table() can be used to read in text (.txt) files.
 ```{r}
 westernQuant <-
-    read.table("Sessions/beginner_monday/westernQuant.txt",
+    read.table("westernQuant.txt",
                header = TRUE)
 
 westernQuant
@@ -302,7 +323,7 @@ hist(westernQuant$intensity_gene1)
 
 Read in the starwars dataset.
 
-Use read.delim()
+Use read.table()
 ```{r}
 
 ```
@@ -850,12 +871,28 @@ Create a histogram of `Petal.Width` with, with one plot for each `Species` of fl
 
 ```
 
-Super Duper Hard Impossible Boss-Level Challenge (see slide)
+Super Duper Hard Impossible Boss-Level Challenges (see slide)
 
 Hints:
-    refer to the link from the "theme" subheader to figure out how to change the panel and plot backgrounds
 
+For the first plot:
+    refer to the link from the "theme" subheader to figure out how to change the panel and plot backgrounds
     the panel background color is lavender, the plot background is lightgreen, the panel lines are black
+
+For the second plot:
+    You'll need to reorder your month variable so that it goes in typical calendar order. You can do this with 
+    `mutate(month = factor(month, levels = c("Jan",
+                                            "Feb",
+                                            "Mar",
+                                            "Apr",
+                                            "May",
+                                            "Jun",
+                                            "Jul",
+                                            "Aug",
+                                            "Sep",
+                                            "Oct",
+                                            "Nov",
+                                            "Dec")))`
 
 ```{r}
 
