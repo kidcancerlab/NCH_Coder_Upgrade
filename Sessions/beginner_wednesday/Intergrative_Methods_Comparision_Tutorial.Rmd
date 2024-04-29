@@ -21,24 +21,23 @@ warnings()
 # remotes::install_github("stuart-lab/signac", "seurat5", quiet = TRUE)
 # if the BPCells are not installed in M1 Mac, see the following https://github.com/bnprks/BPCells/issues/6
 # remotes::install_github("bnprks/BPCells", quiet = TRUE)
+# if you have not install the seurat data, please download and install
+# devtools::install_github('satijalab/seurat-data')
+
 
 # note: please confirm your R version: suggest to be R 4.3.1, given that ‘SeuratObject’ was built under R 4.3.1
 # please also confirm the Matrix version: Matrix_1.6-3 
 
-#BiocManager::install("Azimuth")
-sessionInfo()
 library(Seurat)
 library(SeuratData)
 library(SeuratWrappers)
-library(Azimuth)
 library(ggplot2)
 library(patchwork)
 library(dplyr)
 library(harmony)
 options(future.globals.maxSize = 1e9)
+sessionInfo()
 
-# if you have not install the seurat data, please download and install
-#devtools::install_github('satijalab/seurat-data')
 ```
 
 ## Introduction
@@ -47,22 +46,6 @@ Integration of single-cell sequencing datasets, for example across experimental 
 We recognize that while the goal of matching shared cell types across datasets may be important for many problems, users may also be concerned about which method to use, or that integration could result in a loss of biological resolution. In Seurat v5, we introduce more flexible and streamlined infrastructure to run different integration algorithms with a single line of code. This makes it easier to explore the results of different integration methods, and to compare these results to a workflow that excludes integration steps.
 
 For this vignette, we use a [dataset of human PBMC profiled with seven different technologies](https://www.nature.com/articles/s41587-020-0465-8), profiled as part of a systematic comparative analysis (`pbmcsca`). The data is available as part of our [SeuratData](https://github.com/satijalab/seurat-data) package. 
-
-## Layers in the Seurat v5 object
-Seurat v5 assays store data in layers. These layers can store raw, un-normalized counts (`layer='counts'`), normalized data (`layer='data'`), or z-scored/variance-stabilized data (`layer='scale.data'`). We can load in the data, remove low-quality cells, and obtain predicted cell annotations (which will be useful for assessing integration later), using our [Azimuth pipeline](https://satijalab.github.io/azimuth/articles/run_azimuth_tutorial.html).
-
-```{r installdata, include=FALSE, eval=TRUE}
-library(SeuratData)
-AvailableData()
-options(timeout = 1000)
-InstallData("pbmcref")
-InstallData("pbmcsca.SeuratData")
-data("pbmcref")
-data("pbmcsca")
-
-# Here you can double check the available datasets in the Seurat sharing dataset for your own taining.
-AvailableData()
-```
 
 # Dataset introduction:
 The object contains data from nine different batches (stored in the `Method` column in the object metadata), representing seven different technologies. We will aim to integrate the different batches together. In previous versions of Seurat, we would require the data to be represented as nine different Seurat objects. When using Seurat v5 assays, we can instead keep all the data in one object, but simply split the layers.
@@ -78,11 +61,15 @@ Introduction of nine different batches:
 8. inDrops
 9. 10x_Chromium_v2
 
+## Layers in the Seurat v5 object
+Seurat v5 assays store data in layers. These layers can store raw, un-normalized counts (`layer='counts'`), normalized data (`layer='data'`), or z-scored/variance-stabilized data (`layer='scale.data'`). We can load in the data, remove low-quality cells, and obtain predicted cell annotations (which will be useful for assessing integration later), using our [Azimuth pipeline](https://satijalab.github.io/azimuth/articles/run_azimuth_tutorial.html).
+
 # Loading the dataset and spliting them into different layers based on methods
 ```{r}
+# Set up your working path as where you data stored
+setwd("/Users/XXW004/Documents/Projects/LectureForSingleCellGroup/2024_Update/")
 
 # we used these datasets to build the object that contains nine different batches.
-
 # Read the object 
 obj <- readRDS(file = "IntegrativeMethods.RDS")
 # check the object and their meta data
