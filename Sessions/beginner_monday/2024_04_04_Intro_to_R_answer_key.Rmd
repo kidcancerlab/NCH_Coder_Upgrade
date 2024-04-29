@@ -70,10 +70,38 @@ factor_days <- factor(days,
                       levels = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"))
 
 sort(factor_days)
+
+# Activity 1
+
+Create a new Rmd file. Use ctrl+alt+i to insert a new R chunk.
+
+Within that file, create two variables holding numerical data.
+Knowing that +, -, /, and * work like regular arithmetic operators in R, add your two variables together.
+```{r}
+
+```
+
+Create two variables holding the following values: "10" and "1". Make sure to enclose your variables in quotes.
+Try adding your two new variables together. Observe the error message.
+```{r eval=FALSE}
+
+```
+
+Using as.numeric() function, try to fix the error.
+```{r}
+
+```
+
+Create a set of categorical variables specifying days of the week. Convert them to factors, specifying the correct order.
+
+Use sort() function to make sure everything worked.
+```{r}
+
 ```
 
 If you're fast:
 Think of something interesting you could do with some of your variables. Look up the function that would help you do that and read the documentation. Try it out.
+
 
 ```{r}
 
@@ -188,6 +216,7 @@ inner_join(us_temperatures, rain_long)
 
 ----------------------------------------------------------
 
+
 # Part 4
 
 ## Activity 4 (time permitting)
@@ -226,4 +255,46 @@ ggplot(iris, aes(x = Species, y = Sepal.Length, color = Species)) +
           plot.background = element_rect(fill = "lightgreen")) +
     labs(y = "Sepal Length",
          title = "Super Duper Hard Impossible Boss-Level Challenge Plot")
+
+```
+
+Using the weather_precip dataset.
+
+```
+weather_precip %>%
+    pivot_longer(cols = c("Jan",
+                          "Feb",
+                          "Mar",
+                          "Apr",
+                          "May",
+                          "Jun",
+                          "Jul",
+                          "Aug",
+                          "Sep",
+                          "Oct",
+                          "Nov",
+                          "Dec"),
+                 names_to = "month",
+                 values_to = "precip") %>%
+    mutate(month = factor(month,
+                          levels = c("Jan",
+                                     "Feb",
+                                     "Mar",
+                                     "Apr",
+                                     "May",
+                                     "Jun",
+                                     "Jul",
+                                     "Aug",
+                                     "Sep",
+                                     "Oct",
+                                     "Nov",
+                                     "Dec"))) %>%
+    group_by(Region, month) %>%
+    summarize(avg_monthly = mean(precip)) %>%
+    ggplot(aes(x = month, y = avg_monthly, group = Region, color = Region)) +
+    geom_point() +
+    geom_line() +
+    labs(x = "Month",
+         y = "Average Monthly Precip",
+         title = "Average Precipitation in Each Region by Month")
 ```
