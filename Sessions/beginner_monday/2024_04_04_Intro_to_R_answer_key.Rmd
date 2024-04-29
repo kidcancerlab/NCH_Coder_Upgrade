@@ -1,0 +1,229 @@
+---
+title: "Intro to R 2023 Answer Key"
+author: "Matt Gust and Luda Popova"
+date: '2023-04-23'
+output: html_document
+---
+```{r load_packages}
+library(tidyverse)
+```
+--------------------------------------------------------------------------------
+
+# Part 1
+
+## Activity 1
+
+Create a new Rmd file. Use Code/Insert Chunk, ctrl + alt + i (Windows), or cmd + option + i (macOS).
+Within that file, create two variables holding two different numbers.
+Knowing that +, -, /, and * work like regular arithmetic operators in R, add your two variables together.
+
+```{r}
+num1 <- 3
+
+num2 <- 5
+
+num1 + num2
+```
+
+Using the "==" operator, see if your variables are equal to each other. Now use the != operator and observe the output. 
+
+```{r}
+num1 == num2
+
+num1 != num2
+```
+
+Create two variables holding the following values: "5" and "15". Make sure to enclose your variables in quotes.
+Try adding your two new variables together. Observe the error message.
+
+```{r}
+num3 <- "5"
+
+num4 <- "15"
+
+num3 + num4
+```
+
+Check the class of the variables using the class() function. 
+
+```{r}
+class(num3)
+
+class(num4)
+```
+
+Using as.numeric() function, try to fix the error.
+
+```{r}
+as.numeric(num3) + as.numeric(num4)
+```
+
+Create a vector of categorical variables specifying days of the week. Convert them to factors, specifying the correct order.
+Use sort() function to make sure everything worked.
+
+```{r}
+days <- c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+
+sort(days)
+
+factor_days <- factor(days, 
+                      levels = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"))
+
+sort(factor_days)
+```
+
+If you're fast:
+Think of something interesting you could do with some of your variables. Look up the function that would help you do that and read the documentation. Try it out.
+
+```{r}
+
+```
+
+--------------------------------------------------------------------------------
+
+# Part 2
+
+--------------------------------------------------------------------------------
+
+## Activity 2
+
+-- Make sure to save the summary output to a variable 
+
+Read in the starwars dataset.
+
+Use read.delim()
+```{r}
+starwars <- read.delim("Sessions/beginner_monday/starwars.txt", sep = " ")
+```
+
+Use the `head()` function to get a quick first-glance at the dataset. If things don't look right, try specifying the delimiter in read.delim in the first part.
+
+```{r}
+head(starwars)
+```
+
+Access the 3rd column of the data frame, i.e. the "mass" column. Save it to a variable. 
+```{r}
+starwars_mass <- starwars$mass
+```
+
+Use the function `max()` to find the tallest height of all the characters.
+```{r}
+max(starwars$height, na.rm = TRUE)
+```
+
+Access the tenth row of the dataset, save the output to a variable. 
+```{r}
+starwars_10th_row <- starwars[10,]
+```
+
+Retrieve the name of the person specified in row 10 using square brackets. 
+```{r}
+starwars_10th_row[1]
+
+# OR
+
+starwars[10, 1]
+```
+
+Create a histogram of `height`. What do you expect to happen?
+```{r}
+hist(starwars$height)
+```
+
+--------------------------------------------------------------------------------
+
+# Part 3
+
+--------------------------------------------------------------------------------
+
+## Activity 3
+
+Go back to our temperatures data frame (in wide format).  
+
+```{r}
+temperatures
+```
+
+Arrange the data frame by temperature in January from coldest to warmest and by temperature in August from hottest to coolest. 
+
+```{r}
+temperatures %>%
+  arrange(Jan)
+
+temperatures %>%
+  arrange(-Aug)
+```
+
+Group the dat frame by country, and calculate the mean values for temperatures in May. 
+
+```{r}
+temperatures %>%
+  group_by(Country)%>% 
+  summarise(mean_May = mean(May))
+```
+
+Use filter to make a new data frame named us_temperatures that contains temperatures for cities in the United States only. 
+
+```{r}
+us_temperatures <- 
+  temperatures %>%
+  filter(Country == "United States")
+
+us_temperatures
+```
+
+In the us_temperatures data frame, make a new column that includes the temperature in the US in January in Fahrenheit. Note: the formula for the conversion is Fahrenheit = (Celsius * 9/5) + 32. Note: the result will be appended as the last column. 
+
+```{r}
+us_temperatures %>%
+  mutate(Jan_F = (Jan *9/5) +32)
+```
+
+If you are fast: go back to our rain_long data frame. Join the us_temperatures and the rain_long data frames to only include matching rows. Hint: use inner_join. 
+
+```{r}
+inner_join(us_temperatures, rain_long)
+```
+
+----------------------------------------------------------
+
+# Part 4
+
+## Activity 4 (time permitting)
+
+Using the `iris` dataset, make a scatterplot of `Sepal.Length` vs `Sepal.Width`.
+```{r}
+ggplot(iris, aes(x = Sepal.Length, y = Sepal.Width)) +
+    geom_point()
+```
+
+Create the same plot, but color the points by their `Species`, and size them by their `Petal.Length`.
+```{r}
+ggplot(iris, aes(x = Sepal.Length, y = Sepal.Width, color = Species)) +
+    geom_point()
+```
+
+Create a histogram of `Petal.Width` with, with one plot for each `Species` of flower.
+```{r}
+ggplot(iris, aes(x = Petal.Width)) +
+    geom_histogram() +
+    facet_wrap("Species")
+```
+
+Super Duper Hard Impossible Boss-Level Challenge (see slide)
+
+Hints:
+    refer to the link from the "theme" subheader to figure out how to change the panel and plot backgrounds
+
+    the panel background color is lavender, the plot background is lightgreen, the panel lines are black
+
+```{r}
+ggplot(iris, aes(x = Species, y = Sepal.Length, color = Species)) +
+    geom_boxplot() +
+    theme(panel.background = element_rect(fill = "lavender"),
+          panel.grid = element_line(color = "black", size = 0.2),
+          plot.background = element_rect(fill = "lightgreen")) +
+    labs(y = "Sepal Length",
+         title = "Super Duper Hard Impossible Boss-Level Challenge Plot")
+```
