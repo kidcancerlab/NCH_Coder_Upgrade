@@ -22,16 +22,19 @@ bioc_dependencies <-
       "IRanges",
       "Rsamtools",
       "S4Vectors",
-      "BiocGenerics")
+      "BiocGenerics",
+      "limma",
+      "ComplexHeatmap")
 ```
 
 ## Cran packages:
 ```{r}
 needed_packages_cran <- c(
+    "rstudioapi",
     "data.table",
     "DESeq2",
     "fgsea",
-    "futures",
+    "future",
     "ggrepel",
     "ggthemes",
     "harmony",
@@ -42,13 +45,11 @@ needed_packages_cran <- c(
     "patchwork",
     "pheatmap",
     "RColorBrewer",
-    "RCpp",
+    "Rcpp",
     "reticulate",
     "rmarkdown",
     "Seurat",
-    "SeuratData",
     "SeuratObject",
-    "SeuratWrappers",
     "Signac",
     "testthat",
     "tidyverse"
@@ -61,6 +62,8 @@ github_packages <-
     c("saeyslab/nichenetr",
       "kidcancerlab/rrrSingleCellUtils",
       "NMikolajewicz/scMiko",
+      "satijalab/seurat-data",
+      "mojaveazure/seurat-disk",
       "satijalab/seurat-wrappers",
       "satijalab/azimuth")
 ```
