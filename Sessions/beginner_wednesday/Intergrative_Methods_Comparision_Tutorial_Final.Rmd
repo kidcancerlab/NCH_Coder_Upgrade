@@ -242,13 +242,38 @@ p4 | p5
 ```
 
 
-
-#### Training session -- Let's integrate the COVID dataset generated yesterday using reciprocal PCA.  (RPCAIntegration method in IntegrateLayers) #### 
-# Input dataset: 240429_merged_object.rds
+#### Training session ####
+## Let's integrate the COVID dataset generated yesterday using reciprocal PCA.(RPCAIntegration method in IntegrateLayers) ##
+## Input dataset: 240429_merged_object.rds ##
 
 #  Read COVID object: 240429_merged_object.rds (this object was saved from Tuesday' Seurat Part 1)
 #  Integrate with RPCA 
 #  Run the Seurat Pipeline to cluster the cells and non-linear dimensional reduction
+
+```{r}
+# please write your own codes here
+# 
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ```{r}
 ## Load the data
