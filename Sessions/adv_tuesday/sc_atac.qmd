@@ -27,8 +27,7 @@ lightbox: true
 
 ## Set up environment
 The HPC support folks set up a module for us to use on Franklin. We can load it with the following command:
-`ml gdworkshop_2024`  # Or whatever it ends up getting named
-ml HDF5
+`ml GCC/9.3.0 OpenMPI/4.0.3 scrgot/24`
 
 
 This module includes the R packages we'll be using for the workshop.
@@ -37,8 +36,9 @@ If you're on the IGM cluster, you can...
 
 
 ```{bash setup}
+#| eval: false
 ml purge
-ml gdworkshop_2024 # or whatever it ends up getting named
+ml GCC/9.3.0 OpenMPI/4.0.3 scrgot/24
 ```
 
 # Load packages
