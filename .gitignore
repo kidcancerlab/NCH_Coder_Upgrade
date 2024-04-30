@@ -43,13 +43,7 @@ vignettes/*.pdf
 # Output files for this project
 Rosters/*
 
-# Knitr cache folders
-Sessions/02/Seurat_under_the_hood_cache
-Sessions/02/Seurat_under_the_hood_files
-Sessions/08/multiomics_files
-Sessions/08/multiomics_cache
-Sessions/06/Cell_cell_inter_files
-Sessions/06/Cell_cell_inter_cache
-Sessions/08/e18_*
+data
+2024_scRGOT_CoderUpgrade_Data
 
 .DS_Store

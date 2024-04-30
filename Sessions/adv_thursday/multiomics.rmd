@@ -1,5 +1,5 @@
 ---
-title: "Coder Upgrade 2023: Multiomics analysis"
+title: "Coder Upgrade 2024: Multiomics analysis"
 author: "Matt Cannon"
 date: "`r format(Sys.time(), '%m/%d/%Y')`"
 output:
@@ -650,75 +650,6 @@ CoveragePlot(object = seurat_obj,
              expression.assay = "RNA",
              extend.upstream = 150000,
              extend.downstream = 50000)
-```
-
-## Motif analysis of peak sequence can potentially identify binding factors
-```{r eval=FALSE}
-freq_matrix <-
-    TFBSTools::getMatrixSet(x = JASPAR2020::JASPAR2020,
-                 opts = list(collection = "CORE",
-                             tax_group = "vertebrates",
-                             all_versions = FALSE))
-
-# The chromosomes for this dataset are a bit goofy so we need to kick out a couple junk chromosomes
-seurat_obj <-
-    seurat_obj[grep("^GL|^JH", rownames(seurat_obj), invert = TRUE), ]
-
-# add motif information
-# Ignore the warning - our object just doesn't have some of the junk contigs
-seurat_obj <-
-    AddMotifs(object = seurat_obj,
-              genome = BSgenome.Mmusculus.UCSC.mm10::BSgenome.Mmusculus.UCSC.mm10,
-              pfm = freq_matrix)
-
-Idents(seurat_obj) <- "cell_type"
-
-diff_peaks <-
-    FindMarkers(object = seurat_obj,
-                ident.1 = "Neurons",
-                ident.2 = "NPCs",
-                only.pos = TRUE,
-                test.use = "LR",
-                min.pct = 0.1,
-                latent.vars = "nCount_ATAC")
-
-top_diff_peaks <-
-    rownames(diff_peaks[diff_peaks$p_val < 0.005, ])
-
-open_peaks <-
-    AccessiblePeaks(seurat_obj,
-                    idents = c("Neurons", "NPCs"))
-
-# match the overall GC content in the peak set
-meta_feature <-
-    GetAssayData(seurat_obj,
-                 assay = "ATAC",
-                 slot = "meta.features")
-
-peaks_matched <-
-    MatchRegionStats(meta.feature = meta_feature[open_peaks, ],
-                     query.feature = meta_feature[top_diff_peaks, ],
-                     n = 50000)
-
-## Matching GC.percent distribution
-
-# test enrichment
-enriched_motifs <-
-    FindMotifs(object = seurat_obj,
-               features = top_diff_peaks)
-
-head(enriched_motifs)
-
-motif_locs <-
-    Motifs(seurat_obj)@positions %>%
-    as.data.frame() %>%
-    full_join(tibble(motif_name = Motifs(seurat_obj)@motif.names %>%
-                        as.character(),
-                     group_name = Motifs(seurat_obj)@motif.names %>%
-                        names())) %>%
-    as_tibble()
-
-motif_locs
 ```
 
 --------------------------------------------------------------------------------

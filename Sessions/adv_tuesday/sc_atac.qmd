@@ -27,8 +27,7 @@ lightbox: true
 
 ## Set up environment
 The HPC support folks set up a module for us to use on Franklin. We can load it with the following command:
-`ml gdworkshop_2024`  # Or whatever it ends up getting named
-ml HDF5
+`ml GCC/9.3.0 OpenMPI/4.0.3 scrgot/24`
 
 
 This module includes the R packages we'll be using for the workshop.
@@ -37,8 +36,9 @@ If you're on the IGM cluster, you can...
 
 
 ```{bash setup}
+#| eval: false
 ml purge
-ml gdworkshop_2024 # or whatever it ends up getting named
+ml GCC/9.3.0 OpenMPI/4.0.3 scrgot/24
 ```
 
 # Load packages
@@ -308,27 +308,101 @@ DimPlot(seurat_obj,
         reduction = "umap_atac",
         label = TRUE)
 
-qs::qsave(seurat_obj, paste0(data_path,
-                             "mouse_brain_5k_sobj_3.qs"))
+qs::qsave(seurat_obj, paste0(data_directory,
+                             "8k_mouse_cortex_ATACv2_nextgem_Chromium_X.qs"))
 ```
 
 ## Assigning cell types
-https://atlas.gs.washington.edu/mouse-atac/data/
+Lets try assigning cell types to the clusters. We'll use a scRNA reference dataset to do this. We can't directly compare the ATAC and RNA datasets, so we'll begin by inferring gene activity in the ATAC data. Then we can use that as input for FindTransferAnchors() to find anchors between the two datasets.
 
+I prepped the scRNAseq data in prep_rna_ref.qmd and saved the data to our shared directory.
+
+## Load reference data
+```{r load_ref_data}
+ref_data <-
+    qs::qread(paste0(data_directory,
+                     "brain_rna/brain_rna.qs"))
+```
+
+## Infer gene activity
+```{r gene_activity}
+seurat_obj[["RNA"]] <-
+    CreateAssayObject(counts = GeneActivity(seurat_obj))
+
+seurat_obj <-
+    NormalizeData(seurat_obj,
+                  assay = "RNA",
+                  normalization.method = 'LogNormalize',
+                  scale.factor = median(seurat_obj$nCount_RNA))
+DefaultAssay(seurat_obj) <- "RNA"
+```
+
+## Find commonalities between datasets
+```{r transfer_anchors}
+anchors <-
+    FindTransferAnchors(reference = ref_data,
+                        query = seurat_obj,
+                        reduction = "cca")
+```
+
+## Use the transfer data to annotate the ATAC data
+```{r transfer_data}
+seurat_obj <-
+    TransferData(anchorset = anchors,
+                 refdata = ref_data$cell_type,
+                 weight.reduction = seurat_obj[["lsi"]],
+                 dims = 2:30) %>%
+    AddMetaData(object = seurat_obj)
+seurat_obj$rna_ref_cell_type <- seurat_obj$predicted.id
+
+table(seurat_obj$rna_ref_cell_type) %>%
+    sort()
+```
+
+## Plot the ATAC data with the RNA cell types
+```{r}
+    DimPlot(seurat_obj,
+        group.by = "rna_ref_cell_type",
+        label = TRUE,
+        repel = TRUE)
+ggsave("Sessions/adv_tuesday/figures/atac_rna_cell_types.png",
+       width = 15,
+       height = 10)
+```
+
+Neuron markers:
+- GFAP - neurogenesis
+- APP - neurodegeneration
+- Eno2 - Mature neurons
+- Rbfox3 - Mature neurons
 
 ### Find differential accessibility between cell types
 Also add in annotation for nearest feature
 ```{r}
-Idents(seurat_obj) <- "cell_type"
+DefaultAssay(seurat_obj) <- "peaks"
+Idents(seurat_obj) <- "rna_ref_cell_type"
+
+just_neurons <-
+    seurat_obj %>%
+    subset(rna_ref_cell_type == "neuron") %>%
+    RunTFIDF() %>%
+    FindTopFeatures(min.cutoff = "q0") %>%
+    RunSVD() %>%
+    FindNeighbors(reduction = "lsi") %>%
+    FindClusters(algorithm = 3,
+                 resolution = 0.2) %>%
+    RunUMAP(reduction = "lsi",
+            dims = 2:30,
+            reduction.name = "umap_atac")
+
+DimPlot(just_neurons,
+        label = TRUE)
 
 da_peaks <-
-    FindMarkers(seurat_obj,
-                ident.1 = "NPCs",
-                ident.2 = "Neurons",
-                test.use = "LR",
-                latent.vars = "atac_peak_region_fragments") %>%
+    FindAllMarkers(just_neurons,
+                   test.use = "wilcox") %>%
     rownames_to_column("region") %>%
-    left_join(ClosestFeature(seurat_obj,
+    left_join(ClosestFeature(just_neurons,
                              regions = .$region) %>%
         dplyr::rename(region = query_region))
 ```
@@ -336,6 +410,39 @@ da_peaks <-
 # Plot ATAC peaks
 Let's pick out three up and three down regulated regions
 ```{r}
+da_peaks %>%
+    as_tibble() %>%
+    select(region,
+           avg_log2FC,
+           pct.1,
+           pct.2,
+           p_val_adj,
+           cluster,
+           gene_name) %>%
+    mutate(cluster = as.character(cluster) %>% as.numeric()) %>%
+    filter(!is.na(gene_name) &
+           pct.1 - pct.2 > 0.2 &
+           cluster < 4) %>%
+    distinct() %>%
+    arrange(desc(avg_log2FC))
+# Rgs14
+CoveragePlot(just_neurons,
+             region = "chr13-55371025-55371922",
+             extend.upstream = 20000,
+             extend.downstream = 20000)
+
+# Reln
+CoveragePlot(just_neurons,
+             region = "Reln",
+             extend.upstream = 20000,
+             extend.downstream = 20000)
+FeaturePlot(just_neurons, features = "chr13-55371025-55371922")
+
+CoveragePlot(just_neurons,
+             region.highlight = StringToGRanges("chr2-163208894-163209794"),
+             region = "Tox2")
+
+
 fav_peaks <-
     da_peaks %>%
     filter(p_val_adj < 1e-20 &
@@ -394,4 +501,74 @@ merged_atac_data <-
                n_regions_simul = 100000,
                threads = 3) %>%
     subset(nCount_ATAC > 100)
+```
+
+
+## Motif analysis of peak sequence can potentially identify binding factors
+```{r eval=FALSE}
+freq_matrix <-
+    TFBSTools::getMatrixSet(x = JASPAR2020::JASPAR2020,
+                 opts = list(collection = "CORE",
+                             tax_group = "vertebrates",
+                             all_versions = FALSE))
+
+# The chromosomes for this dataset are a bit goofy so we need to kick out a couple junk chromosomes
+seurat_obj <-
+    seurat_obj[grep("^GL|^JH", rownames(seurat_obj), invert = TRUE), ]
+
+# add motif information
+# Ignore the warning - our object just doesn't have some of the junk contigs
+seurat_obj <-
+    AddMotifs(object = seurat_obj,
+              genome = BSgenome.Mmusculus.UCSC.mm10::BSgenome.Mmusculus.UCSC.mm10,
+              pfm = freq_matrix)
+
+Idents(seurat_obj) <- "cell_type"
+
+diff_peaks <-
+    FindMarkers(object = seurat_obj,
+                ident.1 = "Neurons",
+                ident.2 = "NPCs",
+                only.pos = TRUE,
+                test.use = "LR",
+                min.pct = 0.1,
+                latent.vars = "nCount_ATAC")
+
+top_diff_peaks <-
+    rownames(diff_peaks[diff_peaks$p_val < 0.005, ])
+
+open_peaks <-
+    AccessiblePeaks(seurat_obj,
+                    idents = c("Neurons", "NPCs"))
+
+# match the overall GC content in the peak set
+meta_feature <-
+    GetAssayData(seurat_obj,
+                 assay = "ATAC",
+                 slot = "meta.features")
+
+peaks_matched <-
+    MatchRegionStats(meta.feature = meta_feature[open_peaks, ],
+                     query.feature = meta_feature[top_diff_peaks, ],
+                     n = 50000)
+
+## Matching GC.percent distribution
+
+# test enrichment
+enriched_motifs <-
+    FindMotifs(object = seurat_obj,
+               features = top_diff_peaks)
+
+head(enriched_motifs)
+
+motif_locs <-
+    Motifs(seurat_obj)@positions %>%
+    as.data.frame() %>%
+    full_join(tibble(motif_name = Motifs(seurat_obj)@motif.names %>%
+                        as.character(),
+                     group_name = Motifs(seurat_obj)@motif.names %>%
+                        names())) %>%
+    as_tibble()
+
+motif_locs
 ```
