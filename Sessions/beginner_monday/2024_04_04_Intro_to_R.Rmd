@@ -898,6 +898,8 @@ For the second plot:
                                             "Nov",
                                             "Dec")))`
 
+    Use the `group` aesthetic for the lines
+
 ```{r}
 
 ```
