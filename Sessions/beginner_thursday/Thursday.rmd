@@ -601,7 +601,7 @@ clusters <-
   as.character()
 
 # Find DEGs for each cluster
-for (cell in unique(data$rpca_clusters)){
+for (cell in clusters){
     # Find the markers
     markers <- 
       FindMarkers(object = data,
