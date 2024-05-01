@@ -619,8 +619,20 @@ for (x in my_fav_nums){
 We could also find DEGs for several clusters at a time using a for-loop
 
 ```{r}
+# select only clusters that have >3 cells in both groups
+df <- 
+  table(data$rpca_clusters, 
+        data$group_per_sample) %>%
+  as.data.frame() %>%
+  pivot_wider(names_from = Var2,
+              values_from = Freq) %>%
+  as.data.frame()
+clusters <-
+  df[df$control >= 3 & df$severe >= 3, "Var1"] %>%
+  as.character()
+
 # Find DEGs for each cluster
-for (cell in unique(data$rpca_clusters)){
+for (cell in clusters){
     # Find the markers
     markers <- 
       FindMarkers(object = data,
