@@ -35,6 +35,7 @@ library(ggplot2)
 library(patchwork)
 library(dplyr)
 library(harmony)
+library(batchelor)
 options(future.globals.maxSize = 1e9)
 sessionInfo()
 
@@ -67,7 +68,7 @@ Seurat v5 assays store data in layers. These layers can store raw, un-normalized
 # Loading the dataset and spliting them into different layers based on methods
 ```{r}
 # Set up your working path as where you data stored
-setwd("/Users/XXW004/Documents/Projects/LectureForSingleCellGroup/2024_Update/")
+setwd("data")
 
 # we used these datasets to build the object that contains nine different batches.
 # Read the object 
