@@ -70,7 +70,6 @@ done
 
 A lot of the code is adapted from https://stuartlab.org/signac/articles/pbmc_vignette
 
-
 ## Load in data
 ```{r load_data}
 data_directory <- "/home/gdworkshop/lab/Sessions/adv_tuesday/"
@@ -112,6 +111,25 @@ seurat_obj <-
                        assay = "peaks")
 
 rm(chrom_obj)
+```
+
+### Activity
+
+We have data for another sample in the same folder as the one I'm using. Lets load that in. The other sample is the same type of sample, just processed with a different machine.
+
+The data are named `8k_mouse_cortex_ATACv2_nextgem_Chromium_Controller*` and are in the same data_directory.
+
+```{r load_other_data}
+
+```
+
+```{r create_chromatin_object}
+
+```
+
+#### Make a Seurat object
+```{r create_seurat_object}
+
 ```
 
 ### Add in metadata output by cellranger
@@ -203,7 +221,9 @@ seurat_obj@meta.data %>%
          x = "Number of ATAC fragments",
          y = "Number of cells")
 
-ggsave("figures/ncount_peaks.png")
+ggsave("figures/ncount_peaks.png",
+       width = 10,
+       height = 7)
 ```
 
 ```{r plot_nucleosome}
@@ -215,7 +235,9 @@ seurat_obj@meta.data %>%
          x = "Nucleosome signal",
          y = "Number of cells")
 
-ggsave("figures/nucleosome_signal.png")
+ggsave("figures/nucleosome_signal.png",
+       width = 10,
+       height = 7)
 ```
 
 ```{r}
@@ -227,7 +249,9 @@ seurat_obj@meta.data %>%
          x = "TSS enrichment",
          y = "Number of cells")
 
-ggsave("figures/tss_enrichment.png")
+ggsave("figures/tss_enrichment.png",
+       width = 10,
+       height = 7)
 ```
 
 ```{r plot_mitochondrial}
@@ -239,7 +263,9 @@ seurat_obj@meta.data %>%
          x = "Percent mitochondrial reads",
          y = "Number of cells")
 
-ggsave("figures/mitochondrial_reads.png")
+ggsave("figures/mitochondrial_reads.png",
+       width = 10,
+       height = 7)
 ```
 
 ```{r plot_frip}
@@ -251,7 +277,9 @@ seurat_obj@meta.data %>%
          x = "Percent reads in peaks",
          y = "Number of cells")
 
-ggsave("figures/frip.png")
+ggsave("figures/frip.png",
+       width = 10,
+       height = 7)
 ```
 
 Generally want:
@@ -279,7 +307,7 @@ seurat_obj <-
 ```
 
 ## Process the seurat data
-For ATAC, we do a couple of things differentially
+For ATAC, we do a couple of things differentially than GEX data.
 
 - We don't use the standard normalization, we use term frequency-inverse document frequency (TF-IDF) instead
     - "This is a two-step normalization procedure, that both normalizes across cells to correct for differences in cellular sequencing depth, and across peaks to give higher values to more rare peaks."
@@ -325,6 +353,7 @@ ref_data <-
 ```
 
 ## Infer gene activity
+We need something common to use to compare the datasets. We'll infer gene activity based on the location of open chromatin in the ATAC data. This provides estimates of expression for each gene. We can then compare the gene activity in the ATAC data to the gene expression in the RNA data to find which cell types best match.
 ```{r gene_activity}
 seurat_obj[["RNA"]] <-
     CreateAssayObject(counts = GeneActivity(seurat_obj))
@@ -338,6 +367,9 @@ DefaultAssay(seurat_obj) <- "RNA"
 ```
 
 ## Find commonalities between datasets
+Puts the data into a common space to find anchors between the datasets.
+"cca" in this context is canonical correlation analysis. It finds linear combinations of the variables in the two datasets that have maximal correlation with each other. This is useful for finding commonalities between datasets.
+https://en.wikipedia.org/wiki/Canonical_correlation
 ```{r transfer_anchors}
 anchors <-
     FindTransferAnchors(reference = ref_data,
@@ -346,6 +378,9 @@ anchors <-
 ```
 
 ## Use the transfer data to annotate the ATAC data
+Uses the shared space to move metadata from the reference dataset to the query dataset.
+
+In this example we're taking the cell type labels from the RNA data and adding them to the ATAC data.
 ```{r transfer_data}
 seurat_obj <-
     TransferData(anchorset = anchors,
@@ -360,8 +395,9 @@ table(seurat_obj$rna_ref_cell_type) %>%
 ```
 
 ## Plot the ATAC data with the RNA cell types
+Lets look at which cell types we have in the ATAC data
 ```{r}
-    DimPlot(seurat_obj,
+DimPlot(seurat_obj,
         group.by = "rna_ref_cell_type",
         label = TRUE,
         repel = TRUE)
@@ -377,7 +413,9 @@ Neuron markers:
 - Rbfox3 - Mature neurons
 
 ### Find differential accessibility between cell types
-Also add in annotation for nearest feature
+To test out looking at differential accessibility, lets look at the differences between different neuronal clusters.
+
+We'll start by subsetting out the neurons and re-processing the data.
 ```{r}
 DefaultAssay(seurat_obj) <- "peaks"
 Idents(seurat_obj) <- "rna_ref_cell_type"
@@ -397,7 +435,11 @@ just_neurons <-
 
 DimPlot(just_neurons,
         label = TRUE)
+```
 
+### Find differentially accessible peaks
+We also add in annotation for nearest feature to each peak using the ClosestFeature() function.
+```{r diff_peaks}
 da_peaks <-
     FindAllMarkers(just_neurons,
                    test.use = "wilcox") %>%
@@ -408,7 +450,7 @@ da_peaks <-
 ```
 
 # Plot ATAC peaks
-Let's pick out three up and three down regulated regions
+Let's pick out some peaks to look at more specifically
 ```{r}
 da_peaks %>%
     as_tibble() %>%
@@ -461,12 +503,16 @@ CoveragePlot(seurat_obj,
              extend.downstream = 2000)
 ```
 
-One issue:
+# What if I have more than one sample?
 
-If you have multiple samples called with cellranger-arc, their peaks are different, so you can't really compare them directly.
+That makes things more complex.....
+
+If you have multiple samples called with cellranger-arc, their peaks are different, so you can't compare them directly.
 I'm not going to walk through this, due to time constraints, but just wanted to show a couple of options to deal with this.
 
 You can either re-call the peaks: https://stuartlab.org/signac/articles/peak_calling.html
+
+Or use windows: https://www.nature.com/articles/s41592-023-02139-9
 
 Or redefine their boundaries: https://stuartlab.org/signac/articles/merging.html
 
@@ -476,6 +522,7 @@ This code won't work since the files don't exist, it's just to show you how to u
 ```{r eval=FALSE}
 # Documentation is still a work in progress
 library(rrrSingleCellUtils)
+data_path <- "/path/to/data/"
 peak_beds <-
     paste0(data_path,
            c("sample_1/atac_peaks.bed",
