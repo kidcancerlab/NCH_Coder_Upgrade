@@ -91,6 +91,9 @@ library(DESeq2)
 # set seed for reproducibility
 set.seed(888)
 
+# set working directory
+setwd("./Sessions/beginner_thursday")
+
 # not sure if we will need to do this or not
 options(future.globals.maxSize = 8000 * 1024^24)
 ```
@@ -102,7 +105,7 @@ options(future.globals.maxSize = 8000 * 1024^24)
 Load in the integrated COVID PBMC Seurat object to cell type 
 ```{r load_data}
 # read in seurat object
-data <- readRDS("integrated.rds")
+data <- readRDS("../../integrated.rds")
 
 # the reference data is SCTranformed so we will use the same approach to normalize the query
 data <- SCTransform(data)
