@@ -46,15 +46,15 @@ them, and files do not.
 # Load COVID19 day 15 scRNAseq dataset
 ## You will need to change the path below to use your NCH username 
 ## (or other path to desktop if not on an NCH computer)
-covid_data <- Read10X(data.dir = "C:/Users/rsexf001/Desktop/software_windows/NCH_Coder_Upgrade/2024_scRGOT_CoderUpgrade_Data/matrices/10X/C19-CB-0013_d15")
+covid_data <- Read10X(data.dir = "data/matrices/10X/C19-CB-0013_d15")
 ```
 
 # Create Seurat Object
 ```{r createobj}
 covid <- CreateSeuratObject(counts = covid_data,
-                           project = "covid15d",
-                           min.cells = 3,
-                           min.features = 200)
+                            project = "covid15d",
+                            min.cells = 3,
+                            min.features = 200)
 
 # We can now remove the previous object
 rm(covid_data)
@@ -262,21 +262,21 @@ to rerun anything prior to FindClusters).
 ```{r seuratsave}
 # Save
 save(covid,
-     file = "Data/covid.RData")
+     file = "data/covid.RData")
 
 # saveRDS
 saveRDS(covid,
-     file = "Data/covid.rds")
+     file = "data/covid.rds")
 ```
 
 # Loading Seurat Objects
 
 ```{r seuratload}
 # Load
-load("Data/covid.RData")
+load("data/covid.RData")
 
 # readRDS
-covid <- readRDS("Data/covid.rds")
+covid <- readRDS("data/covid.rds")
 ```
 
 # Challenge:
@@ -284,7 +284,7 @@ Perform single cell analysis of the COVID19 day 16 dataset (10x):
 
 ## Load in bone marrow dataset
 ```{r challenge} 
-dataset_d16 <- Read10X(data.dir = "software_windows/NCH_Coder_Upgrade/2024_scRGOT_CoderUpgrade_Data/matrices/10X/C19-CB-0016_d16") 
+dataset_d16 <- Read10X(data.dir = "data/matrices/10X/C19-CB-0016_d16") 
 ```
 
 ## Create Seurat Object
