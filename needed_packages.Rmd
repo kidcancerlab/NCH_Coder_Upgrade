@@ -2,8 +2,6 @@
 
 # Beginner sessions
 
-python?
-scvi-tools
 
 ## Cran dependencies:
 ```{r}
@@ -99,6 +97,10 @@ in order for the packages to install without compilation errors.
 
 I doubt the specific versions of cmake, etc. are important, those are just the ones I used.
 
+For the workshop we will load the required software with:
+
+`ml GCC/9.3.0 OpenMPI/4.0.3 scrgot/24`
+
 reticulate::install_python(version = "3.11")
 
 Add in:
@@ -107,7 +109,6 @@ Add in:
     quadprog
     Rfast
     scatterpie
-    Matrix?
     presto
 
 
@@ -156,6 +157,12 @@ bioc_packages <-
       "Rtsne",
       "zoo")
 
+pak::pkg_install(c(bioc_dependencies,
+                   cran_packages,
+                   bioc_packages))
+```
+
+```{r github_packages}
 github_packages <-
     c("thomasp85/patchwork",
       "bokeh/rbokeh",
@@ -176,3 +183,14 @@ pak::pkg_install(c(bioc_dependencies,
                    github_packages))
 ```
 
+```{r last_few}
+couple_more <-
+    c("R.utils",
+      "scran",
+      "quadprog",
+      "Rfast",
+      "scatterpie",
+      "immunogenomics/presto")
+
+pak::pkg_install(couple_more)
+```
