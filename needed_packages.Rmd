@@ -11,7 +11,7 @@ cran_dependencies <-
     c("BiocManager",
       "pak")
 
-install.packages(cran_dependencies, Ncpus = 10)
+install.packages(cran_dependencies, Ncpus = 4)
 ```
 
 ## Biocondutor dependencies:
@@ -31,6 +31,7 @@ bioc_dependencies <-
 ```{r}
 needed_packages_cran <- c(
     "rstudioapi",
+    "batchelor",
     "data.table",
     "DESeq2",
     "fgsea",

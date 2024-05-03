@@ -1,0 +1,358 @@
+---
+title: 'Seurat Lesson: Code'
+author: "Emily Franz and Jack Hedberg"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 5
+    number_sections: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  tidy = TRUE,
+  echo = TRUE,
+  cache = TRUE,
+  collapse = TRUE,
+  tidy.opts = list(width.cutoff = 95),
+  message = FALSE,
+  warning = FALSE,
+  cache.lazy = FALSE)
+```
+
+```{r lib, cache = FALSE}
+# Load necessary packages
+library(Seurat)
+library(tidyverse) # This package contains ggplot2 and dplyr
+library(patchwork)
+
+# Set the random generator seed so that results are reproducible.
+set.seed(132)
+```
+
+
+Link to download another example dataset: https://cf.10xgenomics.com/samples/cell/pbmc3k/pbmc3k_filtered_gene_bc_matrices.tar.gz
+
+
+# Load in scRNAseq dataset: 
+***YOU MAY NEED TO MODIFY THE CODE BELOW SO THAT THE FOLDER PATH POINTS R TO 
+WHEREVER THE RAW DATA IS LOCATED ON YOUR COMPUTER. Make sure that you include the 
+necessary folders in the path to the below folders. 
+Be careful with forward slashes. Folders always have a forward slash in front of 
+them, and files do not.
+```{r load}
+# Load COVID19 day 15 scRNAseq dataset
+## You will need to change the path below to use your NCH username 
+## (or other path to desktop if not on an NCH computer)
+covid_data <- Read10X(data.dir = "data/matrices/10X/C19-CB-0013_d15")
+```
+
+# Create Seurat Object
+```{r createobj}
+covid <- CreateSeuratObject(counts = covid_data,
+                            project = "covid15d",
+                            min.cells = 3,
+                            min.features = 200)
+
+# We can now remove the previous object
+rm(covid_data)
+```
+
+# Perform Subsetting for Quality Control
+All subsetting will depend on your sample and its quality and conditions. For 
+instance, if one sample is a tumor treated with effective chemotherapy, you may 
+expect to see a higher percent of mitochondrial genes and may want to include 
+more of these dying cells in your subsetting (say, 25% mitochondrial genes). 
+All subsetting should depend on the spread of your data, with outliers (both 
+high and low) typically targeted for exclusion.
+**Feature subsetting:**
+nFeature_RNA: number of genes (features) detected per cell. 
+Subsetting the number of features per cells can help to remove doublets (two cells
+that grouped together as "one" -> high nFeature_RNA) and non-cells, such as 
+dead cells or free mRNA that grouped together (low nFeature_RNA).
+
+**Count subsetting:**
+nCount_RNA: number of unique molecule identifiers (UMIs) per cell
+High nCount_RNA also indicates doublets, and so is another method for 
+filtering out those doublets. Some prefer using this method to using nFeatures to remove 
+doublets. Using both, one can be fairly confident of removing doublets. 
+
+**Mitochondrial gene subsetting:**
+Subsetting the data by percent mitochondrial genes helps remove poor quality 
+cells, such as dead cells or cells with a broken membrane (this causes leakage of
+mRNA). These cells have a higher percentage of mitochondrial genes. Typically, 
+25% and lower is preferred; however, again, this depends on your data spread 
+and your expectations for the sample. 
+Note: "^MT-" = all genes beginning with "MT-", which is how all mitochondrial 
+gene names begin.
+
+**Ribosomal and hemoglobin gene subsetting:**
+These are other options for identifying low quality samples based on the percent
+of these genes in each cell. Ribosomal genes begin with either "RPS" or "RPL". 
+Hemoglobin genes begin with either "HBA" or "HBB".
+```{r qc}
+#### Visualize Outliers ####
+covid[["percent.mt"]] <- PercentageFeatureSet(covid, pattern = "^MT-")
+covid[["percent.ribo"]] <- PercentageFeatureSet(covid, pattern = "^RP[SL]")
+covid[["percent.hb"]] <- PercentageFeatureSet(covid, pattern = "^HB[AB]")
+
+# Violin plot to visualize outliers
+VlnPlot(covid,
+        features = c("nFeature_RNA",
+                     "nCount_RNA",
+                     "percent.mt"))
+VlnPlot(covid,
+        features = c("percent.mt",
+                     "percent.ribo",
+                     "percent.hb"))
+
+# Scatter plots to visualize outliers using combinations of criteria for subsetting
+## For instance, cells with both high nCount and nFeature are likely doublets.
+## Low nCount and high mitochondrial percentage can indicate dead/dying cells 
+## where membrane leakage has occured.
+plot1 <- FeatureScatter(covid,
+                        feature1 = "nCount_RNA",
+                        feature2 = "percent.mt") + 
+  theme(legend.position="none")
+plot2 <- FeatureScatter(covid,
+                        feature1 = "nCount_RNA",
+                        feature2 = "nFeature_RNA") + 
+  theme(legend.position="none")
+# Plots can be assigned to an object and then patchwork uses the below 
+# to plot these side by side
+plot1 + plot2
+
+#### Subset ####
+covid <- subset(covid,
+               subset = nFeature_RNA > 1000 &
+                 nFeature_RNA < 3500 &
+                 nCount_RNA < 30000 &
+                 percent.mt < 10 &
+                 percent.hb < 5)
+```
+
+# Normalize
+Normalization is the process of adjusting gene expression values to eliminate/reduce 
+the influence of technical effects impacting all genes the same way.
+```{r normalize}
+covid <- NormalizeData(covid,
+                      normalization.method = "LogNormalize",
+                      scale.factor = 10000)
+```
+
+# Identify Highly Variable Features
+This function identifies the n most highly variable features. By default, n = 2000 
+(defined by nfeatures=2000). This is used by the next step, scaling, to speed it
+up. Often, many biologically important features will be captured in this step, 
+however, you may lose important data, depending on your dataset. 
+```{r varfeatures}
+covid <- FindVariableFeatures(covid,
+                             selection.method = "vst",
+                             nfeatures = 2000)
+```
+
+# Scale Features
+Scaling applies linear transformation. Importantly, this step ensures that 
+highly-expressed genes do not dominate and drown out relatively lower-expressed 
+genes that have biological importance. This is a standard pre-processing step 
+prior to principle component analysis (dimensional reduction).
+  -Shifts the expression of each gene (feature), so that the mean expression across cells is 0
+  -Scales the expression of each gene (feature), so that the variance across cells is 1
+  -Results are stored in covid[["RNA"]]@scale.data
+  
+Note that if the features parameter is undefined, this function will perform 
+scaling on only 2,000 of the most variable features by default (may lose data).
+```{r scale}
+#### Scale data ####
+# The rownames of the covid object are ALL of the genes (features).
+covid <- ScaleData(covid,
+                  features = rownames(covid))
+```
+
+# Perform Principle Component Analysis (PCA)
+This step can also be known as linear dimensional reduction. Numerous methods 
+exist for visualization of principle components (PCs). A common method is 
+*ElbowPlot*, which plots the standard deviations of the principle components. 
+The left of the 'elbow' tends to represent the significant dimensions. 
+
+Other visualization methods include *JackStraw* (slow) and *DimHeatmap*. Note that 
+higher dimensions can be chosen, especially if certain rare cell-type signatures 
+are distinguishable in these PCs. *DimHeatmap* is helpful in seeing these genes.
+More information can be found at: 
+[Seurat - Guided Clustering Tutorial: Perform linear dimensional reduction](https://satijalab.org/seurat/articles/pbmc3k_tutorial.html).
+```{r pca}
+#### Run PCA ####
+covid <- RunPCA(covid,
+               features = VariableFeatures(object = covid))
+
+#### Elbow Plot ####
+# Note the elbow around PC 9 or 10
+# (more specifically, the PCs from above PC 10 show nearly no difference in y-axis 
+# value to that of PC 10). Thus, we will proceed with dims = 1:10.
+ElbowPlot(covid,
+          ndims = 25)
+```
+
+# Cluster Single Cells.
+This portion includes two steps. The first, *FindNeighbors*, takes the principle 
+components selected above and constructs a graph based on the euclidean distance 
+from the PCA and finds the similarities between two cells based on overlap of 
+their local neighborhoods. The selected PCs are defined in the *dims* parameter. 
+The second step, *FindClusters*, iteratively groups cells together with the ability 
+to set the resolution, or granularity, of the clustering. The higher the 
+resolution, the greater the number of clusters in the output.
+```{r cluster}
+#### Find Neighbors ####
+covid <- FindNeighbors(covid,
+                      dims = 1:10)
+
+#### Find Clusters ####
+# Low resolution (low number of clusters)
+covid <- FindClusters(covid,
+                     resolution = 0.2)
+```
+
+# Run Non-linear Dimensional Reduction (UMAP/tSNE)
+Using the same PCs and resolution as defined above, this step places similar 
+cells together in a low-dimension (2D) space. Those cells calculated as co-localized 
+in the clusters generated above should co-localize in the UMAP or tSNE space. 
+Cells are colored by their cluster or identity class.
+
+As for differences between tSNE and UMAP, UMAP lowers the dimensions of the high 
+dimensional graph from above using compression, whereas t-SNE moves the high 
+dimensional graph to a lower dimensional space points by points. Their parameters,
+thus, differ, but both can be used as graph-based methods for non-linear 
+dimensional reduction. Neither is perfect, but UMAP tends to provide better balance
+between local versus global structure and is more time-effective. For more information, 
+please see [Comparing UMAP vs t-SNE in Single-cell RNA-Seq Data Visualization, Simply Explained](https://blog.bioturing.com/2022/01/14/umap-vs-t-sne-single-cell-rna-seq-data-visualization/) 
+and [Understanding UMAP](https://pair-code.github.io/understanding-umap/).
+
+*RunTSNE()* is used, similarly to below, to acheive a TSNE plot.
+```{r umap}
+#### Run UMAP ####
+# Use the same dimensions as those in FindNeighbors()
+covid <- RunUMAP(covid,
+                dims = 1:10)
+
+#### Plot UMAP ####
+DimPlot(covid,
+        reduction = "umap")
+
+# Visualize cluster labels on UMAP
+## Note: reduction parameter, if not specified, first searches for umap, then tsne, then pca
+## By default, then, it will select whichever dimensional reduction method is used above,
+## unless both umap and tsne have been generated. 
+DimPlot(covid,
+        label = TRUE,
+        repel = TRUE)
+```
+
+# Practice 1
+Generate a dimplot with a higher clustering resolution of 0.5. (You do not need 
+to rerun anything prior to FindClusters).
+
+```{r practice1}
+
+```
+
+# Saving Seurat Objects
+
+```{r seuratsave}
+# Save
+save(covid,
+     file = "data/covid.RData")
+
+# saveRDS
+saveRDS(covid,
+     file = "data/covid.rds")
+```
+
+# Loading Seurat Objects
+
+```{r seuratload}
+# Load
+load("data/covid.RData")
+
+# readRDS
+covid <- readRDS("data/covid.rds")
+```
+
+# Challenge:
+Perform single cell analysis of the COVID19 day 16 dataset (10x): 
+
+## Load in bone marrow dataset
+```{r challenge} 
+dataset_d16 <- Read10X(data.dir = "data/matrices/10X/C19-CB-0016_d16") 
+```
+
+## Create Seurat Object
+```{r challenge-obj} 
+
+```
+
+## Perform Subsetting for Quality Control
+```{r challenge-qc} 
+
+```
+
+## Normalize
+```{r challenge-normalize} 
+
+```
+
+## Identify Highly Variable Features
+```{r challenge-varfeatures} 
+
+```
+
+## Scale Data
+```{r challenge-scale} 
+
+```
+
+## Run PCA
+```{r challenge-pca} 
+
+```
+
+## Find Neighbors and Find Clusters
+```{r challenge-cluster} 
+
+```
+
+## Run UMAP
+```{r challenge-umap} 
+
+```
+
+## Save your dataset
+```{r challenge-save} 
+
+```
+
+
+--------------------------------------------------------------------------------
+
+
+## Bonus: Let's make a Nebulosa density plot!
+Density Plot (Nebulosa Package) Showing Density of LYZ Expression
+
+Use this code to install Nebulosa and get started
+```{r} 
+if (!require("BiocManager", quietly = TRUE)) 
+  install.packages("BiocManager") 
+BiocManager::install("Nebulosa") 
+library(Nebulosa) 
+
+#plot_density(seurat object, "GENE SYMBOL") 
+##above is an example of how to use the density plot function from the Nebulosa package 
+##Below, make your own density plot of LYZ
+ 
+```
+
+```{r}
+sessionInfo()
+```
+
