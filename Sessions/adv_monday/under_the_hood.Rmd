@@ -1,0 +1,566 @@
+---
+title: "Coder Upgrade 2023: Seurat Under the Hood"
+author: "Matt Cannon & Ryan Roberts"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+output:
+    html_document:
+        toc: true
+        toc_float: true
+        toc_depth: 5
+        number_sections: false
+        code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      cache = TRUE,
+                      cache.lazy = FALSE)
+```
+
+Load libraries
+```{r libraries, cache=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+library(rrrSingleCellUtils)
+library(tidyverse)
+library(Seurat)
+```
+
+--------------------------------------------------------------------------------
+
+# Section 1: Objects in R and Seurat objects
+
+R has many variable types
+```{r}
+my_vector <- c(1, 2, 3, 4, 5)
+my_matrix <- matrix(1:9, nrow = 3)
+my_data_frame <- data.frame(x = 1:5, y = 6:10)
+my_list <- list(a = 1, b = 2, c = "stuff")
+```
+
+R is mostly a "functional language"
+
+But it also has some "object oriented" features
+
+- Objects are a way to store data and functions together
+- Objects are intended to be "black boxes" that you can interact with
+- Methods or functions are used to interact with objects
+- Conceptually different than normal variables
+    - Variables are meant to be directly manipulated
+    - Objects are meant to be interacted with through methods
+
+Three main types of objects in R
+
+- S3
+    - The original object type in R
+    - Less strictly defined
+- S4
+    - More strictly defined
+    - More complicated to create
+    - Less prone to errors
+- R6
+    - More traditional OO behavior
+    - Not super common
+
+## Seurat objects are S4 objects
+```{r}
+isS4(pbmc_small)
+class(pbmc_small)
+```
+
+This is the code that defines a Seurat object
+```{r}
+Seurat <- setClass(
+  Class = 'Seurat',
+  slots = c(
+    assays = 'list',
+    meta.data = 'data.frame',
+    active.assay = 'character',
+    active.ident = 'factor',
+    graphs = 'list',
+    neighbors = 'list',
+    reductions = 'list',
+    images = 'list',
+    project.name = 'character',
+    misc = 'list',
+    version = 'package_version',
+    commands = 'list',
+    tools = 'list'
+  )
+)
+```
+
+Then methods/functions are created to work with Seurat objects
+
+Note that the function has a function name (merge), then ".", then the object type (Seurat)
+
+This tells R how to use the merge function on a Seurat object
+```{r}
+merge.Seurat <- function(
+  x = NULL,
+  y = NULL,
+  add.cell.ids = NULL,
+  merge.data = TRUE,
+  merge.dr = NULL,
+  project = "SeuratProject",
+  ...
+) {
+  CheckDots(...)
+  objects <- c(x, y)
+  if (!is.null(x = add.cell.ids)) {
+    if (length(x = add.cell.ids) != length(x = objects)) {
+      stop("Please provide a cell identifier for each object provided to merge")
+    }
+    for (i in 1:length(x = objects)) {
+      objects[[i]] <- RenameCells(object = objects[[i]], add.cell.id = add.cell.ids[i])
+    }
+  }
+  # ensure unique cell names
+  objects <- CheckDuplicateCellNames(object.list = objects)
+  assays <- lapply(
+    X = objects,
+    FUN = FilterObjects,
+    classes.keep = 'Assay'
+  )
+#
+#more stuff down here, but you get the idea
+#
+}
+```
+
+## Why do it this way?
+
+- The structure of an object is defined and static
+- Can write functions that are "guaranteed" to work with objects of a certain type
+- Can extend base R functions to work with objects of a certain type
+
+```{r}
+str(pbmc_small)
+```
+
+> Show ppt slide with Seurat object structure
+
+## Seurat object slots:
+
+There are only a handful of slots in a Seurat object
+
+But, each slot can contain objects, which then have their own slots
+
+```{r}
+glimpse(pbmc_small)
+```
+
+Ends up looking really complex if you don't break it down by level
+
+- assays = 'list'
+    - list of assay objects containing the gene expression data
+- meta.data = 'data.frame'
+    - Metadata for each cell
+- active.assay = 'character'
+    - Which assay is currently active
+- active.ident = 'factor'
+    - Vector of default "idents" for each cell
+- graphs = 'list'
+    - Filled in by `FindNeighbors()`
+- neighbors = 'list'
+    - Filled in by `FindNeighbors()`
+- reductions = 'list'
+    - Dimensionality reduction results
+- images = 'list'
+    - Not really applicable to our type of data
+- project.name = 'character'
+    - Name of the project
+- misc = 'list'
+- version = 'package_version'
+- commands = 'list'
+    - **List of commands used to create the object**
+- tools = 'list'
+
+--------------------------------------------------------------------------------
+
+# Activity 1:
+Explore the pbmc_small Seurat object
+
+Type "pbmc_small@" in the console/terminal, then hit tab a few times to see the available slots
+```{r}
+
+```
+
+Type "pbmc_small$" in the console/terminal, then hit tab a few times to see the metadata column names
+```{r}
+
+```
+
+What commands were used to create the object?
+What resolution was used in `FindClusters()`?
+```{r}
+
+```
+
+What are the active assay and active identity of this object?
+```{r}
+
+```
+
+Pull the metadata out of the object and save it as a new variable
+```{r}
+
+```
+
+What information is encoded by the rownames of the metadata?
+
+--------------------------------------------------------------------------------
+
+# Section 2: Assay object structure
+
+The "@assay" slot of a Seurat object contains the actual gene expression data
+
+Each element of the list is an assay object
+
+> Show ppt of Assay object structure
+
+## Assay object slots:
+
+- counts = 'matrix' - usually a sparse matrix (dgCMatrix)
+    - Raw counts
+- data = 'matrix' - usually a sparse matrix (dgCMatrix)
+    - Normalized counts
+- scale.data = 'matrix'
+    - Scaled counts
+- key = 'character'
+    - Not used externally
+- assay.orig = 'character'
+    - Label for the assay
+- var.features = 'vector'
+    - Vector of variable genes
+- meta.features = 'data.frame'
+- misc = 'list'
+
+```{r}
+class(pbmc_small@assays[[1]])
+```
+
+## Navigating a Seurat object
+
+Key concepts:
+
+-  Start with object name
+-  Use "@" to access the slot you want
+-  If the slot contains a list, reference it by name
+-  If you are referencing an internal object, use "@" to access the slot you want
+-  Repeat all the way down to the bit you need
+
+> Show ppt of navigating Seurat object
+
+```{verbatim}
+obj            slot            list element     slot of "DimReduc" object
+pbmc_small     @reductions     $pca             @cell.embeddings
+```
+
+```{r}
+pca_stuff <- pbmc_small@reductions$pca@cell.embeddings
+pca_stuff[1:10, 1:3]
+```
+
+## Fun with @commands
+
+This list is structured to make pulling out specific commands easier
+
+-  Each element of the list is named by the specific command run
+-  This in turn is a named list of arguments
+
+```{r}
+pbmc_small@commands$FindVariableFeatures.RNA$nfeatures
+```
+
+```{verbatim}
+obj          slot       command                     argument
+pbmc_small   @commands  $FindVariableFeatures.RNA   $nfeatures
+```
+
+## Other random manual bits
+Getting cell names and gene names
+
+```{r}
+genes <- rownames(pbmc_small)
+head(genes)
+
+cells <- colnames(pbmc_small)
+head(cells)
+```
+
+Subsetting a Seurat object by row/column numbers
+
+            genes        cells
+object_name[row_numbers, column_numbers]
+```{r}
+subset_data <- pbmc_small[1:50, 1:20]
+subset_data
+```
+
+--------------------------------------------------------------------------------
+
+# Activity 2:
+
+Pull the "RNA" assay out of the Seurat object and save it as a new variable named `rna_assay`
+```{r}
+
+```
+
+Pull the raw counts out of `rna_assay`, save it as a new variable named "rna_counts" and look at the first 6 rows
+```{r}
+
+```
+
+Make a vector that contains the names of the cells in the object
+```{r}
+
+```
+
+What is the length of this vector? How many cells are in the object?
+```{r}
+
+```
+
+Use the square bracket notation to randomly sub-sample your seurat object down to 50 cells and 100 genes
+```{r}
+
+```
+
+--------------------------------------------------------------------------------
+
+# Section 3: Interacting with Seurat objects
+## The "right" way
+Use Seurat functions to interact with the object instead of diving into the object
+
+Key functions
+https://satijalab.org/seurat/reference/index.html
+
+## Set active Idents
+
+The active idents is essentially the default metadata your cells are grouped by
+
+Can specify either a metadata column name, or provide your own vector of values
+```{r}
+Idents(pbmc_small) <- "letter.idents"
+table(Idents(pbmc_small))
+
+Idents(pbmc_small) <- "this_is_not_a_real_column_in_the_data"
+table(Idents(pbmc_small))
+
+Idents(pbmc_small) <- pbmc_small$letter.idents
+table(Idents(pbmc_small))
+
+DimPlot(pbmc_small)
+```
+
+## Get list of cells
+```{r}
+cells <- Cells(pbmc_small)
+head(cells)
+```
+
+## Get expression data
+
+- counts - raw counts
+- data - normalized counts  *<- you most likely want this*
+- scale.data - scaled counts
+
+Returns sparse matrix
+Can convert to a matrix with `as.matrix()`
+Rownames are the gene names
+```{r}
+my_data <-
+    GetAssayData(pbmc_small,
+                 assay = "RNA",
+                 slot = "counts")
+
+GetAssayData(pbmc_small, slot = "counts")[1:5, 1:5] %>%
+    as.matrix()
+
+GetAssayData(pbmc_small, slot = "data")[1:5, 1:5] %>%
+    as.matrix()
+
+GetAssayData(pbmc_small, slot = "scale.data")[1:5, 1:5] %>%
+    as.matrix()
+```
+
+## Drop new data into an object
+```{r}
+raw_counts <-
+    GetAssayData(pbmc_small, slot = "counts") %>%
+    as.matrix()
+
+bad_normalization <- raw_counts / colSums(raw_counts)
+pbmc_small_borked <-
+    SetAssayData(pbmc_small,
+                 slot = "data",
+                 new.data = bad_normalization)
+```
+
+## Subset a Seurat object
+Can subset by cells, idents, features, gene expression, etc...
+```{r}
+# Note that there is only one equal sign here
+just_a <- subset(pbmc_small, idents = "A")
+
+# But two equal signs here
+just_a <- subset(pbmc_small, letter.idents == "A")
+
+a_cells <- WhichCells(pbmc_small, idents = "A")
+
+just_a <- subset(pbmc_small, cells = a_cells)
+
+high_cd19 <- subset(pbmc_small, subset = CD19 > 1)
+```
+
+## Calculate average expression per group
+```{r}
+ave_expr <- AverageExpression(pbmc_small,
+                              assays = "RNA",
+                              group.by = "letter.idents")$RNA
+ave_expr[1:5, ]
+```
+
+## Add metadata
+If adding a dataframe of metadata, need rownames of cell names
+When adding with "$", or passing a vector to `AddMetaData`, it doesn't check if cells match
+```{r}
+pbmc_small$nonsense <-
+    sample(LETTERS[1:5],
+           ncol(pbmc_small),
+           replace = TRUE)
+
+metadata_table <-
+    data.frame(totally_true = sample(c("alive", "dead", "undead"),
+                                     ncol(pbmc_small),
+                                     replace = TRUE),
+               also_useful = sample(1:1000000,
+                                    ncol(pbmc_small),
+                                    replace = FALSE),
+               row.names = colnames(pbmc_small))
+
+pbmc_small_plus <- AddMetaData(pbmc_small, metadata_table)
+head(pbmc_small_plus@meta.data)
+
+pbmc_small_plus <- AddMetaData(pbmc_small_plus,
+                               colnames(pbmc_small_plus),
+                               col.name = "cell_ids")
+head(pbmc_small_plus@meta.data)
+```
+
+## Get PCA/UMAP/TSNE values
+```{r}
+tsne_data <- Embeddings(pbmc_small, reduction = "tsne")
+
+pca_data <- Embeddings(pbmc_small, reduction = "pca")
+```
+
+## Get cell names for specific cells
+```{r}
+high_cd79b <- WhichCells(pbmc_small, expression = CD79B > 2)
+head(high_cd79b)
+
+group_b <- WhichCells(pbmc_small, idents = "B")
+length(group_b)
+```
+
+## Get data for specific cells
+```{r}
+high_cd79b_data <-
+    FetchData(pbmc_small,
+              vars = rownames(pbmc_small),
+              cells = high_cd79b)
+
+high_cd79b_data[1:5, 1:5]
+
+high_cd79b_data <-
+    FetchData(pbmc_small,
+              vars = c("groups", "letter.idents", "nonsense"),
+              cells = high_cd79b)
+
+head(high_cd79b_data)
+```
+
+## Save your Idents
+```{r}
+pbmc_small <- StashIdent(pbmc_small, "my_idents")
+head(pbmc_small$my_idents)
+```
+
+# Wrapup
+
+A Seurat object in an S4 object
+
+Functions similar to a list of lists, except that the slots are accessed with "@" instead of "$"
+
+The authors of the software wrote a lot of functions to interact with the object, so you don't have to dive into the object manually
+
+But, if you need to, you can!
+
+This should make a lot more sense now!
+```{r}
+str(pbmc_small)
+```
+
+--------------------------------------------------------------------------------
+
+# Activity 3:
+
+Lets redo some of what we did in activity 2, but lets do it the "right" way
+
+
+Use the `GetAssayData()` method to pull the raw counts out of `rna_assay`, save it as a new variable named "rna_counts" and look at the first 6 rows. Why are there periods? How can you turn the periods into zeros?
+```{r}
+
+```
+
+Use a Seurat function to make a vector that contains the names of the cells in the object
+```{r}
+
+```
+
+What is the length of this vector? How many cells are in the object?
+```{r}
+
+```
+
+Use the `subset()` function to sub-sample the pbmc_small object down to those cells where letter.idents == "A"
+```{r}
+
+```
+
+Use the `subset()` function to sub-sample your seurat object down to the 50 cells with the highest expression of the gene "SAT1"
+```{r}
+
+```
+
+--------------------------------------------------------------------------------
+
+# Session challenge
+
+Strangely, Seurat has no built in `summary` function, but you can write your own!
+Write a function named summary.seurat() that takes a Seurat object as an argument and prints out the following information:
+
+- Number of cells
+- Number of features
+- Current active idents
+- Current default assay
+- Print a DimPlot() of the object if the @reductions slot has something in it
+
+```{r}
+
+```
+
+--------------------------------------------------------------------------------
+
+# Helpful references
+
+https://github.com/mojaveazure/seurat-object
+https://github.com/satijalab/seurat
+https://satijalab.org/seurat/reference/index.html
+https://satijalab.org/seurat/index.html
+
+
+Session info
+```{r}
+sessionInfo()
+```
