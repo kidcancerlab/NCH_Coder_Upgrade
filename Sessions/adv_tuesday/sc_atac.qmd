@@ -449,12 +449,6 @@ ggsave("Sessions/adv_tuesday/figures/atac_rna_cell_types.png",
        height = 10)
 ```
 
-Neuron markers:
-- GFAP - neurogenesis
-- APP - neurodegeneration
-- Eno2 - Mature neurons
-- Rbfox3 - Mature neurons
-
 ### Find differential accessibility between cell types
 To test out looking at differential accessibility, lets look at the differences between different neuronal clusters.
 
@@ -510,6 +504,7 @@ da_peaks %>%
            cluster < 4) %>%
     distinct() %>%
     arrange(desc(avg_log2FC))
+
 # Rgs14
 CoveragePlot(just_neurons,
              region = "chr13-55371025-55371922",
@@ -527,7 +522,6 @@ CoveragePlot(just_neurons,
              region.highlight = StringToGRanges("chr2-163208894-163209794"),
              region = "Tox2")
 
-
 fav_peaks <-
     da_peaks %>%
     filter(p_val_adj < 1e-20 &
@@ -539,11 +533,7 @@ fav_peaks <-
     slice_head(n = 3) %>%
     pull(region)
 
-CoveragePlot(seurat_obj,
-             region = fav_peaks,
-             idents = c("NPCs", "Neurons"),
-             extend.upstream = 2000,
-             extend.downstream = 2000)
+fav_peaks
 ```
 
 # What if I have more than one sample?
@@ -661,4 +651,13 @@ motif_locs <-
     as_tibble()
 
 motif_locs
+```
+
+# Activity
+
+Process your data through the remaining steps including cell type annotation, differential accessibility, and motif analysis.
+
+```{r}
+
+
 ```
