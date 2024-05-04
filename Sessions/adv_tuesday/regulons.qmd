@@ -61,6 +61,8 @@ We will walk through the steps involved in performing regulon analysis using the
 
 The way SCENIC works is a bit different. You're going to make a scenicOptions object, but the actual data will be save on disk in either int/ or output/ folders. This has implications for if you want to run this on multiple samples, you'll need to make sure you're not overwriting the same files. You may need to setwd() to different directories to keep things separate.
 
+You also need to make sure that when you run SCENIC, you name your scenicOptions object scenicOptions, or it won't work since there is (at least) one hard-coded reference to that object name in a function.
+
 To get data out of the SCENIC object, you'll need to use the `loadInt` function to pull the data back into your environment.
 
 Be aware that SCENIC is also going to dump a bunch of files (without asking) into the directory you're working in inside the `int` subfolder.
@@ -305,7 +307,7 @@ pheatmap::pheatmap(regulon_activity_cell_type_scaled,
                    cluster_cols = FALSE,
                    show_row_dend = FALSE,
                    height = 10,
-                   width = 5,
+                   width = 8,
                    filename = paste0(session_directory,
                                      "figures/regulon_heatmap.png"))
 ```
@@ -313,11 +315,16 @@ pheatmap::pheatmap(regulon_activity_cell_type_scaled,
 
 ## TopRegulators for each cell type: Relative Activity
 ```{r top_regulators}
-top_regulators <- pivot_longer(regulon_activity_cell_type_scaled)
+top_regulators <-
+    as.data.frame(regulon_activity_cell_type_scaled) %>%
+    rownames_to_column("regulon") %>%
+    pivot_longer(cols = -regulon)
 colnames(top_regulators) <- c("Regulon", "CellType", "RelativeActivity")
-top_regulators <- top_regulators[which(top_regulators$RelativeActivity > 0.5), ]
+top_regulators <-
+    top_regulators[which(top_regulators$RelativeActivity > 0.5), ] %>%
+    arrange(desc(RelativeActivity))
 
-head(top_regulators)
+top_regulators
 ```
 
 ## Make heatmap with binarized data per cell
@@ -349,15 +356,60 @@ pheatmap::pheatmap(binary_activity_perc_subset,
                    col = c("white", "pink", "red"),
                    display_numbers = T,
                    cluster_cols = FALSE,
-                   width = 5,
+                   width = 10,
                    height = 10,
                    filename = paste0(session_directory,
                                      "figures/regulon_heatmap_binary.png"))
 ```
 
+## Lets add this back into the metadata of our Seurat object
+```{r add_regulon_data}
+AUCell::getAUC(regulon_auc)[1:10, 1:2]
+
+regulon_activity <-
+    AUCell::getAUC(regulon_auc) %>%
+    t()
+
+colnames(regulon_activity) <-
+    str_replace(colnames(regulon_activity),
+                " \\(", "_") %>%
+    str_replace(., "\\)", "")
+
+brain_sobj <-
+    AddMetaData(brain_sobj,
+                regulon_activity)
+
+dimplot <-
+    DimPlot(brain_sobj,
+            group.by = "cell_type",
+            label = TRUE,
+            repel = TRUE,
+            label.size = 5) +
+    NoLegend()
+
+features <-
+    FeaturePlot(brain_sobj,
+                features = c("Maf_38g",
+                             "Tbx21_12g",
+                             "Erg_91g",
+                             "Sox9_extended_22g"),
+                ncol = 2)
+
+both_plots <- dimplot + features
+
+ggsave(paste0(session_directory,
+              "figures/DimPlot_regulon_activity.png"),
+       width = 20,
+       height = 10,
+       plot = both_plots)
+```
+
 # Function to do all of this automatically
 Written by Yogesh Budhathoki (https://www.linkedin.com/in/yogesh-budhathoki-424a89144/)
-```{r}
+```{r automagic}
+#| eval: false
+
+
 #' Run GRA
 #'
 #' This function runs the Gene Regulatory Analysis (GRA) pipeline using the SCENIC package.
@@ -471,7 +523,8 @@ Run_GRA <- function(sobject,
 ```
 
 ## Run the automated function
-```{r}
+```{r run_auto}
+#| eval: false
 data(list="motifAnnotations_mgi", package="RcisTarget")
 motifAnnotations_mgi <- motifAnnotations
 
