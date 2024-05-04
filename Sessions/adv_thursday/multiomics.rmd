@@ -669,20 +669,6 @@ Quiz:
 
 --------------------------------------------------------------------------------
 
-## Session challenge
-
-10X has a multiomics dataset that is from a lymph node with B cell lymphoma. The dataset can be found here:
-https://www.10xgenomics.com/resources/datasets/fresh-frozen-lymph-node-with-b-cell-lymphoma-14-k-sorted-nuclei-1-standard-2-0-0
-
-A summary of the data and the analysis can be found here:
-https://pages.10xgenomics.com/rs/446-PBO-704/images/10x_LIT000110_Data_Spotlight_Multiome_digital.pdf
-
-Download this dataset from 10X and find differential expression between the tumor cells and the normal B cells. Also find differential chromatin accessibility for the same comparison. Then pick a few top differentially expressed genes that look interesting biologically and find nearby ATAC peaks that correlate with the expression of those genes.
-
-Bonus points if you can also find motifs that are located in the ATAC peaks that are both differentially accessible and significantly correlated with gene expression.
-
---------------------------------------------------------------------------------
-
 # Resources
 Methods and applications for single-cell and spatial multi-omics: https://www.nature.com/articles/s41576-023-00580-2
 
