@@ -30,7 +30,7 @@ This module includes the R packages we'll be using for the workshop.
 If you're on the IGM cluster, you can just log into the server and you should be good to go.
 
 # Franklin setup
-```{bash setup}
+```{bash setup_bash}
 #| eval: false
 srun -c 2 --pty bash
 ml purge
@@ -38,7 +38,7 @@ ml GCC/9.3.0 OpenMPI/4.0.3 scrgot/24
 ```
 
 # Libraries
-```{r setup, include=FALSE}
+```{r setup_r, include=FALSE}
 library(SCENIC)
 library(Seurat)
 library(tidyverse)
@@ -279,6 +279,9 @@ num_pcs <- 30
 We also set the seed to make the results reproducible.
 ```{r tsne_auc}
 scenicOptions@settings$seed <- 1337
+qs::qsave(scenicOptions,
+          file = paste0(data_directory,
+                        "scenic/scenicOptions_final.qs"))
 fileNames <-
     tsneAUC(scenicOptions,
             aucType = "AUC",
@@ -363,6 +366,10 @@ pheatmap::pheatmap(binary_activity_perc_subset,
 ```
 
 ## Lets add this back into the metadata of our Seurat object
+### Get the per cell regulon activity data
+We rotate it so the cells are the rows and the regulons are the columns.
+
+I'm also fixing the column names to remove spaces and parentheses.
 ```{r add_regulon_data}
 AUCell::getAUC(regulon_auc)[1:10, 1:2]
 
@@ -374,11 +381,17 @@ colnames(regulon_activity) <-
     str_replace(colnames(regulon_activity),
                 " \\(", "_") %>%
     str_replace(., "\\)", "")
+```
 
+### Add the data to the Seurat object's metadata
+```{r add_metadata}
 brain_sobj <-
     AddMetaData(brain_sobj,
                 regulon_activity)
+```
 
+### Plot the regulon activity for a few interesting regulons
+```{r dimplot_regulon_activity}
 dimplot <-
     DimPlot(brain_sobj,
             group.by = "cell_type",
