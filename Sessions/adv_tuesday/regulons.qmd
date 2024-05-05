@@ -32,7 +32,7 @@ If you're on the IGM cluster, you can just log into the server and you should be
 # Franklin setup
 ```{bash setup_bash}
 #| eval: false
-srun -c 2 --pty bash
+srun -c 2 --x11 --pty bash
 ml purge
 ml GCC/9.3.0 OpenMPI/4.0.3 scrgot/24
 ```
@@ -239,7 +239,8 @@ scenicOptions <- runSCENIC_1_coexNetwork2modules(scenicOptions)
 ```
 
 ## Get regulons (with RcisTarget: TF motif analysis)
-FOr a detailed explanation see https://github.dev/aertslab/SCENIC/blob/master/vignettes/detailedStep_2_createRegulons.Rmd
+For a detailed explanation see https://github.dev/aertslab/SCENIC/blob/master/vignettes/detailedStep_2_createRegulons.Rmd
+
 This step is basically going to cross-reference the co-expression modules with known transcription factor motifs to identify potential regulons.
 
 ```{r get_regulons}
@@ -257,9 +258,10 @@ scenicOptions <- runSCENIC_3_scoreCells(scenicOptions, expr_matrix)
 
 ## Binarize the network activity (regulon on/off)
 For a detailed explanation see https://github.dev/aertslab/SCENIC/blob/master/vignettes/detailedStep_4_aucell_binarize.Rmd
-So this is a bit of confusing code. You might expect that we're binarizing the expression matrix and transforming it into either zeros or ones, but we're binarizing the regulon activity of each cell and then calculating the proportion of cell that have that regulon active.
 
-One goofy thing about this function, your scenicOptions file *has* to be named scenicOptions or it doesn't work.
+This is a bit of confusing code. You might expect that we're binarizing the expression matrix and transforming it into either zeros or ones, but we're binarizing the regulon activity of each cell and then calculating the proportion of cell that have that regulon active.
+
+One goofy thing about this function, your scenicOptions object *has* to be named scenicOptions or it doesn't work.
 ```{r binarize}
 scenicOptions@settings$devType = "png"
 scenicOptions <-
@@ -277,7 +279,10 @@ num_pcs <- 30
 
 ## Calculate t-SNE of the cells based on the regulon activity
 We also set the seed to make the results reproducible.
+
+For some reason this function is hanging for hours, so I'm going to skip it, but I'll leave the code in here for reference.
 ```{r tsne_auc}
+#| eval: false
 scenicOptions@settings$seed <- 1337
 qs::qsave(scenicOptions,
           file = paste0(data_directory,
@@ -315,7 +320,6 @@ pheatmap::pheatmap(regulon_activity_cell_type_scaled,
                                      "figures/regulon_heatmap.png"))
 ```
 
-
 ## TopRegulators for each cell type: Relative Activity
 ```{r top_regulators}
 top_regulators <-
@@ -331,7 +335,6 @@ top_regulators
 ```
 
 ## Make heatmap with binarized data per cell
-
 ```{r binarized_data}
 min_prop <- .4 # proportion of cells in a cluster with the regulon is active
 
