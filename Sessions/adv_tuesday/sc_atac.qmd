@@ -37,6 +37,7 @@ If you're on the IGM cluster, you can just log into the server and you should be
 # Franklin setup
 ```{bash setup}
 #| eval: false
+srun -c 2 --x11 --pty bash
 ml purge
 ml GCC/9.3.0 OpenMPI/4.0.3 scrgot/24
 ```
@@ -74,8 +75,11 @@ A lot of the code is adapted from https://stuartlab.org/signac/articles/pbmc_vig
 ```{r load_data}
 data_directory <- "/home/gdworkshop/lab/Sessions/adv_tuesday/"
 
-# If you're working from the IGM server, use this instead
+## If you're working from the IGM server, use this instead ##
 # data_directory <- "/igm/projects/NCH_Coder_Upgrade/Sessions/adv_tuesday/"
+# dyn.load("/igm/apps/hdf5/hdf5-1.12.1/lib/libhdf5_hl.so.200")
+# library("hdf5r")
+
 
 raw_atac <-
     Read10X_h5(paste0(data_directory,
@@ -524,12 +528,13 @@ CoveragePlot(just_neurons,
 
 fav_peaks <-
     da_peaks %>%
+    mutate(abs_logfc = abs(avg_log2FC)) %>%
     filter(p_val_adj < 1e-20 &
-               abs(avg_log2FC) > 0.5 &
-               gene_biotype == "protein_coding" &
-               distance == 0) %>%
+            abs_logfc > 0.5 &
+            gene_biotype == "protein_coding" &
+            distance == 0) %>%
     group_by(avg_log2FC > 0) %>%
-    arrange(avg_log2FC) %>%
+    arrange(desc(abs_logfc)) %>%
     slice_head(n = 3) %>%
     pull(region)
 
