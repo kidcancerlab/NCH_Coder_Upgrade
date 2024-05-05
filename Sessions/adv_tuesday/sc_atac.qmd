@@ -132,12 +132,12 @@ The data are named `8k_mouse_cortex_ATACv2_nextgem_Chromium_Controller*` and are
 ```
 
 #### Create a chromatin assay object
-```{r create_chromatin_object}
+```{r create_chromatin_object_ex}
 
 ```
 
 #### Make a Seurat object
-```{r create_seurat_object}
+```{r create_seurat_object_ex}
 
 ```
 

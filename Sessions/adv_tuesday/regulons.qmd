@@ -150,7 +150,7 @@ species = "mgi"
 scenicOptions <-
     initializeScenic(org = species,
                      dbDir = paste0(data_directory,
-                                    "/scenic/"),
+                                    "output/scenic/"),
                      dbs = defaultDbNames[[species]],
                      datasetTitle = "AWESOME BRAIN DATA",
                      nCores = parallelly::availableCores())
