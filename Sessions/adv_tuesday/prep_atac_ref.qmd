@@ -103,5 +103,5 @@ ggsave("Sessions/adv_tuesday/figures/atac_ref_umap.png",
 
 qs::qsave(ref_sobj,
           paste0(raw_data_dir,
-                 "atac_ref_sobj.qs"))
+                 "/atac_ref_sobj.qs"))
 ```

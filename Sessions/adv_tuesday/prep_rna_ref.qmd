@@ -15,6 +15,7 @@ library(tidyverse)
 library(rrrSingleCellUtils)
 ```
 
+## Read in raw data
 ```{r}
 raw_path <- "/home/gdworkshop/lab/Sessions/adv_tuesday/brain_rna/"
 raw_data <- tenx_load_qc(raw_path,
@@ -25,6 +26,7 @@ raw_data <- tenx_load_qc(raw_path,
 raw_data$cell_type <- raw_data$cell_type__ontology_label
 ```
 
+## Downsample to 1000 or fewer cells per cell type
 ```{r}
 set.seed(1337)
 keep_cells <-
@@ -38,13 +40,15 @@ keep_cells <-
 raw_data <- raw_data[, keep_cells]
 ```
 
+## Process data
 ```{r}
 raw_data <- process_seurat(raw_data)
 ```
 
+## Pretty plot!
 ```{r}
 DimPlot(raw_data,
-        group.by = "cell_type__ontology_label",
+        group.by = "cell_type",
         label = TRUE,
         repel = TRUE) +
     NoLegend()
@@ -53,6 +57,7 @@ ggsave("Sessions/adv_tuesday/figures/brain_rna_umap.png",
        height = 6)
 ```
 
+## Save it out for later
 ```{r}
 qs::qsave(raw_data,
           paste0(raw_path, "brain_rna.qs"))

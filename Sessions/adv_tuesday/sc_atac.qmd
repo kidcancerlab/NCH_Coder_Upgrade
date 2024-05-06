@@ -27,16 +27,17 @@ lightbox: true
 
 ## Set up environment
 The HPC support folks set up a module for us to use on Franklin. We can load it with the following command:
-`ml GCC/9.3.0 OpenMPI/4.0.3 scrgot/24`
+`ml purge; ml GCC/9.3.0 OpenMPI/4.0.3 scrgot/24`
 
 
 This module includes the R packages we'll be using for the workshop.
 
-If you're on the IGM cluster, you can...
+If you're on the IGM cluster, you can just log into the server and you should be good to go.
 
-
+# Franklin setup
 ```{bash setup}
 #| eval: false
+srun -c 2 --x11 --pty bash
 ml purge
 ml GCC/9.3.0 OpenMPI/4.0.3 scrgot/24
 ```
@@ -73,6 +74,12 @@ A lot of the code is adapted from https://stuartlab.org/signac/articles/pbmc_vig
 ## Load in data
 ```{r load_data}
 data_directory <- "/home/gdworkshop/lab/Sessions/adv_tuesday/"
+
+## If you're working from the IGM server, use this instead ##
+# data_directory <- "/igm/projects/NCH_Coder_Upgrade/Sessions/adv_tuesday/"
+# dyn.load("/igm/apps/hdf5/hdf5-1.12.1/lib/libhdf5_hl.so.200")
+# library("hdf5r")
+
 
 raw_atac <-
     Read10X_h5(paste0(data_directory,
@@ -119,18 +126,33 @@ We have data for another sample in the same folder as the one I'm using. Lets lo
 
 The data are named `8k_mouse_cortex_ATACv2_nextgem_Chromium_Controller*` and are in the same data_directory.
 
+#### Load the raw data
 ```{r load_other_data}
 
 ```
 
-```{r create_chromatin_object}
+#### Create a chromatin assay object
+```{r create_chromatin_object_ex}
 
 ```
 
 #### Make a Seurat object
-```{r create_seurat_object}
+```{r create_seurat_object_ex}
 
 ```
+
+#### How many cells are in the sample?
+```{r}
+
+```
+
+#### How many peaks are in the sample?
+```{r}
+
+```
+
+#### Look at the first 50 rows for the first 3 cells
+How many peaks have reads in them? Would you say the data is sparse?
 
 ### Add in metadata output by cellranger
 
@@ -306,6 +328,31 @@ seurat_obj <-
                     percent_mito < 10)
 ```
 
+
+### Activity
+
+#### Process your object through all the QC steps we ran above
+Make sure you change your cutoffs for subsetting based on the plots made from your data.
+
+```{r}
+
+```
+
+#### How many cells did you filter out?
+```{r}
+
+```
+
+#### Which peak has the highest average reads per cell?
+```{r}
+
+```
+
+#### How many peaks found in the new data are also in the data in seurat_obj?
+```{r}
+
+```
+
 ## Process the seurat data
 For ATAC, we do a couple of things differentially than GEX data.
 
@@ -343,7 +390,7 @@ qs::qsave(seurat_obj, paste0(data_directory,
 ## Assigning cell types
 Lets try assigning cell types to the clusters. We'll use a scRNA reference dataset to do this. We can't directly compare the ATAC and RNA datasets, so we'll begin by inferring gene activity in the ATAC data. Then we can use that as input for FindTransferAnchors() to find anchors between the two datasets.
 
-I prepped the scRNAseq data in prep_rna_ref.qmd and saved the data to our shared directory.
+I prepped the scRNAseq data in prep_rna_ref.qmd and saved the data to our shared directory as brain_rna/brain_rna.qs
 
 ## Load reference data
 ```{r load_ref_data}
@@ -406,12 +453,6 @@ ggsave("Sessions/adv_tuesday/figures/atac_rna_cell_types.png",
        height = 10)
 ```
 
-Neuron markers:
-- GFAP - neurogenesis
-- APP - neurodegeneration
-- Eno2 - Mature neurons
-- Rbfox3 - Mature neurons
-
 ### Find differential accessibility between cell types
 To test out looking at differential accessibility, lets look at the differences between different neuronal clusters.
 
@@ -467,6 +508,7 @@ da_peaks %>%
            cluster < 4) %>%
     distinct() %>%
     arrange(desc(avg_log2FC))
+
 # Rgs14
 CoveragePlot(just_neurons,
              region = "chr13-55371025-55371922",
@@ -484,23 +526,19 @@ CoveragePlot(just_neurons,
              region.highlight = StringToGRanges("chr2-163208894-163209794"),
              region = "Tox2")
 
-
 fav_peaks <-
     da_peaks %>%
+    mutate(abs_logfc = abs(avg_log2FC)) %>%
     filter(p_val_adj < 1e-20 &
-               abs(avg_log2FC) > 0.5 &
-               gene_biotype == "protein_coding" &
-               distance == 0) %>%
+            abs_logfc > 0.5 &
+            gene_biotype == "protein_coding" &
+            distance == 0) %>%
     group_by(avg_log2FC > 0) %>%
-    arrange(avg_log2FC) %>%
+    arrange(desc(abs_logfc)) %>%
     slice_head(n = 3) %>%
     pull(region)
 
-CoveragePlot(seurat_obj,
-             region = fav_peaks,
-             idents = c("NPCs", "Neurons"),
-             extend.upstream = 2000,
-             extend.downstream = 2000)
+fav_peaks
 ```
 
 # What if I have more than one sample?
@@ -618,4 +656,13 @@ motif_locs <-
     as_tibble()
 
 motif_locs
+```
+
+# Activity
+
+Process your data through the remaining steps including cell type annotation, differential accessibility, and motif analysis.
+
+```{r}
+
+
 ```

@@ -1,0 +1,553 @@
+---
+title: "Demo of Regulon analysis"
+author: "Matt Cannon"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+format:
+    html:
+        toc: true
+        toc_float: true
+        toc_depth: 5
+        number_sections: false
+        code-fold: true
+        code-link: true
+        df-print: kable
+        self-contained: true
+execute:
+    cache: true
+knitr:
+    opts_chunk:
+        cache.lazy: false
+lightbox: true
+---
+
+
+## Set up environment
+The HPC support folks set up a module for us to use on Franklin. We can load it with the following command:
+`ml purge; ml GCC/9.3.0 OpenMPI/4.0.3 scrgot/24`
+
+This module includes the R packages we'll be using for the workshop.
+
+If you're on the IGM cluster, you can just log into the server and you should be good to go.
+
+# Franklin setup
+```{bash setup_bash}
+#| eval: false
+srun -c 2 --x11 --pty bash
+ml purge
+ml GCC/9.3.0 OpenMPI/4.0.3 scrgot/24
+```
+
+# Libraries
+```{r setup_r, include=FALSE}
+library(SCENIC)
+library(Seurat)
+library(tidyverse)
+library(dplyr)
+library(igraph)
+library(pheatmap)
+```
+
+# Regulon Analysis using SCENIC Package in R
+
+## Introduction to Regulon Analysis
+
+Regulon analysis is a computational method used to identify transcription factor (TF) regulons, which are sets of genes regulated by a common TF. This analysis helps in understanding gene regulatory networks and identifying key regulators controlling cellular processes.
+
+The SCENIC (Single-Cell rEgulatory Network Inference and Clustering) package in R provides a comprehensive framework for regulon analysis. It integrates single-cell RNA-seq data with known TF-target interactions to infer regulons and identify cell states based on their regulatory programs.
+
+We will walk through the steps involved in performing regulon analysis using the SCENIC package in R. We will start from some pre-processed mouse brain data that I prepped in prep_rna_ref.qmd. We will then run the SCENIC analysis to identify regulons and visualize the regulatory programs in different cell types.
+
+## Lets make a directory for the output
+
+The way SCENIC works is a bit different. You're going to make a scenicOptions object, but the actual data will be save on disk in either int/ or output/ folders. This has implications for if you want to run this on multiple samples, you'll need to make sure you're not overwriting the same files. You may need to setwd() to different directories to keep things separate.
+
+You also need to make sure that when you run SCENIC, you name your scenicOptions object scenicOptions, or it won't work since there is (at least) one hard-coded reference to that object name in a function.
+
+To get data out of the SCENIC object, you'll need to use the `loadInt` function to pull the data back into your environment.
+
+Be aware that SCENIC is also going to dump a bunch of files (without asking) into the directory you're working in inside the `int` subfolder.
+```{r make_dir}
+dir.create("Sessions/adv_tuesday/output/scenic",
+           recursive = TRUE,
+           showWarnings = FALSE)
+```
+
+## Load single-cell RNA-seq data
+```{r load_data}
+data_directory <- "/home/gdworkshop/lab/Sessions/adv_tuesday/"
+session_directory <- "Sessions/adv_tuesday/"
+
+### If you're working from the IGM server, use this instead ###
+# data_directory <- "/igm/projects/NCH_Coder_Upgrade/Sessions/adv_tuesday/"
+
+brain_sobj <- qs::qread(paste0(data_directory, "brain_rna/brain_rna.qs"))
+```
+
+## Downsample the data more
+SCENIC can take a long time to run, so lets downsample the data to make it run faster. If you were running this on actual data, I'd likely just keep all the data and let it run for a day or two unless you have a LOT of cells.
+```{r downsample}
+set.seed(1337)
+
+num_cells_per_type <- 100
+keep_cells <-
+    brain_sobj@meta.data %>%
+    select(cell_type__ontology_label) %>%
+    rownames_to_column("cell") %>%
+    group_by(cell_type__ontology_label) %>%
+    slice_sample(n = num_cells_per_type) %>%
+    pull(cell)
+
+brain_sobj <- brain_sobj[, keep_cells]
+brain_sobj
+```
+
+Now we have `r length(keep_cells)` cells from each cell type.
+
+# Set identities of Seurat object to the cell types
+We'll be comparing between cell types, so setting this up now will make things easier later.
+```{r set_idents}
+Idents(brain_sobj) <- "cell_type"
+```
+
+# Prepare cellInfo dataframe
+We also need a dataframe of the groups we'll be analyzing. WE'll save this off as an RDS file to pull back into SCENIC later.
+```{r prepare_cellinfo}
+cellInfo <- data.frame(CellType = Idents(brain_sobj))
+saveRDS(cellInfo,
+        file = paste0(session_directory,
+                     "output/scenic/cellInfo.Rds"))
+```
+
+# Prepare color variables
+We also save this object off as an RDS file to pull back into SCENIC later.
+```{r prepare_colors}
+set.seed(1337)
+cols <- sample(rainbow(1000))
+use_colors <- cols[1:length(unique(cellInfo$CellType))]
+names(use_colors) <- unique(cellInfo$CellType)
+
+# Prepare colVars list
+colVars <- list()
+colVars$CellType <- use_colors
+
+# Save colVars
+saveRDS(colVars, file = paste0(session_directory,
+                               "output/scenic/colVars.Rds"))
+```
+
+## SCENIC requires motif information
+SCENIC expects this object with this exact name to be in your environment.
+```{r get_motifs}
+data(list="motifAnnotations_mgi", package="RcisTarget")
+motifAnnotations_mgi <- motifAnnotations
+```
+
+## Set up SCENIC options
+
+```{r set_up_scenic}
+defaultDbNames
+species = "mgi"
+scenicOptions <-
+    initializeScenic(org = species,
+                     dbDir = paste0(data_directory,
+                                    "output/scenic/"),
+                     dbs = defaultDbNames[[species]],
+                     datasetTitle = "AWESOME BRAIN DATA",
+                     nCores = parallelly::availableCores())
+```
+
+## Lets add the cellInfo and colVars file locations to the scenicOptions object
+```{r add_cellinfo}
+scenicOptions@inputDatasetInfo$cellInfo <- "input/downloads/SCENIC/cellInfo.Rds"
+scenicOptions@inputDatasetInfo$colVars <- "input/downloads/SCENIC/colVars.Rds"
+```
+
+# Exression matrix
+We need to get the raw count data as a matrix to eventually feed to SCENIC
+```{r get_expr}
+# Get expression matrix
+expr_matrix <-
+    GetAssayData(brain_sobj,
+                 assay = 'RNA',
+                 layer = 'counts') %>%
+    as.matrix()
+```
+
+## Filter out lowly expressed genes
+Lets filter out
+```{r filter_genes}
+min_prop_expressing <- 0.01
+min_reads_expressed <- 3
+min_counts_per_gene <-
+    min_reads_expressed * min_prop_expressing * ncol(expr_matrix)
+
+genes_kept <-
+    geneFiltering(expr_matrix,
+                  scenicOptions = scenicOptions,
+                  minCountsPerGene = min_counts_per_gene,
+                  minSamples = ncol(expr_matrix) * min_prop_expressing)
+
+# Filter the expression matrix to contain only these genes from geneskept.
+expr_matrix <- expr_matrix[genes_kept, ]
+```
+
+## Co-expression network
+Let's calculate how the genes are correlated with each other. This helps identify genes that might be potentially co-regulated by the same transcription factors.
+
+Correlation: positive means TF could upregulate the target gene and viceversa
+```{r run_correlation}
+runCorrelation(expr_matrix, scenicOptions)
+getIntName(scenicOptions, "corrMat")
+```
+
+## Log transform expression data
+```{r log_transform}
+expr_matrix <- log2(expr_matrix + 0.1)
+```
+
+## Run GENIE3 and find potential TF targets
+This is basically going to infer potential transcription factors based on their correlation with target genes. This is a denovo analysis, which means it's not using any prior knowledge of transcription factors.
+
+This part takes a couple of hours to run. We're going to skip this part for now, and you can keep going by copying the output to your int/ folder and reading in the new `scenicOptions` object.
+```{r run_genie3}
+runGenie3(expr_matrix, scenicOptions)
+qs::qsave(scenicOptions,
+          file = paste0(data_directory,
+                        "scenic/scenicOptions_post_genie3.qs"))
+```
+
+To avoid running this, you may need to copy the content of
+
+/home/gdworkshop/lab/Sessions/adv_tuesday/scenic/int/
+
+or
+
+/igm/projects/NCH_Coder_Upgrade/Sessions/adv_tuesday/scenic/int/
+
+to the int/ folder wherever you're running this code.
+
+# Build the gene regulatory network & Identify cell states:
+
+## Get co-expression modules
+For a detailed explanation see https://github.dev/aertslab/SCENIC/blob/master/vignettes/detailedStep_1_coexNetwork2modules.Rmd
+
+```{r get_coex_modules}
+scenic_option <-
+    qs::qread(paste0(data_directory,
+                     "scenic/scenicOptions_post_genie3.qs"))
+scenicOptions <- runSCENIC_1_coexNetwork2modules(scenicOptions)
+```
+
+## Get regulons (with RcisTarget: TF motif analysis)
+For a detailed explanation see https://github.dev/aertslab/SCENIC/blob/master/vignettes/detailedStep_2_createRegulons.Rmd
+
+This step is basically going to cross-reference the co-expression modules with known transcription factor motifs to identify potential regulons.
+
+```{r get_regulons}
+scenicOptions <-
+    runSCENIC_2_createRegulons(scenicOptions,
+                               coexMethod = c("top5perTarget"))
+```
+
+# Identify cell states:
+## Score GRN (regulons) in the cells (with AUCell)
+For a detailed explanation see https://github.dev/aertslab/SCENIC/blob/master/vignettes/detailedStep_3_scoreCells.Rmd
+```{r score_cells}
+scenicOptions <- runSCENIC_3_scoreCells(scenicOptions, expr_matrix)
+```
+
+## Binarize the network activity (regulon on/off)
+For a detailed explanation see https://github.dev/aertslab/SCENIC/blob/master/vignettes/detailedStep_4_aucell_binarize.Rmd
+
+This is a bit of confusing code. You might expect that we're binarizing the expression matrix and transforming it into either zeros or ones, but we're binarizing the regulon activity of each cell and then calculating the proportion of cell that have that regulon active.
+
+One goofy thing about this function, your scenicOptions object *has* to be named scenicOptions or it doesn't work.
+```{r binarize}
+scenicOptions@settings$devType = "png"
+scenicOptions <-
+    runSCENIC_4_aucell_binarize(scenicOptions,
+                                exprMat = expr_matrix)
+```
+
+## Cluster cells according to the GRN activity
+## Set perplexity and number of PCs to use for t-SNE
+In tSNE, perplexity is a measure of how to balance attention between local and global aspects of your data. The number of principal components (PCs) to use for t-SNE is a parameter that can be adjusted to improve the visualization of the data.
+```{r set_tsne}
+perplexity <- c(5, 15, 50)
+num_pcs <- 30
+```
+
+## Calculate t-SNE of the cells based on the regulon activity
+We also set the seed to make the results reproducible.
+
+For some reason this function is hanging for hours, so I'm going to skip it, but I'll leave the code in here for reference.
+```{r tsne_auc}
+#| eval: false
+scenicOptions@settings$seed <- 1337
+qs::qsave(scenicOptions,
+          file = paste0(data_directory,
+                        "scenic/scenicOptions_final.qs"))
+fileNames <-
+    tsneAUC(scenicOptions,
+            aucType = "AUC",
+            nPcs = num_pcs,
+            perpl = perplexity)
+```
+
+# Combine SCENIC analysis with other analysis tools
+## Use pheatmap to show average regulon activity by cell clusters
+Lets pull the regulon activity data and plot it using pheatmap.
+```{r heatmap}
+regulon_auc <- loadInt(scenicOptions, "aucell_regulonAUC")
+regulon_auc <- regulon_auc[onlyNonDuplicatedExtended(rownames(regulon_auc)),]
+regulon_activity_cell_type_scaled <-
+  sapply(split(rownames(cellInfo), cellInfo$CellType),
+         function(cells) {
+            rowMeans(AUCell::getAUC(regulon_auc)[ , cells, drop = FALSE])
+         }) %>%
+  t() %>%
+  scale(center = FALSE, scale = TRUE) %>%
+  t()
+
+pheatmap::pheatmap(regulon_activity_cell_type_scaled,
+                   name = "Regulon activity",
+                   scale = "none",
+                   cluster_cols = FALSE,
+                   show_row_dend = FALSE,
+                   height = 10,
+                   width = 8,
+                   filename = paste0(session_directory,
+                                     "figures/regulon_heatmap.png"))
+```
+
+## TopRegulators for each cell type: Relative Activity
+```{r top_regulators}
+top_regulators <-
+    as.data.frame(regulon_activity_cell_type_scaled) %>%
+    rownames_to_column("regulon") %>%
+    pivot_longer(cols = -regulon)
+colnames(top_regulators) <- c("Regulon", "CellType", "RelativeActivity")
+top_regulators <-
+    top_regulators[which(top_regulators$RelativeActivity > 0.5), ] %>%
+    arrange(desc(RelativeActivity))
+
+top_regulators
+```
+
+## Make heatmap with binarized data per cell
+```{r binarized_data}
+min_prop <- .4 # proportion of cells in a cluster with the regulon is active
+
+binary_regulon_activity <- loadInt(scenicOptions, "aucell_binary_nonDupl")
+
+cell_info_binarized_cells <-
+    cellInfo[which(rownames(cellInfo) %in%
+                   colnames(binary_regulon_activity)), ,
+             drop = FALSE]
+
+regulon_activity_by_cell_type_binarized <-
+    sapply(split(rownames(cell_info_binarized_cells),
+                 cell_info_binarized_cells$CellType),
+           function(cells) {
+               rowMeans(binary_regulon_activity[, cells, drop = FALSE])
+           })
+
+binary_activity_perc_subset <-
+    regulon_activity_by_cell_type_binarized[which(
+        rowSums(regulon_activity_by_cell_type_binarized > min_prop) > 0),]
+
+# Percentage of cells per each cluster that have the regulon activity
+pheatmap::pheatmap(binary_activity_perc_subset,
+                   name = "Regulon activity",
+                   col = c("white", "pink", "red"),
+                   display_numbers = T,
+                   cluster_cols = FALSE,
+                   width = 10,
+                   height = 10,
+                   filename = paste0(session_directory,
+                                     "figures/regulon_heatmap_binary.png"))
+```
+
+## Lets add this back into the metadata of our Seurat object
+### Get the per cell regulon activity data
+We rotate it so the cells are the rows and the regulons are the columns.
+
+I'm also fixing the column names to remove spaces and parentheses.
+```{r add_regulon_data}
+AUCell::getAUC(regulon_auc)[1:10, 1:2]
+
+regulon_activity <-
+    AUCell::getAUC(regulon_auc) %>%
+    t()
+
+colnames(regulon_activity) <-
+    str_replace(colnames(regulon_activity),
+                " \\(", "_") %>%
+    str_replace(., "\\)", "")
+```
+
+### Add the data to the Seurat object's metadata
+```{r add_metadata}
+brain_sobj <-
+    AddMetaData(brain_sobj,
+                regulon_activity)
+```
+
+### Plot the regulon activity for a few interesting regulons
+```{r dimplot_regulon_activity}
+dimplot <-
+    DimPlot(brain_sobj,
+            group.by = "cell_type",
+            label = TRUE,
+            repel = TRUE,
+            label.size = 5) +
+    NoLegend()
+
+features <-
+    FeaturePlot(brain_sobj,
+                features = c("Maf_38g",
+                             "Tbx21_12g",
+                             "Erg_91g",
+                             "Sox9_extended_22g"),
+                ncol = 2)
+
+both_plots <- dimplot + features
+
+ggsave(paste0(session_directory,
+              "figures/DimPlot_regulon_activity.png"),
+       width = 20,
+       height = 10,
+       plot = both_plots)
+```
+
+# Function to do all of this automatically
+Written by Yogesh Budhathoki (https://www.linkedin.com/in/yogesh-budhathoki-424a89144/)
+```{r automagic}
+#| eval: false
+
+
+#' Run GRA
+#'
+#' This function runs the Gene Regulatory Analysis (GRA) pipeline using the SCENIC package.
+#'
+#' @param sobject A Seurat object containing single-cell RNA-seq data.
+#' @param idents The column name in the Seurat object that contains cell identities.
+#' @param org The organism of the data. "mgi" for mouse, "hgnc" for human.
+#' @param subset A logical value indicating whether to run the analysis on a subset of cells.
+#' @param subset_cell_number The number of cells to include in the subset if subset is set to "yes".
+#'
+#' @return A list containing the following objects:
+#'   \item{scenicOptions}{An object containing the SCENIC options used for the analysis.}
+#'   \item{cellInfo}{A data frame containing cell type information.}
+#'   \item{colVars}{A list containing color variables for visualization.}
+#'   \item{exprMat_log}{The log-transformed expression matrix.}
+#'
+#' @examples
+#' /dontrun {
+#' # Load Seurat object
+#' data(seurat_object)
+#'
+#' # Run GRA
+#' result <- Run_GRA(seurat_object, "seurat_clusters", "mgi", subset = "no")
+#' }
+Run_GRA <- function(sobject,
+                    idents,
+                    org,      #organism "mgi" for mouse, "hgnc" for human
+                    subset = "no",          #yes or no
+                    subset_cell_number = NA) {
+    #if you want to quickly run a small subset of cells, set subset = "yes" and provide the subset_cell_number for number of cells
+    if (subset == "yes") {
+        sobject <- subset(x = sobject,
+                          cells = sample(Cells(sobject),
+                                min(subset_cell_number, length(Cells(sobject)))))
+    } else {
+        sobject <- sobject
+    }
+    sobject <- JoinLayers(sobject)
+    exprMat <- SeuratObject::GetAssayData(sobject, assay = 'RNA', slot= 'counts') %>%
+        as.matrix()
+    Idents(sobject) <- idents
+    if (idents == "seurat_clusters") {
+        cellInfo <- data.frame(CellType=Idents(sobject)) %>%
+            dplyr::arrange(CellType)
+    } else {
+        cellInfo <- data.frame(CellType=Idents(sobject))
+    }
+    saveRDS(cellInfo, file="input/downloads/SCENIC/cellInfo.Rds")
+    cols <- c(plot_cols, sample(rainbow(1000)))
+    CellType <- cols[1:length(unique(cellInfo$CellType))]
+    names(CellType) <- unique(cellInfo$CellType)
+    colVars <- list()
+    colVars$CellType <- CellType
+    saveRDS(colVars, file="input/downloads/SCENIC/colVars.Rds")
+
+    #Running SCENIC begins
+    scenicOptions <- SCENIC::initializeScenic(org = org,
+                                              dbDir = "/gpfs0/home2/gdrobertslab/lab/Analysis/Yogesh/CellTypeAnnRefs/input/downloads/SCENIC",
+                                              dbs = SCENIC::defaultDbNames[[org]],
+                                              datasetTitle = "SCENIC tutorial",
+                                              nCores = parallelly::availableCores())
+
+    scenicOptions@inputDatasetInfo$cellInfo <- "input/downloads/SCENIC/cellInfo.Rds"
+    scenicOptions@inputDatasetInfo$colVars <- "input/downloads/SCENIC/colVars.Rds"
+
+    ##### III: Co-expression network
+    ### 1. Gene filter/selection
+    genesKept <- SCENIC::geneFiltering(exprMat,
+                                       scenicOptions=scenicOptions,
+                                       minCountsPerGene=3*.01*ncol(exprMat),
+                                       minSamples=ncol(exprMat)*.01)
+
+    # filter the expression matrix to contain only these genes from geneskept.
+    exprMat_filtered <- exprMat[genesKept, ]
+
+    ### 2. Correlation: positive means TF could upregulate the target gene and viceversa
+    SCENIC::runCorrelation(exprMat_filtered, scenicOptions)
+
+    ### 3. Run GENIE3 to infer potential transcription factor targets
+    # Optional: add log (if it is not logged/normalized already)
+    exprMat_filtered <- log2(exprMat_filtered+1)
+
+    # Run GENIE3 and find potential TF targets
+    SCENIC::runGenie3(exprMat_filtered, scenicOptions)
+
+    ###### IV: Build the gene regulatory network & Identify cell states:
+    ### Build the gene regulatory network:
+    # 1. Get co-expression modules
+    scenicOptions <- SCENIC::runSCENIC_1_coexNetwork2modules(scenicOptions)
+
+    # 2. Get regulons (with RcisTarget: TF motif analysis)
+    scenicOptions <- SCENIC::runSCENIC_2_createRegulons(scenicOptions,
+                                                coexMethod=c("top5perTarget"))
+
+    ### Identify cell states:
+    # 3. Score GRN (regulons) in the cells (with AUCell)
+    exprMat_log <- log2(exprMat+1)
+
+    scenicOptions <- SCENIC::runSCENIC_3_scoreCells(scenicOptions, exprMat_log)
+
+    # 4.2 Binarize the network activity (regulon on/off)
+    scenicOptions@settings$devType = "png"
+    scenicOptions <- SCENIC::runSCENIC_4_aucell_binarize(scenicOptions,
+                                                         exprMat = exprMat_log)
+
+    return(list(scenicOptions= scenicOptions,
+                cellInfo = cellInfo,
+                colVars = colVars,
+                exprMat_log = exprMat_log))
+}
+```
+
+## Run the automated function
+```{r run_auto}
+#| eval: false
+data(list="motifAnnotations_mgi", package="RcisTarget")
+motifAnnotations_mgi <- motifAnnotations
+
+GRA_output <-
+    Run_GRA(sobject = brain_sobj,
+            idents = "cell_type",
+            org = "mgi",
+            subset = "yes",
+            subset_cell_number = 2000)
+```
