@@ -512,28 +512,6 @@ ggsave("Sessions/adv_thursday/atac_peaks.png",
        height = 15)
 ```
 
---------------------------------------------------------------------------------
-
-## Activity
-
-Quiz:
-
-
-
-1. What is my name?
-2. What is my quest?
-3. What is the airspeed velocity of an unladen swallow?
-4. T/F: for 10X multiomics data, both the RNA and ATAC data have identical read lengths
-5. How many reads per cell should you target for 10X multiome ATAC data?
-6. T/F: for 10X multiome ATAC data, we count number of peaks per gene to calculate gene activity
-7. After reading in the GEX data, how many cells are in my Seurat object?
-8. I filter bad cells after I merge the GEX and ATAC datasets. What problems might I run into if I filter bad cells before merging?
-9. How many cells do I lose when I filter out bad cells?
-10. T/F: Single-cell and single-nuclei GEX data would be quite different if you could magically run them both on the same cells
-11. What kind of dimensional reduction technique do we run on the ATAC data?
-12. Why can't you easily merge ATAC data from multiple samples?
-13. How many peaks are in the ATAC dataset?
---------------------------------------------------------------------------------
 ## Joint analysis of multimodal data
 
 > Show ppt of plots
@@ -761,22 +739,6 @@ head(select(matching_motifs,
      n = 15)
 ```
 
---------------------------------------------------------------------------------
-
-## Activity 3
-
-Quiz:
-
-1. Why will a UMAP performed using both RNA and ATAC data be more informative than a UMAP performed using only one dataset?
-2. Why might the cells from a cluster in one of the datasets be randomly scattered in the other dataset?
-3. Why might we be interested in an ATAC peak that is correlated with the expression of a gene but is not located in the promoter region of (or even close to) that gene?
-4. What function creates a weighted nearest neighbor graph?
-5. What function finds correlations between gene expression and ATAC peaks?
-6. T/F: Correlation proves causation.
-7. T/F: Within a single nuclei you cannot find a correlation between human gene expression patterns and mouse ATAC peaks.
-8. Why might single-nuclei sequencing be more prone to cross contamination than single-cell sequencing of dissociated cells?
-
---------------------------------------------------------------------------------
 
 # Resources
 Methods and applications for single-cell and spatial multi-omics: https://www.nature.com/articles/s41576-023-00580-2
