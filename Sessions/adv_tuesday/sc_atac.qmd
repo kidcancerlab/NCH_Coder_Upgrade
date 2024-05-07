@@ -22,8 +22,9 @@ lightbox: true
 
 # Sample summary
 
-- Our data
-    - stuff here
+- Two samples
+    - Mouse cortex
+    - Processed with different machines (Chromium X and Chromium Controller)
 
 ## Set up environment
 The HPC support folks set up a module for us to use on Franklin. We can load it with the following command:
@@ -79,7 +80,6 @@ data_directory <- "/home/gdworkshop/lab/Sessions/adv_tuesday/"
 # data_directory <- "/igm/projects/NCH_Coder_Upgrade/Sessions/adv_tuesday/"
 # dyn.load("/igm/apps/hdf5/hdf5-1.12.1/lib/libhdf5_hl.so.200")
 # library("hdf5r")
-
 
 raw_atac <-
     Read10X_h5(paste0(data_directory,
@@ -326,6 +326,7 @@ seurat_obj <-
                     nucleosome_signal < 4 &
                     TSS.enrichment > 1 &
                     percent_mito < 10)
+qs::qsave(seurat_obj, "Sessions/adv_tuesday/Chromium_X_filtered.qs")
 ```
 
 
@@ -365,6 +366,8 @@ For ATAC, we do a couple of things differentially than GEX data.
     - The reduction is named "lsi"
 
 ```{r}
+seurat_obj <- qs::qread("Sessions/adv_tuesday/Chromium_X_filtered.qs")
+
 seurat_obj <-
     seurat_obj %>%
     RunTFIDF() %>%
@@ -383,8 +386,7 @@ DimPlot(seurat_obj,
         reduction = "umap_atac",
         label = TRUE)
 
-qs::qsave(seurat_obj, paste0(data_directory,
-                             "8k_mouse_cortex_ATACv2_nextgem_Chromium_X.qs"))
+qs::qsave(seurat_obj, "Sessions/adv_tuesday/Chromium_X_processed.qs")
 ```
 
 ## Assigning cell types
@@ -411,6 +413,8 @@ seurat_obj <-
                   normalization.method = 'LogNormalize',
                   scale.factor = median(seurat_obj$nCount_RNA))
 DefaultAssay(seurat_obj) <- "RNA"
+
+qs::qsave(seurat_obj, "Sessions/adv_tuesday/Chromium_X_gene_activity.qs")
 ```
 
 ## Find commonalities between datasets
@@ -418,6 +422,8 @@ Puts the data into a common space to find anchors between the datasets.
 "cca" in this context is canonical correlation analysis. It finds linear combinations of the variables in the two datasets that have maximal correlation with each other. This is useful for finding commonalities between datasets.
 https://en.wikipedia.org/wiki/Canonical_correlation
 ```{r transfer_anchors}
+seurat_obj <- qs::qread("Sessions/adv_tuesday/Chromium_X_gene_activity.qs")
+
 anchors <-
     FindTransferAnchors(reference = ref_data,
                         query = seurat_obj,
@@ -439,11 +445,15 @@ seurat_obj$rna_ref_cell_type <- seurat_obj$predicted.id
 
 table(seurat_obj$rna_ref_cell_type) %>%
     sort()
+
+qs::qsave(seurat_obj, "Sessions/adv_tuesday/Chromium_X_post_transfer.qs")
 ```
 
 ## Plot the ATAC data with the RNA cell types
 Lets look at which cell types we have in the ATAC data
 ```{r}
+seurat_obj <- qs::qread("Sessions/adv_tuesday/Chromium_X_post_transfer.qs")
+
 DimPlot(seurat_obj,
         group.by = "rna_ref_cell_type",
         label = TRUE,
@@ -476,6 +486,8 @@ just_neurons <-
 
 DimPlot(just_neurons,
         label = TRUE)
+
+qs::qsave(just_neurons, "Sessions/adv_tuesday/just_neurons.qs")
 ```
 
 ### Find differentially accessible peaks
@@ -598,39 +610,41 @@ freq_matrix <-
                              all_versions = FALSE))
 
 # The chromosomes for this dataset are a bit goofy so we need to kick out a couple junk chromosomes
-seurat_obj <-
-    seurat_obj[grep("^GL|^JH", rownames(seurat_obj), invert = TRUE), ]
+just_neurons <-
+    just_neurons[grep("^GL|^JH", rownames(just_neurons), invert = TRUE), ]
 
 # add motif information
 # Ignore the warning - our object just doesn't have some of the junk contigs
-seurat_obj <-
-    AddMotifs(object = seurat_obj,
+just_neurons <-
+    AddMotifs(object = just_neurons,
               genome = BSgenome.Mmusculus.UCSC.mm10::BSgenome.Mmusculus.UCSC.mm10,
               pfm = freq_matrix)
 
-Idents(seurat_obj) <- "cell_type"
+qs::qsave(just_neurons, "Sessions/adv_tuesday/Chromium_X_motif.qs")
+```
+
+```{r eval=FALSE}
+just_neurons <- qs::qread("Sessions/adv_tuesday/Chromium_X_motif.qs")
 
 diff_peaks <-
-    FindMarkers(object = seurat_obj,
-                ident.1 = "Neurons",
-                ident.2 = "NPCs",
+    FindMarkers(object = just_neurons,
+                ident.1 = "0",
+                ident.2 = "1",
                 only.pos = TRUE,
-                test.use = "LR",
-                min.pct = 0.1,
-                latent.vars = "nCount_ATAC")
+                min.pct = 0.1)
 
 top_diff_peaks <-
     rownames(diff_peaks[diff_peaks$p_val < 0.005, ])
 
 open_peaks <-
-    AccessiblePeaks(seurat_obj,
-                    idents = c("Neurons", "NPCs"))
+    AccessiblePeaks(just_neurons,
+                    idents = c("0", "1"))
 
 # match the overall GC content in the peak set
 meta_feature <-
-    GetAssayData(seurat_obj,
-                 assay = "ATAC",
-                 slot = "meta.features")
+    GetAssayData(just_neurons,
+                 assay = "peaks",
+                 layer = "meta.features")
 
 peaks_matched <-
     MatchRegionStats(meta.feature = meta_feature[open_peaks, ],
@@ -641,17 +655,17 @@ peaks_matched <-
 
 # test enrichment
 enriched_motifs <-
-    FindMotifs(object = seurat_obj,
+    FindMotifs(object = just_neurons,
                features = top_diff_peaks)
 
 head(enriched_motifs)
 
 motif_locs <-
-    Motifs(seurat_obj)@positions %>%
+    Motifs(just_neurons)@positions %>%
     as.data.frame() %>%
-    full_join(tibble(motif_name = Motifs(seurat_obj)@motif.names %>%
+    full_join(tibble(motif_name = Motifs(just_neurons)@motif.names %>%
                         as.character(),
-                     group_name = Motifs(seurat_obj)@motif.names %>%
+                     group_name = Motifs(just_neurons)@motif.names %>%
                         names())) %>%
     as_tibble()
 
