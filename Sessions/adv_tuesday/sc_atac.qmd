@@ -128,27 +128,42 @@ The data are named `8k_mouse_cortex_ATACv2_nextgem_Chromium_Controller*` and are
 
 #### Load the raw data
 ```{r load_other_data}
+raw_atac2 <-
+    Read10X_h5(paste0(data_directory,
+        "8k_mouse_cortex_ATACv2_nextgem_Chromium_Controller_raw_peak_bc_matrix.h5"))
 
 ```
 
 #### Create a chromatin assay object
 ```{r create_chromatin_object_ex}
+chrom_obj2 <-
+    CreateChromatinAssay(counts = raw_atac2,
+        fragments = paste0(data_directory,
+            "8k_mouse_cortex_ATACv2_nextgem_Chromium_Controller_fragments.tsv.gz"),
+        sep = c(":", "-"),
+        min.cells = 10,
+        min.features = 200)
 
+rm(raw_atac2)
 ```
 
 #### Make a Seurat object
 ```{r create_seurat_object_ex}
+seurat_obj2 <-
+    CreateSeuratObject(counts = chrom_obj2,
+        assay = "peaks")
 
+rm(chrom_obj2)
 ```
 
 #### How many cells are in the sample?
 ```{r}
-
+length(Cells(seurat_obj2))
 ```
 
 #### How many peaks are in the sample?
 ```{r}
-
+length(rownames(seurat_obj2))
 ```
 
 #### Look at the first 50 rows for the first 3 cells
@@ -326,7 +341,7 @@ seurat_obj <-
                     nucleosome_signal < 4 &
                     TSS.enrichment > 1 &
                     percent_mito < 10)
-qs::qsave(seurat_obj, "Sessions/adv_tuesday/Chromium_X_filtered.qs")
+qs::qsave(seurat_obj, "output/rdata/Chromium_X_filtered.qs")
 ```
 
 
@@ -366,7 +381,7 @@ For ATAC, we do a couple of things differentially than GEX data.
     - The reduction is named "lsi"
 
 ```{r}
-seurat_obj <- qs::qread("Sessions/adv_tuesday/Chromium_X_filtered.qs")
+seurat_obj <- qs::qread("output/rdata/Chromium_X_filtered.qs")
 
 seurat_obj <-
     seurat_obj %>%
@@ -386,7 +401,7 @@ DimPlot(seurat_obj,
         reduction = "umap_atac",
         label = TRUE)
 
-qs::qsave(seurat_obj, "Sessions/adv_tuesday/Chromium_X_processed.qs")
+qs::qsave(seurat_obj, "output/rdata/Chromium_X_processed.qs")
 ```
 
 ## Assigning cell types
@@ -414,7 +429,7 @@ seurat_obj <-
                   scale.factor = median(seurat_obj$nCount_RNA))
 DefaultAssay(seurat_obj) <- "RNA"
 
-qs::qsave(seurat_obj, "Sessions/adv_tuesday/Chromium_X_gene_activity.qs")
+qs::qsave(seurat_obj, "output/rdata/Chromium_X_gene_activity.qs")
 ```
 
 ## Find commonalities between datasets
@@ -422,7 +437,7 @@ Puts the data into a common space to find anchors between the datasets.
 "cca" in this context is canonical correlation analysis. It finds linear combinations of the variables in the two datasets that have maximal correlation with each other. This is useful for finding commonalities between datasets.
 https://en.wikipedia.org/wiki/Canonical_correlation
 ```{r transfer_anchors}
-seurat_obj <- qs::qread("Sessions/adv_tuesday/Chromium_X_gene_activity.qs")
+seurat_obj <- qs::qread("output/rdata/Chromium_X_gene_activity.qs")
 
 anchors <-
     FindTransferAnchors(reference = ref_data,
