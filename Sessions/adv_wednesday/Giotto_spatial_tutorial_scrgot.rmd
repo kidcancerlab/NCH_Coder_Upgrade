@@ -144,12 +144,12 @@ Lewis, S.M. et al. Nat Methods (2021)
 ```{r, eval=FALSE}
 
 # from giotto --> spatialExperiment
-SE_object <- giottoToSpatialExperiment(giotto_object)
+# SE_object <- giottoToSpatialExperiment(giotto_object)
 
 # do stuff in BioC
 
 # from spatialExperiment --> giotto
-new_giotto_object <- spatialExperimentToGiotto(spe = SE_object)
+# new_giotto_object <- spatialExperimentToGiotto(spe = SE_object)
 ```
 
 ### Python
@@ -221,33 +221,33 @@ read.gmt = function(filename){
 }
 
 # to write a chatGPT query
-writeChatGPTquery = function(DEG_output, 
-                             top_n_genes = 10, 
-                             tissue_type = 'human breast cancer', 
-                             folder_name = getwd(), 
+writeChatGPTquery = function(DEG_output,
+                             top_n_genes = 10,
+                             tissue_type = 'human breast cancer',
+                             folder_name = getwd(),
                              file_name = 'chatgpt_query.txt') {
-  
+
   chatgpt_query = paste0("Identify cell types of ", tissue_type, " tissue using the following markers. Identify one cell type for each row. Only provide the cell type name and the marker genes used for cell type identification.")
-  
+
   selected_DEG_output = DEG_output[, head(.SD, top_n_genes), by="cluster"]
-  
+
   finallist = list()
   finallist[[1]] = chatgpt_query
-  
+
   for(clus in unique(selected_DEG_output$cluster)) {
     x = selected_DEG_output[cluster == clus][['feats']]
     x = c(clus, x)
     finallist[[as.numeric(clus)+1]] = x
   }
-  
+
   outputdt = data.table::data.table(finallist)
-  
+
   cat('\n start writing \n')
-  data.table::fwrite(x = outputdt, 
+  data.table::fwrite(x = outputdt,
                      file = paste0(folder_name,'/', file_name),
                      sep2 = c(""," ",""), col.names = F)
-  
-} 
+
+}
 ```
 
 <br> <br> <br> <br>
@@ -256,9 +256,8 @@ writeChatGPTquery = function(DEG_output,
 ### Path to data directory
 
 ```{r}
-source_data_path = '/Users/rubendries/Documents/Datasets/SCRGOT_data/' # SCRGOT
-
-# source_data_path =  '/gpfs0/home1/gdworkshop/lab/Sessions/adv_wednesday/' # Franklin cluster
+# source_data_path = '/Users/rubendries/Documents/Datasets/SCRGOT_data/' # SCRGOT
+source_data_path =  '/gpfs0/home1/gdworkshop/lab/Sessions/adv_wednesday/' # Franklin cluster
 # source_data_path =  '/igm/projects/NCH_Coder_Upgrade/Sessions/adv_wednesday/' # IGM cluster
 ```
 
@@ -271,7 +270,7 @@ source_data_path = '/Users/rubendries/Documents/Datasets/SCRGOT_data/' # SCRGOT
 Fully processed Giotto object is available:
 
 ```{r, eval=FALSE}
-visium_BrCa = loadGiotto(path_to_folder = file.path(source_data_path, "/Data/", "workshop_visium"))
+# visium_BrCa = loadGiotto(path_to_folder = file.path(source_data_path, "/Data/", "workshop_visium"))
 ```
 
 ### Filepaths
@@ -279,12 +278,12 @@ visium_BrCa = loadGiotto(path_to_folder = file.path(source_data_path, "/Data/", 
 ```{r}
 
 # visium folder where the data is saved
-data_path = file.path(source_data_path, "/Visium/")
+data_path = file.path(source_data_path, "/Visium")
 
 # set directory where you want to save your results (images etc)
 # we will not use this, but it can significantly speed up your interactive analysis
 # rendering spatial plots is often times the slowest part!
-results_folder = file.path(source_data_path, "/Visium/Results/")
+results_folder = file.path("/Visium/Results")
 ```
 
 ## 1. Create Giotto Visium Object and visualize
@@ -292,7 +291,7 @@ results_folder = file.path(source_data_path, "/Visium/Results/")
 ### 1.1 Create Giotto instructions
 
 ```{r}
-# Optional: Specify a path to a Python executable within a conda or miniconda 
+# Optional: Specify a path to a Python executable within a conda or miniconda
 # environment. If set to NULL (default), the Python executable within the previously
 # installed Giotto environment will be used.
 my_python_path = NULL # alternatively, "/local/python/path/python" if desired.
@@ -302,7 +301,7 @@ instrs = createGiottoInstructions(
     save_dir = results_folder,
     save_plot = FALSE,
     show_plot = FALSE,
-    return_plot = TRUE, 
+    return_plot = TRUE,
     python_path = my_python_path
 )
 ```
@@ -334,7 +333,7 @@ img = createGiottoLargeImage(image_path,
                              negative_y = FALSE)
 scalef = jsonlite::read_json(scalef_path)
 img@raster_object = terra::rescale(
-  x = img@raster_object, 
+  x = img@raster_object,
   fx = 1/scalef$tissue_lowres_scalef, # the horizontal scaling factor
   x0 = 0, y0 = 0 # scale from coordinate origin
 )
@@ -353,7 +352,7 @@ visium_BrCa_manual = createGiottoObject(
 
 # add additional layer of Visium polygons (spots with correct dimensions)
 visium_BrCa_manual = addVisiumPolygons(
-  visium_BrCa_manual, 
+  visium_BrCa_manual,
   scalefactor_path = scalef_path
 )
 ```
@@ -385,23 +384,23 @@ spatlocs = GiottoClass::createSpatLocsObj(
 spot_poly = GiottoClass::circleVertices(radius = scalef$spot_diameter_fullres/2,
                                         npoints = 50)
 vis_spots_dt = polyStamp(
-   stamp_dt = spot_poly, spatlocs = xy_dt, 
+   stamp_dt = spot_poly, spatlocs = xy_dt,
              id_col = "barcode",
-             x_col = "pxl_col_in_fullres", 
+             x_col = "pxl_col_in_fullres",
              y_col = "pxl_row_in_fullres"
 )
 vis_poly = createGiottoPolygon(vis_spots_dt, calc_centroids = TRUE)
 plot(vis_poly)
 
 # set values
-visium_BrCa_manual2 <- setGiotto(gobject = visium_BrCa_manual2, 
+visium_BrCa_manual2 <- setGiotto(gobject = visium_BrCa_manual2,
                                  x = exprObj)
-visium_BrCa_manual2 <- setGiotto(gobject = visium_BrCa_manual2, 
+visium_BrCa_manual2 <- setGiotto(gobject = visium_BrCa_manual2,
                                  x = spatlocs)
 visium_BrCa_manual2 <- setGiotto(gobject = visium_BrCa_manual2,
                                  x = vis_poly)
 
-visium_BrCa_manual2 <- addGiottoLargeImage(gobject = visium_BrCa_manual2, 
+visium_BrCa_manual2 <- addGiottoLargeImage(gobject = visium_BrCa_manual2,
                                            largeImages = list(img))
 ```
 
@@ -444,13 +443,13 @@ getFeatureMetadata(visium_BrCa)
 # each data slot is associated with a spatial unit (spat_unit) and feature type (feat_type), however this is only relevant for multi-modal/omics/scale data, see section C [Next steps].
 
 # each spot has a unique ID = 'cell_ID'
-spatPlot2D(gobject = visium_BrCa, 
+spatPlot2D(gobject = visium_BrCa,
            spat_unit = 'cell', # default
            feat_type = 'rna',  # default
-           cell_color = 'cell_ID', 
+           cell_color = 'cell_ID',
            point_size = 1.5,
-           show_image = TRUE, 
-           largeImage_name = 'image', 
+           show_image = TRUE,
+           largeImage_name = 'image',
            show_legend = F,
            show_plot = TRUE)
 ```
@@ -464,11 +463,11 @@ spatPlot2D(gobject = visium_BrCa,
 #### visualize tissue and spots information
 
 ```{r}
-spatPlot2D(gobject = visium_BrCa, 
-           cell_color = 'in_tissue', 
+spatPlot2D(gobject = visium_BrCa,
+           cell_color = 'in_tissue',
            point_size = 1.5,
-           cell_color_code = c('0' = 'lightgrey', '1' = 'blue'), 
-           show_image = TRUE, 
+           cell_color_code = c('0' = 'lightgrey', '1' = 'blue'),
+           show_image = TRUE,
            largeImage_name = 'image',
            show_plot = TRUE)
 ```
@@ -488,7 +487,7 @@ in_tissue_barcodes_tbl = dplyr::filter(metadata_tbl, in_tissue == 1)$cell_ID
 identical(in_tissue_barcodes, in_tissue_barcodes_tbl)
 
 # no need to subset for this example since all spots are 'in_tissue'
-# visium_BrCa = subsetGiotto(visium_BrCa, 
+# visium_BrCa = subsetGiotto(visium_BrCa,
 #                            cell_ids = in_tissue_barcodes)
 ```
 
@@ -516,8 +515,8 @@ visium_BrCa <- filterGiotto(gobject = visium_BrCa,
 
 ```{r}
 # default is similar to single-cell (library size, log-transformation, scaling)
-visium_BrCa <- normalizeGiotto(gobject = visium_BrCa, 
-                               scalefactor = 6000, 
+visium_BrCa <- normalizeGiotto(gobject = visium_BrCa,
+                               scalefactor = 6000,
                                verbose = TRUE)
 ```
 
@@ -532,22 +531,22 @@ visium_BrCa <- addStatistics(gobject = visium_BrCa)
 ```{r}
 # use alpha to better visualize the underlying image
 spatPlot2D(
-    gobject = visium_BrCa, 
-    show_image = TRUE, 
+    gobject = visium_BrCa,
+    show_image = TRUE,
     largeImage_name = 'image',
     point_size = 1.5,
     point_alpha = 0.8,
-    cell_color = 'nr_feats', 
+    cell_color = 'nr_feats',
     color_as_factor = FALSE,
     show_plot = TRUE)
 
 spatPlot2D(
-    gobject = visium_BrCa, 
-    show_image = TRUE, 
+    gobject = visium_BrCa,
+    show_image = TRUE,
     largeImage_name = 'image',
     point_size = 1.5,
     point_alpha = 0.4,
-    cell_color = 'nr_feats', 
+    cell_color = 'nr_feats',
     color_as_factor = FALSE,
     show_plot = TRUE)
 ```
@@ -563,7 +562,7 @@ spatPlot2D(
 -   pearson residuals
 
 ```{r}
-visium_BrCa <- calculateHVF(gobject = visium_BrCa, 
+visium_BrCa <- calculateHVF(gobject = visium_BrCa,
                              save_plot = TRUE)
 
 fDataDT(visium_BrCa) # results will be added to the feature metadata for default workflow
@@ -586,7 +585,7 @@ visium_BrCa <- runPCA(gobject = visium_BrCa,
                       feats_to_use = featgenes)
 
 # run screePlot to visualize the contribution of each PC to the total variance
-screePlot(visium_BrCa, 
+screePlot(visium_BrCa,
           ncp = 30,
           show_plot = TRUE)
 ```
@@ -605,7 +604,7 @@ plotPCA(gobject = visium_BrCa,
 ### 3.4 run UMAP on PCA space (default)
 
 ```{r}
-visium_BrCa <- runUMAP(visium_BrCa, 
+visium_BrCa <- runUMAP(visium_BrCa,
                        dimensions_to_use = 1:20)
 
 plotUMAP(gobject = visium_BrCa,
@@ -621,8 +620,8 @@ showGiottoDimRed(visium_BrCa)
 ### 4.1 sNN network visium_BrCa
 
 ```{r}
-visium_BrCa <- createNearestNetwork(gobject = visium_BrCa, 
-                                     dimensions_to_use = 1:20, 
+visium_BrCa <- createNearestNetwork(gobject = visium_BrCa,
+                                     dimensions_to_use = 1:20,
                                      k = 15)
 showGiottoNearestNetworks(visium_BrCa)
 ```
@@ -630,8 +629,8 @@ showGiottoNearestNetworks(visium_BrCa)
 ### 4.2 Leiden clustering
 
 ```{r}
-visium_BrCa <- doLeidenClusterIgraph(gobject = visium_BrCa, 
-                                     resolution = 0.2, 
+visium_BrCa <- doLeidenClusterIgraph(gobject = visium_BrCa,
+                                     resolution = 0.2,
                                      n_iterations = 1000)
 pDataDT(visium_BrCa)
 ```
@@ -640,30 +639,30 @@ pDataDT(visium_BrCa)
 
 ```{r}
 plotUMAP(gobject = visium_BrCa,
-         cell_color = 'leiden_clus', 
+         cell_color = 'leiden_clus',
          point_size = 1.5,
          show_plot = TRUE)
 
 plotUMAP(gobject = visium_BrCa,
-         cell_color = 'leiden_clus', 
-         show_NN_network = T, 
+         cell_color = 'leiden_clus',
+         show_NN_network = T,
          point_size = 1.5,
          show_plot = TRUE)
 ```
 
 ```{r}
-# spatial plots 
-spatPlot2D(visium_BrCa, 
+# spatial plots
+spatPlot2D(visium_BrCa,
            cell_color = 'leiden_clus',
            point_size = 1,
            coord_fix_ratio = 1,
            show_plot = TRUE)
 
 # spatial plot with image
-spatPlot2D(visium_BrCa, 
+spatPlot2D(visium_BrCa,
            cell_color = 'leiden_clus',
            point_size = 1.5,
-           show_image = TRUE, 
+           show_image = TRUE,
            largeImage_name = 'image',
            point_alpha = 0.5,
            coord_fix_ratio = 1,
@@ -673,16 +672,16 @@ spatPlot2D(visium_BrCa,
 
 ```{r}
 # spatial and dimension plots together
-spatDimPlot(gobject = visium_BrCa, 
+spatDimPlot(gobject = visium_BrCa,
             cell_color = 'leiden_clus',
-            dim_point_size = 1, 
+            dim_point_size = 1,
             spat_point_size = 1,
             show_plot = TRUE)
 
-spatDimPlot(gobject = visium_BrCa, 
-            cell_color = 'nr_feats', 
+spatDimPlot(gobject = visium_BrCa,
+            cell_color = 'nr_feats',
             color_as_factor = F,
-            dim_point_size = 1, 
+            dim_point_size = 1,
             spat_point_size = 1,
             show_plot = TRUE)
 
@@ -690,38 +689,38 @@ spatDimPlot(gobject = visium_BrCa,
 
 ```{r}
 # spatial plots grouped by cluster
-spatPlot2D(visium_BrCa, 
+spatPlot2D(visium_BrCa,
            cell_color = 'leiden_clus',
-           group_by = 'leiden_clus', 
+           group_by = 'leiden_clus',
            coord_fix_ratio = 0.5,
-           cow_n_col = 5, 
+           cow_n_col = 5,
            show_legend = F,
            point_size = 1,
            show_plot = TRUE)
 
 # visualize one specific cluster
-spatPlot2D(visium_BrCa, 
+spatPlot2D(visium_BrCa,
            cell_color = 'leiden_clus',
-           select_cell_groups = '3', 
-           coord_fix_ratio = 1, 
+           select_cell_groups = '3',
+           coord_fix_ratio = 1,
            show_other_cells = TRUE,
            cell_color_code = c('3' = 'red'),
            point_size = 1.5,
-           other_cell_color = "grey", 
+           other_cell_color = "grey",
            other_point_size = 0.5,
            show_plot = TRUE)
 
 # visualize one specific cluster
-spatPlot2D(visium_BrCa, 
+spatPlot2D(visium_BrCa,
            cell_color = 'leiden_clus',
-           select_cell_groups = '3', 
-           coord_fix_ratio = 1, 
+           select_cell_groups = '3',
+           coord_fix_ratio = 1,
            show_other_cells = TRUE,
            cell_color_code = c('3' = 'red'),
            point_size = 1.5,
-           other_cell_color = "grey", 
+           other_cell_color = "grey",
            other_point_size = 0.5,
-           show_image = TRUE, 
+           show_image = TRUE,
            largeImage_name = 'image',
            point_alpha = 0.5,
            show_plot = TRUE)
@@ -750,15 +749,15 @@ visium_BrCa_subset = subsetGiottoLocs(visium_BrCa,
                                       return_gobject = TRUE)
 
 spatDimPlot(gobject = visium_BrCa_subset,
-            cell_color = 'leiden_clus', 
+            cell_color = 'leiden_clus',
             spat_point_size = 2,
             show_plot = TRUE)
 
-spatPlot2D(visium_BrCa_subset, 
+spatPlot2D(visium_BrCa_subset,
            cell_color = 'leiden_clus',
-           show_image = TRUE, 
+           show_image = TRUE,
            largeImage_name = 'image',
-           point_alpha = 0.5, 
+           point_alpha = 0.5,
            point_size = 5,
            coord_fix_ratio = 1,
            show_plot = TRUE)
@@ -782,9 +781,9 @@ scran_markers = findMarkers_one_vs_all(gobject = visium_BrCa,
 
 # cluster heatmap
 heatmap_scran_genes = scran_markers[, head(.SD, 5), by = 'cluster']$feats
-plotMetaDataHeatmap(visium_BrCa, 
+plotMetaDataHeatmap(visium_BrCa,
                     selected_feats = heatmap_scran_genes,
-                    metadata_cols = c('leiden_clus'), 
+                    metadata_cols = c('leiden_clus'),
                     y_text_size = 6)
 ```
 
@@ -801,9 +800,9 @@ gini_markers = findMarkers_one_vs_all(gobject = visium_BrCa,
 
 # cluster heatmap
 heatmap_gini_genes = gini_markers[, head(.SD, 5), by = 'cluster']$feats
-plotMetaDataHeatmap(visium_BrCa, 
+plotMetaDataHeatmap(visium_BrCa,
                     selected_feats = heatmap_gini_genes,
-                    metadata_cols = c('leiden_clus'), 
+                    metadata_cols = c('leiden_clus'),
                     y_text_size = 6)
 ```
 
@@ -814,7 +813,7 @@ plotMetaDataHeatmap(visium_BrCa,
 ### 7.1 gene sets retrieved from Msigdb
 
 ```{r, eval=TRUE, warning=FALSE, message=FALSE}
-angiogenesis = read.gmt(file.path(source_data_path, '/Msigdb/HALLMARK_ANGIOGENESIS.v2023.2.Hs.gmt')) 
+angiogenesis = read.gmt(file.path(source_data_path, '/Msigdb/HALLMARK_ANGIOGENESIS.v2023.2.Hs.gmt'))
 angiogenesis_genes = angiogenesis$genesets$HALLMARK_ANGIOGENESIS
 
 fatty = read.gmt(file.path(source_data_path, '/Msigdb/HALLMARK_FATTY_ACID_METABOLISM.v2023.2.Hs.gmt'))
@@ -849,11 +848,11 @@ PAGE_matrix = makeSignMatrixPAGE(sign_names = c('angiogenesis',
                                  sign_list = list(angiogenesis_genes,
                                                   fatty_genes,
                                                   TGFb_genes,
-                                                  apoptosis_genes, 
-                                                  EMT_genes, 
+                                                  apoptosis_genes,
+                                                  EMT_genes,
                                                   estrogen_genes))
 
-visium_BrCa <- runPAGEEnrich(gobject = visium_BrCa, 
+visium_BrCa <- runPAGEEnrich(gobject = visium_BrCa,
                               sign_matrix = PAGE_matrix)
 
 showGiottoSpatEnrichments(visium_BrCa)
@@ -875,8 +874,8 @@ spatCellPlot2D(gobject = visium_BrCa,
                spat_enr_names = 'PAGE',
                cell_annotation_values = names_PAGE[1:2],
                cow_n_col = 2,
-               coord_fix_ratio = 1, 
-               point_size = 1, 
+               coord_fix_ratio = 1,
+               point_size = 1,
                show_legend = T,
                show_plot = TRUE)
 
@@ -884,8 +883,8 @@ spatCellPlot2D(gobject = visium_BrCa,
                spat_enr_names = 'PAGE',
                cell_annotation_values = names_PAGE[3:4],
                cow_n_col = 2,
-               coord_fix_ratio = 1, 
-               point_size = 1, 
+               coord_fix_ratio = 1,
+               point_size = 1,
                show_legend = T,
                show_plot = TRUE)
 
@@ -893,8 +892,8 @@ spatCellPlot2D(gobject = visium_BrCa,
                spat_enr_names = 'PAGE',
                cell_annotation_values = names_PAGE[5:6],
                cow_n_col = 2,
-               coord_fix_ratio = 1, 
-               point_size = 1, 
+               coord_fix_ratio = 1,
+               point_size = 1,
                show_legend = T,
                show_plot = TRUE)
 ```
@@ -909,16 +908,16 @@ spatCellPlot2D(gobject = visium_BrCa,
 ```{r}
 # create and visualize spatial network
 visium_BrCa <- createSpatialNetwork(gobject = visium_BrCa,
-                                     method = 'kNN', 
+                                     method = 'kNN',
                                      k = 5,
                                      maximum_distance_knn = 400,
                                      name = 'spatial_network')
 
 showGiottoSpatNetworks(visium_BrCa)
 
-spatPlot2D(gobject = visium_BrCa,  
+spatPlot2D(gobject = visium_BrCa,
            show_network= T,
-           network_color = 'red', 
+           network_color = 'red',
            point_size = 1,
            spatial_network_name = 'spatial_network',
            show_plot = TRUE)
@@ -944,30 +943,30 @@ showGiottoSpatNetworks(visium_BrCa)
 
 
 # subset on genes with high COV z-score to speed up the algo
-hvf_genes <- calculateHVF(gobject = visium_BrCa, 
-                          return_plot = F, 
+hvf_genes <- calculateHVF(gobject = visium_BrCa,
+                          return_plot = F,
                           return_gobject = FALSE)
 top_variable_genes = hvf_genes[cov_group_zscore > 1][['feats']]
 
 
 ## rank binarization
-ranktest = binSpect(visium_BrCa, 
-                    subset_feats = top_variable_genes, 
+ranktest = binSpect(visium_BrCa,
+                    subset_feats = top_variable_genes,
                     bin_method = 'rank',
                     spatial_network_name = 'spatial_network')
 
 ## visualize
-spatFeatPlot2D(visium_BrCa, 
+spatFeatPlot2D(visium_BrCa,
                expression_values = 'scaled',
-               feats = ranktest$feats[1:2], 
-               cow_n_col = 2, 
+               feats = ranktest$feats[1:2],
+               cow_n_col = 2,
                point_size = 1,
                show_plot = TRUE)
 
-spatFeatPlot2D(visium_BrCa, 
+spatFeatPlot2D(visium_BrCa,
                expression_values = 'scaled',
-               feats = ranktest$feats[3:4], 
-               cow_n_col = 2, 
+               feats = ranktest$feats[3:4],
+               cow_n_col = 2,
                point_size = 1,
                show_plot = TRUE)
 ```
@@ -1001,23 +1000,24 @@ spat_cor_netw_DT = detectSpatialCorFeats(visium_BrCa,
 ### 10.3 identify most similar spatially correlated genes for one gene
 
 ```{r}
-top10_genes = showSpatialCorFeats(spat_cor_netw_DT, 
-                                  feats = 'CDH1', 
+top10_genes = showSpatialCorFeats(spat_cor_netw_DT,
+                                  feats = 'CDH1',
                                   show_top_feats = 10)
 
 # visualize genes
-spatFeatPlot2D(visium_BrCa, 
+spatFeatPlot2D(visium_BrCa,
                expression_values = 'scaled',
-               feats = top10_genes$variable[1:4], 
+               feats = top10_genes$variable[1:2],
                point_size = 1,
+               cell_color_gradient = "magma",
                show_plot = TRUE)
 ```
 
 ### 10.4 perform unbiased hierarchical clustering on spatial co-expression genes
 
 ```{r}
-spat_cor_netw_DT = clusterSpatialCorFeats(spat_cor_netw_DT, 
-                                          name = 'spat_netw_clus', 
+spat_cor_netw_DT = clusterSpatialCorFeats(spat_cor_netw_DT,
+                                          name = 'spat_netw_clus',
                                           k = 12)
 # visualize clusters
 heatmSpatialCorFeats(visium_BrCa,
@@ -1030,37 +1030,38 @@ heatmSpatialCorFeats(visium_BrCa,
 ### 10.5 create metagene enrichment score for clusters
 
 ```{r}
-cluster_genes_DT = showSpatialCorFeats(spat_cor_netw_DT, 
-                                       use_clus_name = 'spat_netw_clus', 
+cluster_genes_DT = showSpatialCorFeats(spat_cor_netw_DT,
+                                       use_clus_name = 'spat_netw_clus',
                                        show_top_feats = 1)
 
-cluster_genes = cluster_genes_DT$clus 
+cluster_genes = cluster_genes_DT$clus
 names(cluster_genes) = cluster_genes_DT$feat_ID
 
-visium_BrCa <- createMetafeats(visium_BrCa, 
-                               feat_clusters = cluster_genes, 
+visium_BrCa <- createMetafeats(visium_BrCa,
+                               feat_clusters = cluster_genes,
                                name = 'cluster_metagene')
 
 # visualize metagenes
 spatCellPlot(visium_BrCa,
              spat_enr_names = 'cluster_metagene',
              cell_annotation_values = as.character(1:4),
-             point_size = 0.75, 
+             point_size = 0.75,
              cow_n_col = 2,
              show_plot = TRUE)
 
 spatCellPlot(visium_BrCa,
              spat_enr_names = 'cluster_metagene',
              cell_annotation_values = as.character(5:8),
-             point_size = 0.75, 
+             point_size = 0.75,
              cow_n_col = 2,
              show_plot = TRUE)
 
 spatCellPlot(visium_BrCa,
              spat_enr_names = 'cluster_metagene',
              cell_annotation_values = as.character(9:12),
-             point_size = 0.75, 
+             point_size = 0.75,
              cow_n_col = 2,
+             cell_color_gradient = "magma",
              show_plot = TRUE)
 ```
 
@@ -1076,7 +1077,7 @@ A possible next step would be to perform GSEA on these modules.
 
 ```{r, eval=TRUE}
 # top 30 genes per spatial co-expression cluster
-my_spatial_genes = getBalancedSpatCoexpressionFeats(spatCorObject = spat_cor_netw_DT, 
+my_spatial_genes = getBalancedSpatCoexpressionFeats(spatCorObject = spat_cor_netw_DT,
                                                     maximum = 30)
 
 # dimension reduction with a set of genes representing spatial patterns
@@ -1084,21 +1085,21 @@ visium_BrCa <- runPCA(gobject = visium_BrCa,
                        feats_to_use = names(my_spatial_genes),
                        name = 'custom_pca')
 
-visium_BrCa <- runUMAP(visium_BrCa, 
-                        dim_reduction_name = 'custom_pca', 
+visium_BrCa <- runUMAP(visium_BrCa,
+                        dim_reduction_name = 'custom_pca',
                         dimensions_to_use = 1:20,
                         name = 'custom_umap')
 
 # cluster
 visium_BrCa <- createNearestNetwork(gobject = visium_BrCa,
                                      dim_reduction_name = 'custom_pca',
-                                     dimensions_to_use = 1:20, 
+                                     dimensions_to_use = 1:20,
                                      k = 15,
                                      name = 'custom_NN')
 
-visium_BrCa <- doLeidenClusterIgraph(gobject = visium_BrCa, 
+visium_BrCa <- doLeidenClusterIgraph(gobject = visium_BrCa,
                                      network_name = 'custom_NN',
-                                     resolution = 0.25, 
+                                     resolution = 0.25,
                                      n_iterations = 1000,
                                      name = 'custom_leiden')
 
@@ -1108,15 +1109,15 @@ cell_clusters = unique(cell_meta$custom_leiden)
 selected_colors = getDistinctColors(length(cell_clusters))
 names(selected_colors) = cell_clusters
 
-spatPlot2D(visium_BrCa, 
-           cell_color = 'custom_leiden', 
-           cell_color_code = selected_colors, 
+spatPlot2D(visium_BrCa,
+           cell_color = 'custom_leiden',
+           cell_color_code = selected_colors,
            point_size = 1.5,
            coord_fix_ratio = 1,
            show_plot = TRUE)
 
-spatPlot2D(visium_BrCa, 
-           cell_color = 'leiden_clus', 
+spatPlot2D(visium_BrCa,
+           cell_color = 'leiden_clus',
            point_size = 1.5,
            coord_fix_ratio = 1,
            show_plot = TRUE)
@@ -1137,7 +1138,7 @@ DWLS_matrix = read.table(file.path(source_data_path, '/Data/', 'DWLS_matrix.txt'
 
 ```{r, eval=FALSE}
 # spatialDWLS deconvolution approach
-visium_BrCa <- runDWLSDeconv(gobject = visium_BrCa, 
+visium_BrCa <- runDWLSDeconv(gobject = visium_BrCa,
                               sign_matrix = DWLS_matrix)
 
 ```
@@ -1154,21 +1155,21 @@ spatCellPlot2D(gobject = visium_BrCa,
                spat_enr_names = 'DWLS',
                cell_annotation_values = colnames(DWLS_matrix)[1:4],
                cow_n_col = 2,
-               coord_fix_ratio = 1, 
+               coord_fix_ratio = 1,
                point_size = 0.75)
 
 spatCellPlot2D(gobject = visium_BrCa,
                spat_enr_names = 'DWLS',
                cell_annotation_values = colnames(DWLS_matrix)[5:8],
                cow_n_col = 2,
-               coord_fix_ratio = 1, 
+               coord_fix_ratio = 1,
                point_size = 0.75)
 
 spatCellPlot2D(gobject = visium_BrCa,
                spat_enr_names = 'DWLS',
                cell_annotation_values = colnames(DWLS_matrix)[9:10],
                cow_n_col = 2,
-               coord_fix_ratio = 1, 
+               coord_fix_ratio = 1,
                point_size = 0.75)
 
 # Plot DWLS deconvolution result with Pie plots
@@ -1177,19 +1178,19 @@ my_colors = c('brown', 'pink', 'orange', 'red',
               'lightgray', 'purple')
 names(my_colors) = colnames(DWLS_matrix)
 
-spatDeconvPlot(visium_BrCa, 
+spatDeconvPlot(visium_BrCa,
                show_image = TRUE,
                largeImage_name = 'image',
                cell_color_code = my_colors,
                radius = 75)
 
-# show 
+# show
 visium_BrCa_subset = subsetGiottoLocs(visium_BrCa,
                                       x_max = 9000, x_min = 6000,
                                       y_max = -5500, y_min = -8500,
                                       return_gobject = TRUE)
 
-spatDeconvPlot(visium_BrCa_subset, 
+spatDeconvPlot(visium_BrCa_subset,
                show_image = TRUE,
                largeImage_name = 'image',
                cell_color_code = my_colors,
@@ -1205,12 +1206,12 @@ See <https://drieslab.github.io/Giotto_website/articles/saving_object.html> for 
 ```{r, eval=FALSE}
 saveGiotto(gobject = visium_BrCa,
            dir = file.path(source_data_path, '/Data/',
-           foldername = 'workshop_visium')
+           foldername = 'workshop_visium'))
 
 visium_BrCa_reload = loadGiotto(path_to_folder = file.path(source_data_path, '/Data/', 'workshop_visium'))
 
 # remake last plot
-spatDeconvPlot(visium_BrCa_reload, 
+spatDeconvPlot(visium_BrCa_reload,
                show_image = TRUE,
                largeImage_name = 'image',
                cell_color_code = my_colors,
@@ -1230,7 +1231,7 @@ data_path = file.path(source_data_path, "/Xenium/outs/")
 # set directory where you want to save your results (images etc)
 # we will not use this, but it can significantly speed up your interactive analysis
 # rendering spatial plots is often times the slowest part!
-results_folder = file.path(source_data_path, "/Xenium/Results/")
+results_folder = file.path("/Xenium/Results/")
 ```
 
 <br> <br>
@@ -1281,7 +1282,7 @@ spatPlot2D(xenium_BrCa,
            spat_unit = 'cell',
            point_shape = 'no_border',
            point_size = 0.25,
-           point_alpha = 0.4, 
+           point_alpha = 0.4,
            show_plot = TRUE)
 
 # no expression data is available, we started from the raw data and
@@ -1357,7 +1358,7 @@ xenium_BrCa_subset = addStatistics(xenium_BrCa_subset, expression_values = 'raw'
 
 # normalize data
 xenium_BrCa_subset = normalizeGiotto(gobject = xenium_BrCa_subset,
-                                     spat_unit = 'cell', 
+                                     spat_unit = 'cell',
                                      scalefactor = 5000,
                                      verbose = FALSE)
 
@@ -1385,7 +1386,7 @@ plotPCA(xenium_BrCa_subset,
 # umap and visualize
 xenium_BrCa_subset = runUMAP(xenium_BrCa_subset,
                              dimensions_to_use = 1:10,
-                             spat_unit = 'cell', 
+                             spat_unit = 'cell',
                              n_threads = 8)
 
 plotUMAP(xenium_BrCa_subset,
@@ -1411,7 +1412,7 @@ plotUMAP(gobject = xenium_BrCa_subset,
          cell_color = 'leiden_clus',
          show_legend = FALSE,
          point_size = 0.01,
-         point_shape = 'no_border', 
+         point_shape = 'no_border',
          show_plot = TRUE)
 
 # on spatial plot
@@ -1456,7 +1457,7 @@ scran_markers = findMarkers_one_vs_all(gobject = xenium_BrCa_subset,
 
 # cluster heatmap
 heatmap_scran_genes = scran_markers[, head(.SD, 5), by = 'cluster']$feats
-plotMetaDataHeatmap(xenium_BrCa_subset, 
+plotMetaDataHeatmap(xenium_BrCa_subset,
                     selected_feats = heatmap_scran_genes,
                     metadata_cols = c('leiden_clus'), y_text_size = 6)
 
@@ -1474,7 +1475,7 @@ gini_markers = findMarkers_one_vs_all(gobject = xenium_BrCa_subset,
 
 # cluster heatmap
 heatmap_gini_genes = gini_markers[, head(.SD, 5), by = 'cluster']$feats
-plotMetaDataHeatmap(xenium_BrCa_subset, 
+plotMetaDataHeatmap(xenium_BrCa_subset,
                     selected_feats = heatmap_gini_genes,
                     metadata_cols = c('leiden_clus'), y_text_size = 6)
 
@@ -1486,15 +1487,15 @@ plotMetaDataHeatmap(xenium_BrCa_subset,
 
 ```{r, eval=FALSE}
 
-writeChatGPTquery(DEG_output = scran_markers, 
-                  top_n_genes = 10, 
-                  tissue_type = 'human breast cancer', 
+writeChatGPTquery(DEG_output = scran_markers,
+                  top_n_genes = 10,
+                  tissue_type = 'human breast cancer',
                   folder_name = file.path(source_data_path, '/Data/'),
                   file_name = 'chatgpt_query_scran.txt')
 
-writeChatGPTquery(DEG_output = gini_markers, 
-                  top_n_genes = 10, 
-                  tissue_type = 'human breast cancer', 
+writeChatGPTquery(DEG_output = gini_markers,
+                  top_n_genes = 10,
+                  tissue_type = 'human breast cancer',
                   folder_name = file.path(source_data_path, '/Data/'),
                   file_name = 'chatgpt_query_gini.txt')
 
@@ -1509,14 +1510,14 @@ clusters_cell_types = c('CAFs', 'Macrophage_M2', 'naive_Tcells', 'Lum_BrCa_cells
                         'Endothelial_cells', 'Bas_BrCa_cells', 'B_cells', 'Plasma_cells')
 names(clusters_cell_types) = 1:12
 
-xenium_BrCa_subset = annotateGiotto(gobject = xenium_BrCa_subset, 
+xenium_BrCa_subset = annotateGiotto(gobject = xenium_BrCa_subset,
                              annotation_vector = clusters_cell_types,
-                             cluster_column = 'leiden_clus', 
+                             cluster_column = 'leiden_clus',
                              name = 'cell_types')
 
 plotUMAP(gobject = xenium_BrCa_subset,
-         cell_color = 'cell_types', 
-         point_size = 1, 
+         cell_color = 'cell_types',
+         point_size = 1,
          show_plot = TRUE)
 
 spatInSituPlotPoints(xenium_BrCa_subset,
@@ -1557,7 +1558,7 @@ spatInSituPlotPoints(xenium_BrCa_subset,
                      polygon_alpha = 1,
                      polygon_color = 'black',
                      polygon_line_size = 0.01,
-                     polygon_fill = 'cell_types', 
+                     polygon_fill = 'cell_types',
                      polygon_fill_code = custom_colors,
                      polygon_fill_as_factor = TRUE,
                      coord_fix_ratio = TRUE,
@@ -1578,9 +1579,9 @@ spatInSituPlotPoints(xenium_BrCa_subset,
                      polygon_alpha = 1,
                      polygon_color = 'black',
                      polygon_line_size = 0.01,
-                     polygon_fill = NULL, 
+                     polygon_fill = NULL,
                      polygon_fill_as_factor = TRUE,
-                     coord_fix_ratio = TRUE, 
+                     coord_fix_ratio = TRUE,
                      plot_last = 'points',
                      show_plot = TRUE) # what to plot last, points or polygons?
 
@@ -1596,9 +1597,9 @@ spatInSituPlotPoints(xenium_BrCa_subset,
                      polygon_alpha = 1,
                      polygon_color = 'black',
                      polygon_line_size = 0.01,
-                     polygon_fill = NULL, 
+                     polygon_fill = NULL,
                      polygon_fill_as_factor = TRUE,
-                     coord_fix_ratio = TRUE, 
+                     coord_fix_ratio = TRUE,
                      plot_last = 'points',
                      show_plot = TRUE) # what to plot last, points or polygons?
 
@@ -1612,13 +1613,13 @@ spatInSituPlotPoints(xenium_BrCa_subset,
 
 ```{r}
 # create spatial network
-xenium_BrCa_subset <- createSpatialNetwork(gobject = xenium_BrCa_subset, 
+xenium_BrCa_subset <- createSpatialNetwork(gobject = xenium_BrCa_subset,
                                            maximum_distance_delaunay = 500)
 showGiottoSpatNetworks(xenium_BrCa_subset)
 
-spatPlot2D(gobject = xenium_BrCa_subset,  
+spatPlot2D(gobject = xenium_BrCa_subset,
            show_network= TRUE,
-           network_color = 'red', 
+           network_color = 'red',
            network_alpha = 0.5,
            point_size = 0.5,
            show_plot = TRUE)
@@ -1639,15 +1640,15 @@ cell_proximities = cellProximityEnrichment(gobject = xenium_BrCa_subset,
                                            number_of_simulations = 1000)
 ## barplot
 cellProximityBarplot(gobject = xenium_BrCa_subset,
-                     CPscore = cell_proximities, 
+                     CPscore = cell_proximities,
                      min_orig_ints = 5, min_sim_ints = 5,
                      show_plot = TRUE)
 
 ## heatmap
-cellProximityHeatmap(gobject = xenium_BrCa_subset, 
-                     CPscore = cell_proximities, 
+cellProximityHeatmap(gobject = xenium_BrCa_subset,
+                     CPscore = cell_proximities,
                      order_cell_types = T, scale = T,
-                     color_breaks = c(-1.5, 0, 1.5), 
+                     color_breaks = c(-1.5, 0, 1.5),
                      color_names = c('blue', 'white', 'red'),
                      show_plot = TRUE)
 
@@ -1672,7 +1673,7 @@ spatInSituPlotPoints(xenium_BrCa_subset,
                      polygon_alpha = 1,
                      polygon_color = 'black',
                      polygon_line_size = 0.01,
-                     polygon_fill = 'cell_types', 
+                     polygon_fill = 'cell_types',
                      polygon_fill_code = custom_colors,
                      polygon_fill_as_factor = TRUE,
                      coord_fix_ratio = TRUE,
@@ -1692,8 +1693,8 @@ xenium_BrCa_subset <- calculateSpatCellMetadataProportions(gobject = xenium_BrCa
 
 # These enrichments are essentially a measure of how many cells of each
 # cell type exist in the local region
-prop_table = getSpatialEnrichment(gobject = xenium_BrCa_subset, 
-                                  name = 'cell_type_niche', 
+prop_table = getSpatialEnrichment(gobject = xenium_BrCa_subset,
+                                  name = 'cell_type_niche',
                                   output = 'data.table')
 
 # convert the data.table to a sparse Matrix with row and colnames
@@ -1705,25 +1706,25 @@ prop_matrix = GiottoUtils::dt_to_matrix(prop_table)
 set.seed(12345) # set seed for kmeans
 prop_kmeans = kmeans(x = prop_matrix, centers = 10, iter.max = 500, nstart = 5)
 prop_kmeansDT = data.table::data.table(
-  cell_ID = names(prop_kmeans$cluster), 
+  cell_ID = names(prop_kmeans$cluster),
   niche = prop_kmeans$cluster
 )
 
 # add kmeans clustering of niches to cell metadata
-xenium_BrCa_subset <- addCellMetadata(gobject = xenium_BrCa_subset, 
-                                      new_metadata = prop_kmeansDT, 
+xenium_BrCa_subset <- addCellMetadata(gobject = xenium_BrCa_subset,
+                                      new_metadata = prop_kmeansDT,
                                       by_column = TRUE,
                                       column_cell_ID = "cell_ID")
 
-spatInSituPlotPoints(gobject = xenium_BrCa_subset, 
-                     polygon_fill = "cell_types", 
+spatInSituPlotPoints(gobject = xenium_BrCa_subset,
+                     polygon_fill = "cell_types",
                      polygon_fill_as_factor = TRUE,
                      polygon_line_size = 0.01,
                      polygon_alpha = 1,
                      show_plot = TRUE)
 
-spatInSituPlotPoints(gobject = xenium_BrCa_subset, 
-                     polygon_fill = "niche", 
+spatInSituPlotPoints(gobject = xenium_BrCa_subset,
+                     polygon_fill = "niche",
                      polygon_fill_as_factor = TRUE,
                      polygon_line_size = 0.01,
                      polygon_alpha = 1,
@@ -1743,10 +1744,10 @@ niche_cell_type = cell_meta[, .N, by = .(niche, cell_types)]
 data.table::setorder(niche_cell_type, niche)
 niche_cell_type[, perc := (N/sum(N))*100, by = .(niche)]
 
-# barplot showing the cell-type composition of each niche 
+# barplot showing the cell-type composition of each niche
 pl = ggplot()
-pl = pl + geom_bar(data = niche_cell_type, aes(x = as.factor(niche), 
-                                               fill = cell_types, 
+pl = pl + geom_bar(data = niche_cell_type, aes(x = as.factor(niche),
+                                               fill = cell_types,
                                                y = perc), stat = 'identity')
 pl = pl + theme_classic()
 pl
