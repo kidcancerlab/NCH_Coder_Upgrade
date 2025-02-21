@@ -1,0 +1,142 @@
+---
+title: "make_scrna_objects.rmd"
+author: "Corinne Strawser"
+date: "2025-02-14"
+output: html_document
+---
+
+```{r}
+dyn.load("/igm/apps/hdf5/hdf5-1.12.1/lib/libhdf5_hl.so.200")
+library("hdf5r")
+library(DropletUtils)
+library(Seurat)
+library(tidyverse)
+
+dir <-
+  "/igm/home/cnh008/projects/scrgot/scrgot_2025/mouse_brain/rna/"
+```
+
+```{r}
+samples <-
+  list.dirs(paste0(dir, "raw/"),
+            recursive = F) %>%
+  basename()
+
+objs <-list()
+for (s in samples){
+  sample <- 
+    str_split_fixed(s, "_", 2)[,2]
+  tenx <-
+    Read10X_h5(paste0(dir, "raw/", s, "/filtered_feature_bc_matrix.h5"))
+  obj <-
+    CreateSeuratObject(counts = tenx,
+                       min.cells = 3)
+  obj$orig.ident <- sample
+  saveRDS(obj,
+          paste0(dir,"rdata/scrna_", sample, "_preqc.rds"))
+  objs[[sample]] <- obj
+}
+```
+
+```{r}
+merged <-
+  merge(objs[[1]],
+        objs[2:length(objs)],
+        add.cell.ids = names(objs))
+
+
+VlnPlot(merged, 
+        features = c("nCount_RNA", 
+                     "nFeature_RNA"), 
+        group.by = "orig.ident")
+ggsave("~/projects/scrgot/scrgot_2025/mouse_brain/rna/prelim_vlnplot.jpeg",
+       width = 8,
+       height = 4)
+
+table(merged$orig.ident)
+
+meta <-
+  read.table("~/projects/scrgot/scrgot_2025/mouse_brain/rna/raw/GSE129788_Supplementary_meta_data_Cell_Types_Etc.txt",
+             sep = "\t",
+             header = T)
+meta <-
+  meta[-1,]
+```
+
+
+```{r}
+# make QC plots
+for (sample in names(objs)){
+  obj <- 
+    objs[[sample]]
+  obj[["percent.mt"]] <-
+    PercentageFeatureSet(obj,
+                         pattern = "^mt-")
+  VlnPlot(obj,
+          features = c("nFeature_RNA",
+                       "nCount_RNA",
+                       "percent.mt"),
+          group.by = "orig.ident",
+          ncol = 3) &
+    xlab(NULL) &
+    theme(axis.text.x = element_text(angle = 0,
+                                     hjust = 0.5))
+  ggsave(filename = paste0(dir, "figures/scrna_", sample, "_qc_plots.jpeg"),
+         width = 7,
+         height = 4)
+  objs[[sample]] <- obj
+}
+
+# subset data based on QC metrics
+for (sample in names(objs)){
+  obj <- 
+    objs[[sample]]
+  obj <-
+    subset(obj,
+           subset = nFeature_RNA > 500 &
+                    nCount_RNA < 50000 &
+                    percent.mt < 20)
+  saveRDS(obj,
+          paste0(dir,"scrna/rdata/scrna_", sample, "_postqc.rds"))
+  objs[[sample]] <- data
+}
+
+# calculate number of cells per sample
+postqc <- data.frame()
+for (sample in names(objs)){
+  data <- 
+    objs[[sample]]
+  cells <- 
+    nrow(data@meta.data)
+  add <- 
+    c(sample, cells)
+  postqc <- 
+    rbind(postqc, add)
+}
+colnames(postqc) <- 
+  c("sample", "nCells")
+postqc$nCells <- 
+  as.numeric(postqc$nCells)
+ggplot(postqc,
+       aes(y = sample,
+           x = nCells)) +
+  geom_col() +
+  ggtitle("Post-QC") +
+  theme(plot.title = element_text(hjust = 0.5))
+ggsave(filename = paste0(fig, "flex_postqc_ncells.jpeg"),
+       width = 6,
+       height = 6)
+```
+
+
+
+```{r}
+merged <-
+  merge(objs[[1]],
+        objs[2:length(objs)],
+        add.cell.ids = names(objs))
+
+
+```
+
+
