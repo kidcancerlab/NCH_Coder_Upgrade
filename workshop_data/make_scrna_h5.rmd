@@ -1,5 +1,5 @@
 ---
-title: "Untitled"
+title: "Prepare Single Cell RNAseq Data for Workshop"
 author: "Corinne Strawser"
 date: "2025-02-16"
 output: html_document
@@ -9,34 +9,34 @@ output: html_document
 library(DropletUtils)
 library(Seurat)
 library(tidyverse)
-dyn.load("/igm/apps/hdf5/hdf5-1.12.1/lib/libhdf5_hl.so.200")
+#dyn.load("/igm/apps/hdf5/hdf5-1.12.1/lib/libhdf5_hl.so.200")
 library("hdf5r")
 
 dir <-
-  "~/projects/scrgot/scrgot_2025/mouse_brain/rna/raw/"
+  "input/scRNA"
 
 files <-
   list.files(path = dir,
-             pattern = ".txt.gz",
+             pattern = "10X.txt.gz",
              full.names = T)
 
-for (f in files){
-  counts <- 
-    read.table(gzfile(f),
+for (this_file in files){
+  counts <-
+    read.table(gzfile(this_file),
                sep = "\t",
-               header = T)
+               header = TRUE)
   sample <-
-    basename(f) %>%
+    basename(this_file) %>%
     gsub(".txt.gz", "", .)
-  new <- 
+  new <-
     CreateSeuratObject(counts = counts)
   write10xCounts(paste0(dir, sample),
-                 x = new@assays$RNA$counts, 
+                 x = new@assays$RNA$counts,
                  barcodes = colnames(new),
-                 type = "sparse", 
-                 version="3")
-  write10xCounts(paste0(dir, sample,"/filtered_feature_bc_matrix.h5"),
-                 new@assays$RNA$counts, 
+                 type = "sparse",
+                 version = "3")
+  write10xCounts(paste0(dir, sample, "/filtered_feature_bc_matrix.h5"),
+                 new@assays$RNA$counts,
                  type = "HDF5")
 }
 ```

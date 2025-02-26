@@ -11,7 +11,7 @@ library(tidyverse)
 setwd("~/ref/allen_brain/mouse/aging/")
 
 # load in data downloaded from https://cellxgene.cziscience.com/collections/31937775-0602-4e52-a799-b6acdd2bac2e
-allen <- 
+allen <-
   readRDS("~/ref/allen_brain/mouse/aging/be390e1d-1412-454f-aa8f-925ca3beacff.rds")
 allen$ID <-
   gsub("10X_MsBrainAgingSpatial", "", allen$donor_id)
@@ -19,7 +19,7 @@ allen$ID <-
 # make a preliminary UMAP with cell type annotations
 DimPlot(allen,
         group.by = c("ID","age","cell_type"),
-        shuffle = T) 
+        shuffle = T)
 ggsave("./prelim_umaps.jpeg",
        width = 15,
        height = 4)
@@ -36,7 +36,7 @@ ggsave("./prelim_vlnplot.jpeg",
 
 # make a table of cell quantities
 allen$age_donor <-
-  paste0(allen$age, "_",allen$ID)
+  paste0(allen$age, "_", allen$ID)
 tbl <-
   table(allen$age_donor, allen$cell_type) %>%
   as.data.frame() %>%
