@@ -11,8 +11,8 @@ fi
 # We will store the raw data within input/scRNA
 cd input/scRNA/
 
-# Download data from https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE222510
-# paper: https://pmc.ncbi.nlm.nih.gov/articles/PMC10154248/
+# Download data from https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE129788
+# paper: https://www.nature.com/articles/s41593-019-0491-3
 
 # download GSE222510 data that has scRNA-seq
 wget \
