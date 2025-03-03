@@ -1,5 +1,5 @@
 #!/bin/bash
-my_loc=`pwd`
+my_loc=$(pwd)
 
 set -e
 

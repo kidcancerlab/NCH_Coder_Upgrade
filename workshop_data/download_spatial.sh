@@ -1,8 +1,6 @@
 #!/bin/bash
-
+my_loc=$(pwd)
 set -e
-
-my_loc=`pwd`
 
 if [ ! -d input/spatial ]
 then
