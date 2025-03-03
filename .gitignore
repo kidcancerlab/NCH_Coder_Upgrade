@@ -56,3 +56,4 @@ workshop_data/scRNA
 workshop_data/spatial
 workshop_data/multiomics
 input
+tempdir_fastqs
