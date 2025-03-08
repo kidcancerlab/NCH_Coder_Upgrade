@@ -21,7 +21,7 @@ wget \
 
 # decompress data
 tar -xvf GSE222510_RAW.tar
-#rm GSE222510_RAW.tar
+rm GSE222510_RAW.tar
 
 # We don't need most of these samples. Keeping only old and young
 rm GSM*OY*
