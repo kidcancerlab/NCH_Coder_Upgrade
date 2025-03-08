@@ -56,7 +56,7 @@ do
     zcat ${this_sample}/genes.tsv.gz \
         | perl -ne 'chomp; print $_, "\t", $_, "\tGene Expression\n"' \
         | gzip \
-        > ${this_sample}/features.tsv
+        > ${this_sample}/features.tsv.gz
 
     rm ${this_sample}/genes.tsv.gz
 done
