@@ -1,0 +1,18 @@
+## Get brain reference data
+From https://portal.brain-map.org/atlases-and-data/rnaseq/mouse-whole-cortex-and-hippocampus-10x
+```{bash}
+wget \
+    -O input/scRNA/mouse_brain_ref_data.h5ad \
+    "https://idk-etl-prod-download-bucket.s3.amazonaws.com/aibs_mouse_ctx-hpf_10x/expression_matrix.hdf5"
+
+wget \
+    -O input/scRNA/mouse_brain_metadata.csv \
+    "https://idk-etl-prod-download-bucket.s3.amazonaws.com/aibs_mouse_ctx-hpf_10x/metadata.csv"
+```
+
+## Convert the h5ad to an h5 file
+```{r}
+mouse_brain <-
+    read_h5ad("input/scRNA/mouse_brain_ref_data.h5ad") %>%
+    AddMetaData(read.csv("input/scRNA/mouse_brain_metadata.csv"))
+```
