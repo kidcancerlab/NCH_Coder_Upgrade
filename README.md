@@ -10,7 +10,7 @@ The boot camp will run from 9:00 AM to 4:00 PM each day, with a 1-hour lunch bre
 |          | Tuesday    | Processing single-cell data and cell type annotation            |
 |          | Wednesday  | Combining datasets and data integration                         |
 |          | Thursday   | Differential expression analysis, GSEA and experimental design  |
-| Advanced | Monday     | Understanding Seurat object structure                           |
+| Advanced | Monday     | Understanding Seurat object structure, using public datasets    |
 |          | Tuesday    | Spatial single-cell analysis                                    |
 |          | Wednesday  | Cell-cell communication analysis                                |
 |          | Thursday   | 10X multiomics analysis                                         |

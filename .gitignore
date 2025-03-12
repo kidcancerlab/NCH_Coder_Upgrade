@@ -52,3 +52,9 @@ output
 Sessions/adv_tuesday/figures
 Sessions/adv_tuesday/sc_atac_files
 figures
+workshop_data/scRNA
+workshop_data/spatial
+workshop_data/multiomics
+input
+tempdir_fastqs
+cellranger_output
