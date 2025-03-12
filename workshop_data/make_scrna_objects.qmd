@@ -1,21 +1,6 @@
----
-title: "make_scrna_objects.rmd"
-author: "Corinne Strawser"
-date: "2025-02-14"
-output: html_document
----
-
-```{r}
-library(DropletUtils)
-library(Seurat)
-library(tidyverse)
-library(qs)
-
-dir <- "input/scRNA"
-```
-
 ## Make output from Monday beginner session
 ```{r}
+dir <- "input/scRNA"
 ox1x_raw <-
   Read10X("input/scRNA/GSM6925133_OX1X")
 
