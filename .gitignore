@@ -57,3 +57,4 @@ workshop_data/spatial
 workshop_data/multiomics
 input
 tempdir_fastqs
+cellranger_output
