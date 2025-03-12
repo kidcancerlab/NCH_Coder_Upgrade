@@ -1,0 +1,97 @@
+---
+title: "Create Demo Data for SCRGOT Workshop"
+author: "Matt Cannon and Corinne Strawser"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+format:
+    html:
+        toc: true
+        toc_float: true
+        toc_depth: 5
+        number_sections: false
+        code-fold: true
+        code-link: true
+        df-print: kable
+        embed-resources: true
+        self_contained: true
+execute:
+    cache: true
+knitr:
+    opts_chunk:
+        cache.lazy: false
+        warning: false
+        message: false
+lightbox: true
+---
+
+```{r setup}
+#| include: FALSE
+library(rrrSingleCellUtils)
+library(Seurat)
+library(qs)
+library(tidyverse)
+theme_set(theme_bw())
+theme_update(plot.title = element_text(hjust = 0.5))
+
+set.seed(1337)
+```
+
+# Set up directory structure
+```{bash mkdirs}
+for directoryName in \
+    output \
+    output/rdata \
+    output/rdata_premade \
+    output/figures \
+    input/multiomics \
+    input/scRNA \
+    input/spatial
+do
+    if [ ! -d ${directoryName} ]
+    then
+        mkdir -p ${directoryName}
+    fi
+done
+```
+
+# Download the scRNA-seq data
+```{bash download_scrna}
+source workshop_data/download_scrna.sh
+```
+
+# Process the scRNA-seq data
+
+{{< include workshop_data/make_scrna_objects.rmd >}}
+
+
+# Process in snRNA-seq from aging mouse brain
+
+{{< include workshop_data/allen_brain_mouse_aging_snrna.rmd >}}
+
+# Get brain reference data for cell type annotation
+
+{{< include workshop_data/brain_ref_data.qmd >}}
+
+# Make all pre-made Seurat objects
+
+{{< include workshop_data/make_scrna_objects.rmd >}}
+
+# Download spatial data
+```{bash download_spatial}
+source workshop_data/download_spatial.sh
+```
+
+# Make pre-made Seurat objects for spatial data
+
+{{< include workshop_data/make_visium_objects.rmd >}}
+
+# Download multiome data
+```{bash download_multiome}
+source workshop_data/download_multiome.sh
+```
+
+
+# Session information
+```{r session_info}
+#| include: FALSE
+sessionInfo()
+```

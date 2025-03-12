@@ -13,6 +13,8 @@
 - **Tuesday - Processing single-cell data and cell type annotation**
     - Input:
         - `output/rdata_premade/OX1X.qs` (or the attendee’s object from Monday)
+        - `output/rdata_premade/mouse_brain_ref_data.qs`
+          (a premade Seurat object containing reference data for mouse brain cell types)
     - Output:
         - `output/rdata/OX1X_annotated.qs`
           (a Seurat object from the GSM6925133_OX1X dataset with cell type annotations and processing applied)
