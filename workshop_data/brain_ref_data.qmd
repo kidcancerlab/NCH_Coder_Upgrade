@@ -1,8 +1,8 @@
 ## Get brain reference data
 From https://portal.brain-map.org/atlases-and-data/rnaseq/mouse-whole-cortex-and-hippocampus-10x
-```{bash}
+```{bash brain_ref_data}
 wget \
-    -O input/scRNA/mouse_brain_ref_data.h5ad \
+    -O input/scRNA/mouse_brain_ref_data.hdf5 \
     "https://idk-etl-prod-download-bucket.s3.amazonaws.com/aibs_mouse_ctx-hpf_10x/expression_matrix.hdf5"
 
 wget \
@@ -10,9 +10,43 @@ wget \
     "https://idk-etl-prod-download-bucket.s3.amazonaws.com/aibs_mouse_ctx-hpf_10x/metadata.csv"
 ```
 
-## Convert the h5ad to an h5 file
-```{r}
-mouse_brain <-
-    read_h5ad("input/scRNA/mouse_brain_ref_data.h5ad") %>%
-    AddMetaData(read.csv("input/scRNA/mouse_brain_metadata.csv"))
+## Downsample and write out the 10X three file format
+Keeping up to 1000 cells per cell type
+```{bash brain_ref_downsample}
+conda activate scanpy
+python workshop_data/downsample.py
+```
+
+## Read in the matrix data and create a Seurat object
+```{r brain_ref_sobj}
+sobj <-
+    Read10X("cellranger_output") %>%
+    CreateSeuratObject() %>%
+    AddMetaData(
+        read_tsv(
+            "cellranger_output/metadata.tsv.gz",
+            show_col_types = FALSE
+        ) %>%
+            column_to_rownames("sample_name")
+    ) %>%
+    process_seurat()
+
+sobj$cell_type <- sobj$subclass_label
+
+DimPlot(
+    sobj,
+    group.by = "subclass_label",
+    label = TRUE,
+    repel = TRUE,
+    label.box = TRUE
+) +
+    NoLegend()
+
+ggsave(
+    "output/figures/mouse_brain_ref_data_cell_types.png",
+    width = 12,
+    height = 12
+)
+
+qs::qsave(sobj, "output/rdata_premade/mouse_brain_ref_data.qs")
 ```
