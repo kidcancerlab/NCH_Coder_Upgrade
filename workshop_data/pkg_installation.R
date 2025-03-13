@@ -94,6 +94,8 @@ pak::pkg_install(
 # Need to chmod the library folders afterwards as default seems to be 500 for pak
 # ls -d /rstudio-workshop/apps/R/R-4.4.2_install/lib64/R/library/* | xargs dzdo chmod 555
 
+warning("Remember to run `ls -d /rstudio-workshop/apps/R/R-4.4.2_install/lib64/R/library/* | xargs dzdo chmod 555`")
+
 # For rstudio server, modify the server's global settings
 # [mvc002@rpl-rstudiows01 NCH_Coder_Upgrade]$ cat /etc/rstudio/rstudio-prefs.json 
 # {
