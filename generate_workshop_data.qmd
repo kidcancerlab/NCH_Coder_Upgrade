@@ -58,10 +58,6 @@ done
 source workshop_data/download_scrna.sh
 ```
 
-# Process the scRNA-seq data
-
-{{< include workshop_data/make_scrna_objects.rmd >}}
-
 
 # Process in snRNA-seq from aging mouse brain
 
@@ -73,7 +69,7 @@ source workshop_data/download_scrna.sh
 
 # Make all pre-made Seurat objects
 
-{{< include workshop_data/make_scrna_objects.rmd >}}
+{{< include workshop_data/make_scrna_objects.qmd >}}
 
 # Download spatial data
 ```{bash download_spatial}

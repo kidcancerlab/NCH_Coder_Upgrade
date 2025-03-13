@@ -1,18 +1,17 @@
----
-title: "allen_brain_aging.rmd"
-author: "Corinne Strawser"
-date: "2025-02-16"
-output: html_document
----
+
+```{bash allen_download}
+wget \
+    -O input/scRNA/be390e1d-1412-454f-aa8f-925ca3beacff.rds \
+    "https://datasets.cellxgene.cziscience.com/be390e1d-1412-454f-aa8f-925ca3beacff.rds"
+```
 
 ```{r}
 library(Seurat)
 library(tidyverse)
-setwd("~/ref/allen_brain/mouse/aging/")
 
 # load in data downloaded from https://cellxgene.cziscience.com/collections/31937775-0602-4e52-a799-b6acdd2bac2e
 allen <-
-  readRDS("~/ref/allen_brain/mouse/aging/be390e1d-1412-454f-aa8f-925ca3beacff.rds")
+  readRDS("input/scRNA/be390e1d-1412-454f-aa8f-925ca3beacff.rds")
 allen$ID <-
   gsub("10X_MsBrainAgingSpatial", "", allen$donor_id)
 
@@ -48,7 +47,7 @@ colnames(tbl) <-
   c("cell_type", colnames(tbl)[2:5])
 
 # save object
-saveRDS(allen,
-        "~/ref/allen_brain/mouse/aging/allen_brain_mouse_aging_snrna.rds")
+qsave(allen,
+      "input/scRNA/allen_brain_mouse_aging_snrna.qs")
 ```
 

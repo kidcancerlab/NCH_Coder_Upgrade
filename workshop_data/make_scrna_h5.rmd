@@ -9,7 +9,6 @@ output: html_document
 library(DropletUtils)
 library(Seurat)
 library(tidyverse)
-#dyn.load("/igm/apps/hdf5/hdf5-1.12.1/lib/libhdf5_hl.so.200")
 library("hdf5r")
 
 dir <-
