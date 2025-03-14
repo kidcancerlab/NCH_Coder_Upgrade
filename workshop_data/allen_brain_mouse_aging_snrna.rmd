@@ -1,35 +1,30 @@
-
+## Download the data from cellxgene
 ```{bash allen_download}
 wget \
     -O input/scRNA/be390e1d-1412-454f-aa8f-925ca3beacff.rds \
     "https://datasets.cellxgene.cziscience.com/be390e1d-1412-454f-aa8f-925ca3beacff.rds"
 ```
 
+## Load in data downloaded from https://cellxgene.cziscience.com/collections/31937775-0602-4e52-a799-b6acdd2bac2e
 ```{r}
-library(Seurat)
-library(tidyverse)
-
-# load in data downloaded from https://cellxgene.cziscience.com/collections/31937775-0602-4e52-a799-b6acdd2bac2e
-allen <-
-  readRDS("input/scRNA/be390e1d-1412-454f-aa8f-925ca3beacff.rds")
-allen$ID <-
-  gsub("10X_MsBrainAgingSpatial", "", allen$donor_id)
+allen <- readRDS("input/scRNA/be390e1d-1412-454f-aa8f-925ca3beacff.rds")
+allen$ID <- gsub("10X_MsBrainAgingSpatial", "", allen$donor_id)
 
 # make a preliminary UMAP with cell type annotations
 DimPlot(allen,
-        group.by = c("ID","age","cell_type"),
-        shuffle = T)
-ggsave("./prelim_umaps.jpeg",
+        group.by = c("ID", "age", "cell_type"),
+        shuffle = TRUE)
+ggsave("output/figures/allen_brain_umaps.jpeg",
        width = 15,
        height = 4)
 
 # make some QC violin plots
-allen$nFeatures_RNA <- allen$nFeaturess_RNA
+allen$nFeatures_RNA <- allen$nFeaturess_RNA # typo in original data
 VlnPlot(allen,
         features = c("nCounts_RNA", "nFeatures_RNA"),
         group.by = "ID",
         alpha = 0.1)
-ggsave("./prelim_vlnplot.jpeg",
+ggsave("output/figures/allen_brain_prelim_vlnplot.jpeg",
        width = 8,
        height = 4)
 
@@ -47,7 +42,5 @@ colnames(tbl) <-
   c("cell_type", colnames(tbl)[2:5])
 
 # save object
-qsave(allen,
-      "input/scRNA/allen_brain_mouse_aging_snrna.qs")
+qsave(allen, "output/rdata_premade/allen_brain_mouse_aging_snrna.qs")
 ```
-

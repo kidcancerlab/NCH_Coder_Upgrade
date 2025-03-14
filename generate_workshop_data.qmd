@@ -27,10 +27,12 @@ lightbox: true
 #| include: FALSE
 library(rrrSingleCellUtils)
 library(Seurat)
+library(DropletUtils)
 library(qs)
 library(tidyverse)
 theme_set(theme_bw())
 theme_update(plot.title = element_text(hjust = 0.5))
+library(patchwork)
 
 set.seed(1337)
 ```
@@ -53,12 +55,6 @@ do
 done
 ```
 
-# Download the scRNA-seq data
-```{bash download_scrna}
-source workshop_data/download_scrna.sh
-```
-
-
 # Process in snRNA-seq from aging mouse brain
 
 {{< include workshop_data/allen_brain_mouse_aging_snrna.rmd >}}
@@ -70,11 +66,6 @@ source workshop_data/download_scrna.sh
 # Make all pre-made Seurat objects
 
 {{< include workshop_data/make_scrna_objects.qmd >}}
-
-# Download spatial data
-```{bash download_spatial}
-source workshop_data/download_spatial.sh
-```
 
 # Make pre-made Seurat objects for spatial data
 
