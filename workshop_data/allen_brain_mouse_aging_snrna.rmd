@@ -1,13 +1,13 @@
 ## Download the data from cellxgene
 ```{bash allen_download}
 wget \
-    -O input/scRNA/be390e1d-1412-454f-aa8f-925ca3beacff.rds \
+    -O be390e1d-1412-454f-aa8f-925ca3beacff.rds \
     "https://datasets.cellxgene.cziscience.com/be390e1d-1412-454f-aa8f-925ca3beacff.rds"
 ```
 
 ## Load in data downloaded from https://cellxgene.cziscience.com/collections/31937775-0602-4e52-a799-b6acdd2bac2e
 ```{r}
-allen <- readRDS("input/scRNA/be390e1d-1412-454f-aa8f-925ca3beacff.rds")
+allen <- readRDS("be390e1d-1412-454f-aa8f-925ca3beacff.rds")
 allen$ID <- gsub("10X_MsBrainAgingSpatial", "", allen$donor_id)
 
 # make a preliminary UMAP with cell type annotations
@@ -43,4 +43,9 @@ colnames(tbl) <-
 
 # save object
 qsave(allen, "output/rdata_premade/allen_brain_mouse_aging_snrna.qs")
+```
+
+## Delete the input data
+```{bash}
+rm be390e1d-1412-454f-aa8f-925ca3beacff.rds
 ```

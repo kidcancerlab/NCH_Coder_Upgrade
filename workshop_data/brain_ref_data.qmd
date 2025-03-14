@@ -17,6 +17,12 @@ conda activate scanpy
 python workshop_data/downsample.py
 ```
 
+## Delete the downloaded data
+```{bash}
+rm input/scRNA/mouse_brain_ref_data.hdf5
+rm input/scRNA/mouse_brain_metadata.csv
+```
+
 ## Read in the matrix data and create a Seurat object
 ```{r brain_ref_sobj}
 sobj <-
@@ -49,4 +55,9 @@ ggsave(
 )
 
 qs::qsave(sobj, "output/rdata_premade/mouse_brain_ref_data.qs")
+```
+
+## Remove the cellranger output format files
+```{bash}
+rm -r cellranger_output
 ```
