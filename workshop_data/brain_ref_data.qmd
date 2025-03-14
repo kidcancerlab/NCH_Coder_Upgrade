@@ -11,7 +11,7 @@ wget \
 ```
 
 ## Downsample and write out the 10X three file format
-Keeping up to 1000 cells per cell type
+Keeping up to 500 cells per cell type
 ```{bash brain_ref_downsample}
 conda activate scanpy
 python workshop_data/downsample.py

@@ -28,12 +28,13 @@ meta_data = pd.read_csv('input/scRNA/mouse_brain_metadata.csv', index_col=0)
 
 # Randomly sample up to 1000 cells per cell type, and keep these indices
 sample_barcodes = []
+max_n_cells = 500
 for cell_type in meta_data['subclass_label'].unique():
     cell_type_sub = \
         meta_data[meta_data['subclass_label'] == cell_type]
     sampled_sub = \
         cell_type_sub.sample(
-            n=min(1000, len(cell_type_sub)),
+            n=min(max_n_cells, len(cell_type_sub)),
             random_state=0
         )
     sample_barcodes.extend(

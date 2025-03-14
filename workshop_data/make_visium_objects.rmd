@@ -1,77 +1,75 @@
----
-title: "make_visium_objects.rmd"
-author: "Corinne Strawser"
-date: "2025-02-11"
-output: html_document
----
-
+# Download spatial data
 Data downloaded from: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE193107
+```{bash download_spatial}
+source workshop_data/download_spatial.sh
+```
 
 ```{r}
-dyn.load("/igm/apps/hdf5/hdf5-1.12.1/lib/libhdf5_hl.so.200")
-library("hdf5r")
-library(DropletUtils)
-library(Seurat)
-library(tidyverse)
+#library("hdf5r")
 
-dir <-
-  "/igm/home/cnh008/projects/scrgot/scrgot_2025/mouse_brain/spatial/"
+spatial_dir <-
+  "input/spatial/"
 
 samples <-
-  list.dirs(paste0(dir, "raw/"),
+  list.dirs(spatial_dir,
             recursive = F) %>%
   basename()
 
-for (s in samples){
+for (this_sample in samples){
   samplename <-
-    substr(s, 12, nchar(s))
+    substr(this_sample, 12, nchar(this_sample))
   data <-
-    Load10X_Spatial(data.dir = paste0(dir, "raw/", s),
+    Load10X_Spatial(data.dir = paste0(spatial_dir, this_sample),
                     filename = "filtered_feature_bc_matrix.h5",
-                    slice = samplename) 
+                    slice = samplename)
   data <-
     data %>%
     PercentageFeatureSet(pattern = "^mt-",
-                       assay = "Spatial",
-                       col.name = "percent.mt") %>%
-    subset(nCount_Spatial > 0) 
+                         assay = "Spatial",
+                         col.name = "percent.mt") %>%
+    subset(nCount_Spatial > 0)
   # adjust scale factors here or in .json since we only had the hires image and not the lowres image
-  data[[gsub("\\-", ".", samplename)]]@scale.factors$lowres <- 
+  data[[gsub("\\-", ".", samplename)]]@scale.factors$lowres <-
     data[[gsub("\\-", ".", samplename)]]@scale.factors$hires
-  saveRDS(data,
-          paste0(dir, "rdata/visium_", s, ".rds"))
+  qsave(data,
+        paste0("output/rdata_premade/visium_", samplename, ".qs"))
 }
 ```
 
 ```{r}
 # read in visium objects and merge
-files <- 
-  list.files(path = paste0(dir, "rdata"),
+files <-
+  list.files(path = "output/rdata_premade",
+             pattern = "visium_.*.qs",
              full.names = T)
 names(files) <-
   files %>%
   basename() %>%
   gsub("visium_", "", .) %>%
-  gsub(".rds", "", .)
+  gsub(".qs", "", .)
+
 objs <- list()
-for (f in names(files)){
-  objs[[f]] <-
-    readRDS(files[f])
+for (this_file in names(files)){
+  objs[[this_file]] <-
+    qread(files[this_file])
 }
-data <-
+
+all_visium_data <-
   merge(objs[[1]],
         objs[2:length(objs)],
         add.cell.ids = names(objs))
-p <-
-  SpatialFeaturePlot(data, 
+
+spatial_plot <-
+  SpatialFeaturePlot(all_visium_data,
                      features = "nCount_Spatial",
                      ncol = 4,
                      pt.size.factor = 3) &
   theme(legend.text = element_text(angle = 90),
         legend.position = "bottom")
-p + plot_layout(guides = "collect")
-ggsave(paste0(dir, "figures/spatialfeatureplot_ncount_spatial.jpeg"),
+
+spatial_plot + plot_layout(guides = "collect")
+
+ggsave("output/figures/spatialfeatureplot_ncount_spatial.jpeg",
        width = 12,
        height = 8)
 ```
-

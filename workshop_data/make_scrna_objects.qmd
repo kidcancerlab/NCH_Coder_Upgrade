@@ -1,6 +1,10 @@
+## Download the scRNA-seq data
+```{bash download_scrna}
+source workshop_data/download_scrna.sh
+```
+
 ## Make output from Monday beginner session
-```{r}
-dir <- "input/scRNA"
+```{r make_scrna_monday}
 ox1x_raw <-
   Read10X("input/scRNA/GSM6925133_OX1X")
 
@@ -17,140 +21,192 @@ rm(ox1x_raw, ox1x_sobj)
 ```
 
 ## Make output from Tuesday beginner session
-```{r}
+```{r make_scrna_tuesday}
+ox1x_sobj <-
+    qread("output/rdata_premade/OX1X_sobj.qs") %>%
+    PercentageFeatureSet(pattern = "^mt-", col.name = "percent.mt")
 
+feature_hist(ox1x_sobj, c("nFeature_RNA", "percent.mt"))
+
+ncount_min <- 500
+ncount_max <- 10000
+# going high here as there seems to be lots of cells with high percent mt, and I know neurons tend to have high mt content
+percent_mt_max <- 30
+
+brain_ref_data <- qread("output/rdata_premade/mouse_brain_ref_data.qs")
+
+ox1x_sobj <-
+    subset(ox1x_sobj,
+           subset = nFeature_RNA > ncount_min &
+                    nCount_RNA < ncount_max &
+                    percent.mt < percent_mt_max) %>%
+    process_seurat() %>%
+    annotate_celltypes(
+        ref = list(
+            as.SingleCellExperiment(brain_ref_data),
+            celldex::ImmGenData()
+        ),
+        labels = list(
+            brain_ref_data$cell_type,
+            celldex::ImmGenData()$label.main
+        ),
+        aggr_ref = TRUE
+    )
+
+DimPlot(ox1x_sobj,
+        group.by = "cell_type",
+        label = TRUE,
+        repel = TRUE,
+        label.box = TRUE) +
+    NoLegend()
+
+qsave(ox1x_sobj, "output/rdata_premade/OX1X_sobj_annotated.qs")
+
+rm(ox1x_sobj)
+```
+
+## Make input for Wednesday beginner session
+`input/rdata_premade/scRNA_other_annotated.qs`
+    (a premade list of annotated brain Seurat objects from additional datasets)
+```{r mk_scrna_wed}
+samples <-
+    list.dirs("input/scRNA",
+              recursive = FALSE) %>%
+    basename() %>%
+    grep(
+        "GSM6925133_OX1X", # We already have an object for this sample
+        .,
+        invert = TRUE,
+        value = TRUE
+    )
+
+obj_list <-
+    parallel::mclapply(
+        samples,
+        mc.cores = 10,
+        mc.preschedule = FALSE,
+        function(this_sample) {
+            raw_counts <-
+                Read10X(paste0("input/scRNA/", this_sample))
+            sobj <-
+                CreateSeuratObject(
+                    counts = raw_counts,
+                    min.cells = 3,
+                    min.features = 200
+                ) %>%
+                PercentageFeatureSet(
+                    pattern = "^mt-",
+                    col.name = "percent.mt"
+                ) %>%
+                NormalizeData(verbose = FALSE) %>%
+                FindVariableFeatures(verbose = FALSE) %>%
+                ScaleData(verbose = FALSE) %>%
+                annotate_celltypes(
+                    ref = list(
+                        as.SingleCellExperiment(brain_ref_data),
+                        celldex::ImmGenData()
+                    ),
+                    labels = list(
+                        brain_ref_data$cell_type,
+                        celldex::ImmGenData()$label.main
+                    ),
+                    aggr_ref = TRUE
+                )
+
+            sobj$orig.ident <- this_sample
+
+            histogram <-
+                feature_hist(sobj, c("nCount_RNA", "percent.mt")) +
+                ggtitle(this_sample)
+
+            return(list(sobj = sobj, histogram = histogram))
+        })
+
+sobj_list <- lapply(obj_list, function(x) x$sobj)
+names(sobj_list) <- samples
+
+hist_plots <- patchwork::wrap_plots(lapply(obj_list, function(x) x$histogram))
+ggsave(
+    "output/figures/scRNA_other_hist_plots.jpeg",
+    hist_plots,
+    width = 15,
+    height = 15
+)
+
+# Normally I'd have individual cutoffs for each sample, but I'm going to use the
+# same ones as the OX1X sample for simplicity. The cutoffs all look relatively
+# similar, so this should be fine.
+sobj_list <-
+    parallel::mclapply(
+        names(sobj_list),
+        mc.cores = 10,
+        mc.preschedule = FALSE,
+        function(x) {
+            filtered_sobj <-
+                subset(
+                    sobj_list[[x]],
+                    subset = nCount_RNA > ncount_min &
+                        nCount_RNA < ncount_max &
+                        percent.mt < percent_mt_max
+                ) %>%
+                process_seurat()
+
+            return(filtered_sobj)
+        }
+    )
+names(sobj_list) <- samples
+
+qsave(sobj_list, "output/rdata_premade/scRNA_objs_list.qs")
+
+rm(
+    samples, sobj_list, obj_list, brain_ref_data, ncount_min,
+    ncount_max, percent_mt_max
+)
 ```
 
 ## Make output from Wednesday beginner session
-```{r}
-samples <-
-  list.dirs(paste0(dir),
-            recursive = FALSE) %>%
-  basename() %>%
-  grep("GSM6925133_OX1X", # We already have an object for this sample
-       .,
-       invert = TRUE,
-       value = TRUE)
+```{r make_scrna_wednesday}
+ox1x_sobj <-
+    qread("output/rdata_premade/OX1X_sobj_annotated.qs")
 
-objs <- list()
-for (this_sample in samples){
-  raw_counts <-
-    Read10X(paste0(dir, "/", this_sample))
-  sobj <-
-    CreateSeuratObject(counts = raw_counts,
-                       min.cells = 3,
-                       min.features = 200)
+sobj_list <-
+    qread("output/rdata_premade/scRNA_objs_list.qs")
 
-  sobj$orig.ident <- this_sample
+merged_sobj <-
+    merge(
+        ox1x_sobj,
+        sobj_list,
+        add.cell.ids = c("GSM6925133_OX1X", names(sobj_list))
+    ) %>%
+    NormalizeData(verbose = FALSE) %>%
+    FindVariableFeatures(verbose = FALSE) %>%
+    ScaleData(verbose = FALSE) %>%
+    RunPCA(verbose = FALSE) %>%
+    harmony::RunHarmony(
+        group.by.vars = "orig.ident",
+        verbose = FALSE
+    ) %>%
+    FindNeighbors(reduction = "harmony", verbose = FALSE) %>%
+    FindClusters(resolution = 0.5, verbose = FALSE) %>%
+    RunUMAP(reduction = "harmony", dims = 1:30, verbose = FALSE) %>%
+    JoinLayers()
 
-  #!!!!!!!!!!!!!!!!!!!!!!!! Need to add in SingleR annotation here
+merged_dimplot <-
+    DimPlot(
+        merged_sobj,
+        group.by = "cell_type",
+        label = TRUE,
+        repel = TRUE,
+        label.box = TRUE
+    ) +
+    NoLegend()
 
-  objs[[this_sample]] <- sobj
-}
+ggsave(
+    "output/figures/scRNA_merged_dimplot.jpeg",
+    merged_dimplot,
+    width = 15,
+    height = 15
+)
 
-qsave(objs, "output/rdata_premade/scRNA_objs_list.qs")
-
-rm(samples, raw_counts, sobj, objs)
+qsave(merged_sobj, "output/rdata_premade/brain_scRNA_combined.qs")
 ```
-
-```{r}
-merged <-
-  merge(objs[[1]],
-        objs[2:length(objs)],
-        add.cell.ids = names(objs))
-
-VlnPlot(merged,
-        features = c("nCount_RNA",
-                     "nFeature_RNA"),
-        group.by = "orig.ident")
-ggsave("~/projects/scrgot/scrgot_2025/mouse_brain/rna/prelim_vlnplot.jpeg",
-       width = 8,
-       height = 4)
-
-table(merged$orig.ident)
-
-meta <-
-  read.table("~/projects/scrgot/scrgot_2025/mouse_brain/rna/raw/GSE129788_Supplementary_meta_data_Cell_Types_Etc.txt",
-             sep = "\t",
-             header = T)
-meta <-
-  meta[-1,]
-```
-
-
-```{r}
-# make QC plots
-for (sample in names(objs)){
-  obj <-
-    objs[[sample]]
-  obj[["percent.mt"]] <-
-    PercentageFeatureSet(obj,
-                         pattern = "^mt-")
-  VlnPlot(obj,
-          features = c("nFeature_RNA",
-                       "nCount_RNA",
-                       "percent.mt"),
-          group.by = "orig.ident",
-          ncol = 3) &
-    xlab(NULL) &
-    theme(axis.text.x = element_text(angle = 0,
-                                     hjust = 0.5))
-  ggsave(filename = paste0(dir, "figures/scrna_", sample, "_qc_plots.jpeg"),
-         width = 7,
-         height = 4)
-  objs[[sample]] <- obj
-}
-
-# subset data based on QC metrics
-for (sample in names(objs)){
-  obj <-
-    objs[[sample]]
-  obj <-
-    subset(obj,
-           subset = nFeature_RNA > 500 &
-                    nCount_RNA < 50000 &
-                    percent.mt < 20)
-  saveRDS(obj,
-          paste0(dir,"scrna/rdata/scrna_", sample, "_postqc.rds"))
-  objs[[sample]] <- data
-}
-
-# calculate number of cells per sample
-postqc <- data.frame()
-for (sample in names(objs)){
-  data <-
-    objs[[sample]]
-  cells <-
-    nrow(data@meta.data)
-  add <-
-    c(sample, cells)
-  postqc <-
-    rbind(postqc, add)
-}
-colnames(postqc) <-
-  c("sample", "nCells")
-postqc$nCells <-
-  as.numeric(postqc$nCells)
-ggplot(postqc,
-       aes(y = sample,
-           x = nCells)) +
-  geom_col() +
-  ggtitle("Post-QC") +
-  theme(plot.title = element_text(hjust = 0.5))
-ggsave(filename = paste0(fig, "flex_postqc_ncells.jpeg"),
-       width = 6,
-       height = 6)
-```
-
-
-
-```{r}
-merged <-
-  merge(objs[[1]],
-        objs[2:length(objs)],
-        add.cell.ids = names(objs))
-
-
-```
-
-

@@ -1,5 +1,10 @@
 #!/usr/bin/env Rscript
 
+# Notes on the RStudio server:
+   # Adam installed: quarto, libiconv, miniforge, python
+   # We needed to put LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib in environment
+   # We also increased /tmp to around 30G
+
 # install with: dzdo Rscript test_install.R
 
 # Need to add /usr/local/lib to LD_LIBRARY_PATH so RCurl can find libiconv
@@ -97,7 +102,7 @@ pak::pkg_install(
 warning("Remember to run `ls -d /rstudio-workshop/apps/R/R-4.4.2_install/lib64/R/library/* | xargs dzdo chmod 555`")
 
 # For rstudio server, modify the server's global settings
-# [mvc002@rpl-rstudiows01 NCH_Coder_Upgrade]$ cat /etc/rstudio/rstudio-prefs.json 
+# [mvc002@rpl-rstudiows01 NCH_Coder_Upgrade]$ cat /etc/rstudio/rstudio-prefs.json
 # {
 #     "save_workspace": "never",
 #     "load_workspace": false,
