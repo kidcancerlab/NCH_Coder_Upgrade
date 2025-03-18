@@ -50,6 +50,7 @@ needed_packages_cran <-
         "ggrepel",
         "ggthemes",
         "harmony",
+        "hdf5r",
         "knitr",
         "MAST",
         "msigdbr",
@@ -83,7 +84,8 @@ github_packages <-
         "mojaveazure/seurat-disk",
         "satijalab/seurat-wrappers",
         "satijalab/azimuth",
-        "drieslab/Giotto"
+        "drieslab/Giotto",
+        "10xGenomics/loupeR"
     )
 
 pak::pkg_install(
