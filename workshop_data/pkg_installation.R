@@ -103,7 +103,7 @@ warning("Remember to run `ls -d /rstudio-workshop/apps/R/R-4.4.2_install/lib64/R
 # {
 #     "save_workspace": "never",
 #     "load_workspace": false,
-#     "knit_working_dir": "project"
+#     "knit_working_dir": "project",
 #     "rmd_chunk_output_inline": false
 # }
 
