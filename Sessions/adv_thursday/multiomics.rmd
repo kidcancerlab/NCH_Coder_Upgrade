@@ -153,7 +153,7 @@ session_path <- "Sessions/adv_thursday/"
 # library("hdf5r")
 
 h5_data <-
-    Read10X_h5(paste0(data_path,
+    Read10X_h5(paste0(session_path,
                       "human_brain_3k_filtered_feature_bc_matrix.h5"))
 
 # mt_pattern <- "^MT-" because this is human data
@@ -168,9 +168,18 @@ seurat_obj <-
 
 ## Add the ATAC data to the Seurat object
 Need to combine the datasets prior to filtering
+
+The "Peaks" slot of our `h5_data` list is a sparse matrix. We'll add an ATAC assay to our seurat object. In order to do this, we need to provide the Peaks matrix as well as the ATAC fragment file.
+
+```{r check-sep}
+head(rownames(h5_data$Peaks))
+```
+
+The format is `chr:start-end`, so we'll pass `c(":", "-")` to the sep argument.
+
 ```{r}
 frag_file <-
-    paste0(data_path,
+    paste0(session_path,
            "human_brain_3k_atac_fragments.tsv.gz")
 
 seurat_obj[["ATAC"]] <-
@@ -180,8 +189,82 @@ seurat_obj[["ATAC"]] <-
                          min.cells = 5)
 ```
 
+### Add in Metadata Output by cellranger
+
+```{r}
+metadata <- read.table(file = paste0(session_path,
+                                     "human_brain_3k_per_barcode_metrics.csv"),
+                       sep = ",",
+                       header = TRUE,
+                       row.names = NULL) %>%
+    subset(barcode != "NO_BARCODE" &
+           barcode %in% colnames(seurat_obj)) %>%
+    remove_rownames() %>%
+    column_to_rownames("barcode") %>%
+    select(atac_mitochondrial_reads,
+           atac_peak_region_fragments,
+           atac_)
+
+head(metadata)
+```
+
+### Add Gene Annotation Information
+
+This step adds information about where genes are located in the genome, which is necessary to connect our ATAC peaks to genes. You'll need to use an annotation version appropriate for the species and genome version you used to align the data to. We're going to be using EnsDb.Mmusculus.v79 since our data was aligned to mm10. You can also use a gtf from the reference your data was aligned to, but it is only really necessary to do this in the case that your reference genome is not available from EnsDb.
+
+```{r}
+annotations <- GetGRangesFromEnsDb(ensdb = EnsDb.Mmusculus.v79::EnsDb.Mmusculus.v79)
+
+seqlevels(annotations)
+seqlevels(annotations) <- paste0("chr", seqlevels(annotations))
+genome(annotations) <- "mm10"
+
+Annotation(seurat_obj) <- annotations
+```
+
 # Filter out likely junk cells
-Not going to walk through this as it should all be review
+Not going to walk through this for RNA, as it should all be review.
+
+## QC for ATAC
+
+ATAC seq has similar QC metrics to RNA seq, as well as some additional metrics that are we don't see in RNA. Therefore we're going to introduce these metrics one by one before we filter out any cells.
+
+### Number of ATAC Reads
+
+This is analagous to nCount_RNA, and follows a similar-shaped distribution to nCount_RNA albeit with larger numbers.
+
+```{r}
+feature_hist(seurat_obj, features = c("nCount_RNA","nCount_ATAC"))
+```
+
+### Nucleosome Signal
+
+This calculates the strength of the nucleosome signal per cell. It is a ratio of mononucleosomal fragments (between 147 and 294 bp) to nucleosome-free fragments (< 147 bp). A high nucleosome signal indicates that the Tn5 likely did a poor job of transposing the open chromatin.
+
+The function `NucleosomeSignal` calculates this for us, and stores the values in a metadata column called `nucleosome_signal`.
+
+```{r add-nuc-signal}
+seurat_obj <- NucleosomeSignal(seurat_obj, assay = "ATAC")
+feature_hist(seurat_obj, features = "nucleosome_signal")
+```
+
+### Transcription Start Site Enrichment
+
+Calculates the enrichment of fragments around transcription start sites. This acts as a measure of the signal-to-noise ratio in our data. In theory, the ATAC-seq signal should be enriched around transcription start sites.
+
+From https://www.encodeproject.org/data-standards/terms/:
+> "The reads around a reference set of TSSs are collected to form an aggregate distribution of reads centered on the TSSs and extending to 2000 bp in either direction (for a total of 4000bp). This distribution is then normalized by taking the average read depth in the 100 bps at each of the end flanks of the distribution (for a total of 200bp of averaged data) and calculating a fold change at each position over that average read depth. This means that the flanks should start at 1, and if there is high read signal at transcription start sites (highly open regions of the genome) there should be an increase in signal up to a peak in the middle. We take the signal value at the center of the distribution after this normalization as our TSS enrichment metric."
+
+*Note this won't work if you haven't added gene annotations to your data; the function will have no idea where the TSS's are!*
+
+```{r calc-tss-enrichment}
+seurat_obj <- TSSEnrichment(seurat_obj)
+```
+
+
+
+
+
 ```{r}
 cutoffs <-
     tribble(~feature, ~min_val, ~max_val,
