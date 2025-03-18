@@ -55,6 +55,7 @@ needed_packages_cran <-
         "ggrepel",
         "ggthemes",
         "harmony",
+        "hdf5r",
         "knitr",
         "MAST",
         "msigdbr",
@@ -88,7 +89,8 @@ github_packages <-
         "mojaveazure/seurat-disk",
         "satijalab/seurat-wrappers",
         "satijalab/azimuth",
-        "drieslab/Giotto"
+        "drieslab/Giotto",
+        "10xGenomics/loupeR"
     )
 
 pak::pkg_install(
@@ -106,7 +108,7 @@ warning("Remember to run `ls -d /rstudio-workshop/apps/R/R-4.4.2_install/lib64/R
 # {
 #     "save_workspace": "never",
 #     "load_workspace": false,
-#     "knit_working_dir": "project"
+#     "knit_working_dir": "project",
 #     "rmd_chunk_output_inline": false
 # }
 
