@@ -191,6 +191,10 @@ seurat_obj[["ATAC"]] <-
 
 ### Add in Metadata Output by cellranger
 
+Cellranger is nice neough to output a csv with cell-level metadata. We'll read this in and add relevant columns to our Seurat object.
+
+There's 30 columns in the metadata file, so we're going to only add the columns that are of interest to our ATAC QC metrics.
+
 ```{r}
 metadata <- read.table(file = paste0(session_path,
                                      "human_brain_3k_per_barcode_metrics.csv"),
@@ -203,9 +207,10 @@ metadata <- read.table(file = paste0(session_path,
     column_to_rownames("barcode") %>%
     select(atac_mitochondrial_reads,
            atac_peak_region_fragments,
-           atac_)
+           atac_fragments)
 
-head(metadata)
+seurat_obj <- AddMetaData(object = seurat_obj,
+                          metadata = metadata)
 ```
 
 ### Add Gene Annotation Information
