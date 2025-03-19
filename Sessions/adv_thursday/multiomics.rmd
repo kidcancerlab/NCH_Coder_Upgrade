@@ -311,7 +311,7 @@ feature_hist(seurat_obj,
 
 ```
 
-## QC for RNA seq
+## QC and Process RNA
 
 I won't go into too much detail for this since we've seen it already.
 
@@ -357,160 +357,7 @@ seurat_obj$RNA_cluster <-
 length(Cells(seurat_obj))
 ```
 
-
-# Not the best way to characterize brain cell types, but it's good enough for now
-Also, the reference is single-cell, but the data is single-nuclei, so it's not perfect, but good enough for a demo
-
-If you want to do this for real find better references that more closely match your data
-```{r assign_celltype}
-hpca <- celldex::HumanPrimaryCellAtlasData()
-blueprint <- celldex::BlueprintEncodeData()
-immune <- celldex::MonacoImmuneData()
-
-cell_assign <-
-    SingleR::SingleR(as.SingleCellExperiment(seurat_obj),
-                     ref = list(hpca,
-                                blueprint,
-                                immune),
-                     labels = list(hpca$label.main,
-                                   blueprint$label.main,
-                                   immune$label.main))
-
-seurat_obj$cell_type <-
-    cell_assign$labels %>%
-    str_replace("DC", "Dendritic cells")
-seurat_obj$cell_score <-
-    cell_assign$scores %>%
-    apply(MARGIN = 1, function(x) max(x, na.rm = TRUE))
-
-DimPlot(seurat_obj,
-        group.by = "cell_type",
-        reduction = "umap_rna",
-        label = TRUE,
-        repel = TRUE)
-
-# Save this so I don't have to re-run everything
-qs::qsave(seurat_obj, paste0(session_path,
-                             "human_brain.qs"))
-```
-
-# Let's focus on the ATAC data
-Again, a lot of this is review from Tuesday's session
-## Add in gene annotations
-```{r}
-DefaultAssay(seurat_obj) <- "ATAC"
-
-annotations <-
-    GetGRangesFromEnsDb(ensdb = EnsDb.Hsapiens.v86::EnsDb.Hsapiens.v86)
-seqlevelsStyle(annotations) <- 'UCSC'
-genome(annotations) <- "hg38"
-
-# add the gene information to the object
-Annotation(seurat_obj[["ATAC"]]) <- annotations
-```
-
-## Add in nucleosome signal.
-This is a the ratio of mononucleosome fragments to short fragments.
-```{r}
-seurat_obj <- NucleosomeSignal(seurat_obj)
-seurat_obj$nucleosome_group <-
-    ifelse(seurat_obj$nucleosome_signal > 4,
-           paste0("NS > ", 4),
-           paste0("NS < ", 4))
-```
-
-## Calculate the signal enrichment at transcription start sites
-```{r}
-seurat_obj <- TSSEnrichment(seurat_obj, fast = FALSE)
-seurat_obj$high_tss <-
-    ifelse(seurat_obj$TSS.enrichment > 2,
-           "High",
-           "Low")
-```
-
-## Calculate how many of the reads are in different types of regions
-```{r}
-total_frag_df <-
-    CountFragments(paste0(data_path,
-                          "human_brain_3k_atac_fragments.tsv.gz"))
-
-total_frag_df <-
-    total_frag_df %>%
-    dplyr::filter(CB %in% colnames(seurat_obj)) %>%
-    dplyr::arrange(match(CB, colnames(seurat_obj)))
-
-# Populate seurat_obj with metadata
-
-seurat_obj$total_frag <- total_frag_df$reads_count
-seurat_obj$mononucleosomal <- total_frag_df$mononucleosomal
-seurat_obj$nucleosome_free <- total_frag_df$nucleosome_free
-```
-
-## Calculate the fraction of reads in peaks
-```{r}
-seurat_obj <-
-    FRiP(seurat_obj,
-         assay = "ATAC",
-         total.fragments = "total_frag",
-         col.name = "FRiP",
-         verbose = FALSE)
-```
-
-## Add in metadata output by cellranger-arc count
-```{r}
-metadata <-
-    read_csv(paste0(data_path,
-                    "/human_brain_3k_per_barcode_metrics.csv"),
-             show_col_types = FALSE) %>%
-    mutate(atac_pct_mito = atac_mitochondrial_reads / atac_raw_reads * 100,
-           atac_pct_dups = atac_dup_reads / atac_raw_reads * 100) %>%
-    filter(barcode %in% colnames(seurat_obj)) %>%
-    select(-atac_barcode,
-           -is_cell,
-           -excluded_reason,
-           -gex_barcode) %>%
-    arrange(match(barcode, colnames(seurat_obj))) %>%
-    column_to_rownames("barcode")
-
-seurat_obj <- AddMetaData(seurat_obj, metadata)
-
-# Save it so I don't have to re-run everything
-qs::qsave(seurat_obj, paste0(session_path,
-                             "human_brain_2.qs"))
-```
-
-## Lets plot our new metadata
-```{r}
-plot_factors <-
-    c("TSS.enrichment",
-      "FRiP",
-      "nucleosome_signal",
-      "atac_pct_mito",
-      "nCount_ATAC",
-      "atac_pct_dups")
-
-plot_name <- feature_hist(seurat_obj, plot_factors)
-ggsave("Sessions/adv_thursday/atac_feat_hist.png",
-       plot_name,
-       width = 6,
-       height = 10)
-plot_name
-```
-
-Generally want:
-
--   TSS enrichment > 1
--   FRiP > 0.2
--   Nucleosome signal < 4
-
-Also:
-You're going to have high PCR duplicate rates unless your sequencing depth is really shallow. Not a big deal. The number will give you an idea of how "rich" your library was.
-
-High ATAC percent mito should be low, higher percents may indicate "dirty" nuclei
-
-This data generally looks good without further filtering, so lets roll with it. Filtering would be done in the same way as the GEX data.
-
-## Process the seurat data
+## Process the ATAC data
 For ATAC, we do a couple of things differentially
 
 - We don't use the standard normalization, we use term frequency-inverse document frequency (TF-IDF) instead
@@ -522,6 +369,8 @@ For ATAC, we do a couple of things differentially
     - The reduction is named "lsi"
 
 ```{r}
+DefaultAssay(seurat_obj) <- "ATAC"
+
 seurat_obj <-
     seurat_obj %>%
     RunTFIDF() %>%
