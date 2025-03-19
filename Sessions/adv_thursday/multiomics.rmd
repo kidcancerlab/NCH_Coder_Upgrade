@@ -286,18 +286,37 @@ feature_hist(seurat_obj, "frip")
 
 ### Plot ATAC QC Metrics
 
-Now let's set our cutoffs for the ATAC data
+Now let's set our cutoffs for the ATAC data.
+
+Generally we want:
+
+-   Trim off nCount_ATAC outliers
+-   Nucleosome signal < 4-6
+-   TSS enrichment > 1
+-   FRiP > 0.2
 
 ```{r plot-atac-qc}
+atac_cutoffs <-
+    tribble(~feature, ~min_val, ~max_val,
+            "nCount_ATAC", 2000, 100000,
+            "nucleosome_signal", 0, 4,
+            "TSS.enrichment", 1, 20,
+            "frip", 0.2, 1)
 feature_hist(seurat_obj,
              features = c("nCount_ATAC",
                           "nucleosome_signal",
                           "TSS.enrichment",
-                          "frip"))
+                          "frip"),
+             cutoff_table = atac_cutoffs)
 
 ```
 
+## QC for RNA seq
+
+I won't go into too much detail for this since we've seen it already.
+
 ```{r}
+DefaultAssay(seurat_obj) <- "RNA"
 cutoffs <-
     tribble(~feature, ~min_val, ~max_val,
             "nCount_RNA", 2000, 50000,
