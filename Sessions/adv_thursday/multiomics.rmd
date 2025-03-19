@@ -41,6 +41,7 @@ library(tidyverse)
 library(Seurat)
 library(Signac)
 library(patchwork)
+library(ensembldb)
 ```
 
 --------------------------------------------------------------------------------
@@ -215,14 +216,18 @@ seurat_obj <- AddMetaData(object = seurat_obj,
 
 ### Add Gene Annotation Information
 
-This step adds information about where genes are located in the genome, which is necessary to connect our ATAC peaks to genes. You'll need to use an annotation version appropriate for the species and genome version you used to align the data to. We're going to be using EnsDb.Mmusculus.v79 since our data was aligned to mm10. You can also use a gtf from the reference your data was aligned to, but it is only really necessary to do this in the case that your reference genome is not available from EnsDb.
+This step adds information about where genes are located in the genome, which is necessary to connect our ATAC peaks to genes. You'll need to use an annotation version appropriate for the species and genome version you used to align the data to. We're going to be using EnsDb.Hsapiens.v86 since our data was aligned to hg38. You can also use a gtf from the reference your data was aligned to, but it is only really necessary to do this in the case that your reference genome is not available from EnsDb.
+
+We also change the seqlevels to be in the format "chr1", "chr2", etc. and set the genome to "hg38" to match the rest of the data such as the rownames.
+
 
 ```{r}
-annotations <- GetGRangesFromEnsDb(ensdb = EnsDb.Mmusculus.v79::EnsDb.Mmusculus.v79)
+DefaultAssay(seurat_obj) <- "ATAC"
 
-seqlevels(annotations)
-seqlevels(annotations) <- paste0("chr", seqlevels(annotations))
-genome(annotations) <- "mm10"
+annotations <-
+    GetGRangesFromEnsDb(ensdb = EnsDb.Hsapiens.v86::EnsDb.Hsapiens.v86)
+seqlevels(annotations) <- paste0('chr', seqlevels(annotations))
+genome(annotations) <- "hg38"
 
 Annotation(seurat_obj) <- annotations
 ```
@@ -232,7 +237,7 @@ Not going to walk through this for RNA, as it should all be review.
 
 ## QC for ATAC
 
-ATAC seq has similar QC metrics to RNA seq, as well as some additional metrics that are we don't see in RNA. Therefore we're going to introduce these metrics one by one before we filter out any cells.
+ATAC seq does have a few similar QC metrics to RNA seq, as well as some additional metrics that we don't see in RNA. Therefore we're going to introduce these new metrics one by one before we filter out any cells.
 
 ### Number of ATAC Reads
 
@@ -263,12 +268,34 @@ From https://www.encodeproject.org/data-standards/terms/:
 *Note this won't work if you haven't added gene annotations to your data; the function will have no idea where the TSS's are!*
 
 ```{r calc-tss-enrichment}
-seurat_obj <- TSSEnrichment(seurat_obj)
+seurat_obj <- TSSEnrichment(seurat_obj, assay = "ATAC", fast = FALSE)
+feature_hist(seurat_obj, features = "TSS.enrichment")
 ```
 
+### Fraction of Reads in Peaks
 
+This is just what it sounds like: a ratio of reads found in accessible regions of chromatin - peaks - to total reads. This can be considered another measure of signal-to-noise, as we would expect the majority of our reads to come from accessible chromatin.
 
+We'll calculate this using the metadata columns we added earlier from the cellranger output.
 
+```{r calc-frip}
+seurat_obj$frip <-
+    seurat_obj$atac_peak_region_fragments/seurat_obj$atac_fragments
+feature_hist(seurat_obj, "frip")
+```
+
+### Plot ATAC QC Metrics
+
+Now let's set our cutoffs for the ATAC data
+
+```{r plot-atac-qc}
+feature_hist(seurat_obj,
+             features = c("nCount_ATAC",
+                          "nucleosome_signal",
+                          "TSS.enrichment",
+                          "frip"))
+
+```
 
 ```{r}
 cutoffs <-
