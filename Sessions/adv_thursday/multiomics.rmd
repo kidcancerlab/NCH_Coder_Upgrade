@@ -232,6 +232,14 @@ genome(annotations) <- "hg38"
 Annotation(seurat_obj) <- annotations
 ```
 
+## Activity 1
+
+NEED TO ADD IN ACTIVITY!! HERE'S WHAT I'M THINKING
+    - have them read in a new (smaller ~1500 cells) dataset
+    - have them create a chromatin assay object and make a seurat object
+    - Have them add in cellranger metadata
+    - Have them set gene annotations
+
 # Filter out likely junk cells
 Not going to walk through this for RNA, as it should all be review.
 
@@ -357,7 +365,7 @@ seurat_obj$RNA_cluster <-
 length(Cells(seurat_obj))
 ```
 
-## Process the ATAC data
+# Process the ATAC data
 For ATAC, we do a couple of things differentially
 
 - We don't use the standard normalization, we use term frequency-inverse document frequency (TF-IDF) instead
@@ -393,6 +401,10 @@ DimPlot(seurat_obj,
 qs::qsave(seurat_obj, paste0(session_path,
                              "human_brain_3.qs"))
 ```
+
+## ACTIVITY
+
+Now take object from first activity and run QC steps and processing steps.
 
 ### Subsample down to just neurons to look at this subset
 ```{r}
@@ -499,7 +511,7 @@ ggsave("Sessions/adv_thursday/atac_peaks.png",
 
 > Show ppt of plots
 
-### Matching cells between datasets
+### Matching cells between datasets (Do we need this?)
 Compare heterogeneity of gene expression vs. chromatin accessibility
 
 ```{r}
@@ -721,6 +733,16 @@ head(select(matching_motifs,
             p.adjust),
      n = 15)
 ```
+
+## LAST ACTIVITY
+
+I'm thinking for this we'll do...
+    - differential accessibility between two groups in our dataset
+    - get top 5 upregulated regions for each group
+    - create ATAC feature plot of these regions
+    - create joint umap
+    - link peaks to genes
+    - plot expression of peak-linked genes
 
 
 # Resources
