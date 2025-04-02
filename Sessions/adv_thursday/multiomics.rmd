@@ -234,11 +234,19 @@ Annotation(seurat_obj) <- annotations
 
 ## Activity 1
 
-NEED TO ADD IN ACTIVITY!! HERE'S WHAT I'M THINKING
-    - have them read in a new (smaller ~1500 cells) dataset
-    - have them create a chromatin assay object and make a seurat object
-    - Have them add in cellranger metadata
-    - Have them set gene annotations
+We have another dataset for the same type of sample, just processed with a different machine.
+
+The dataset is named `8k_mouse_cortex_ATACv2_nextgem_Chromium_Controller*` and is in the same data_directory.
+
+For this activity, I want you to:
+    - Read in the gene expression and chromatin accessibility matrices
+    - Create a Seurat object with an RNA and ATAC assay
+    - Read in the cellranger metadata and add the columns `atac_mitochondrial_reads`, `atac_peak_region_fragments`, and `atac_fragments`
+    - Add gene annotations to your Seurat object
+
+```{r activity-1}
+
+```
 
 # Filter out likely junk cells
 Not going to walk through this for RNA, as it should all be review.
@@ -404,7 +412,9 @@ qs::qsave(seurat_obj, paste0(session_path,
 
 ## ACTIVITY
 
-Now take object from first activity and run QC steps and processing steps.
+Now take object from the first activity and run QC steps and processing steps.
+
+
 
 ### Subsample down to just neurons to look at this subset
 ```{r}
@@ -511,7 +521,10 @@ ggsave("Sessions/adv_thursday/atac_peaks.png",
 
 > Show ppt of plots
 
-### Matching cells between datasets (Do we need this?)
+### Matching cells between datasets (Do we need this? keep but don't include in activity)
+
+    - add in different clustering methods for atac (recall how 1 method worked better w/ my stuff)
+
 Compare heterogeneity of gene expression vs. chromatin accessibility
 
 ```{r}
