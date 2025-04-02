@@ -414,7 +414,15 @@ qs::qsave(seurat_obj, paste0(session_path,
 
 Now take object from the first activity and run QC steps and processing steps.
 
+2.1 Calculate the nucleosome signal, transcription start site enrichment score, and the fraction of reads in peaks.
 
+```{r activity-2}
+
+```
+
+2.2 Plot the different QC metrics, and set cutoffs for the ATAC + RNA data.
+
+2.3 Subset the seurat object by the above QC cutoffs and process the object for both the RNA and ATAC assays.
 
 ### Subsample down to just neurons to look at this subset
 ```{r}
@@ -756,6 +764,14 @@ I'm thinking for this we'll do...
     - create joint umap
     - link peaks to genes
     - plot expression of peak-linked genes
+
+3.1 Subset ATAC clusters 0 and 1 from our object (or should I do cell types?) and find the top 5 differentially accessibile peaks between the two groups as determined by log-fold change
+
+3.2 Create a feature plot of these regions
+
+3.3 Identify what genes are associated with these peaks
+
+3.4 Plot the expression of these genes in the RNA data
 
 
 # Resources
