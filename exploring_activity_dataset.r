@@ -74,12 +74,27 @@ activity_ob <- FRiP(activity_ob,
                     col.name = "FRiP")
 
 #plot qc metrics
-Idents(activity_ob) <- NULL
 VlnPlot(activity_ob,
         features = c("nCount_RNA",
                      "percent.mt_rna",
                      "nucleosome_signal",
-                     "tss.enrichment",
+                     "TSS.enrichment",
                      "FRiP"),
         group.by = "orig.ident",
-        ncol = 4)
+        ncol = 5)
+
+cutoffs <- tribble(~features, ~min_val, ~max_val,
+                   "nCount_RNA", 1000, 20000,
+                   "percen.mt_rna", 0, 20,
+                   "nucleosome_signal", 0, 2,
+                   "TSS.enrichment", 1, 50,
+                   "FRiP", 0.25, 1)
+
+activity_ob <- subset(activity_ob,
+                      nCount_RNA %in% c(1000:20000) &
+                      percent.mt_rna < 20 &
+                      nucleosome_signal < 2 &
+                      TSS.enrichment > 1 &
+                      FRiP > 0.25)
+
+qs::qsave(activity_ob, "testing_folder/qced_activity_ob.qs")
