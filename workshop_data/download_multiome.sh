@@ -35,5 +35,8 @@ wget https://cf.10xgenomics.com/samples/cell-arc/2.0.0/human_brain_3k/human_brai
 wget https://cf.10xgenomics.com/samples/cell-arc/2.0.0/human_brain_3k/human_brain_3k_atac_peak_annotation.tsv
 
 #Download the activity dataset
+# cultured neurons treated with KCI, measured 1 hour post stimulation
+wget https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM8793nnn/GSM8793216/suppl/GSM8793216%5FDuan%5F029%5F20088%2D1%5Finput%5Flib%5Fhg38only.tar.gz
+tar -xf GSM8793216_Duan_029_20088-1_input_lib_hg38only.tar.gz
 
 cd ${my_loc}
