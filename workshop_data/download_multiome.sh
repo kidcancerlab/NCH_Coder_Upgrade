@@ -34,4 +34,6 @@ wget https://cf.10xgenomics.com/samples/cell-arc/2.0.0/human_brain_3k/human_brai
 wget https://cf.10xgenomics.com/samples/cell-arc/2.0.0/human_brain_3k/human_brain_3k_atac_cut_sites.bigwig
 wget https://cf.10xgenomics.com/samples/cell-arc/2.0.0/human_brain_3k/human_brain_3k_atac_peak_annotation.tsv
 
+#Download the activity dataset
+
 cd ${my_loc}

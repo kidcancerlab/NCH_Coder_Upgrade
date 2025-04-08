@@ -206,7 +206,7 @@ metadata <- read.table(file = paste0(session_path,
            barcode %in% colnames(seurat_obj)) %>%
     remove_rownames() %>%
     column_to_rownames("barcode") %>%
-    select(atac_mitochondrial_reads,
+    dplyr::select(atac_mitochondrial_reads,
            atac_peak_region_fragments,
            atac_fragments)
 
@@ -401,8 +401,13 @@ seurat_obj <-
 seurat_obj$ATAC_cluster <- Idents(seurat_obj)
 
 DimPlot(seurat_obj,
-        group.by = "cell_type",
+        group.by = "ATAC_cluster",
         reduction = "umap_atac",
+        label = TRUE,
+        repel = TRUE) |
+DimPlot(seurat_obj,
+        group.by = "RNA_cluster",
+        reduction = "umap_rna",
         label = TRUE,
         repel = TRUE)
 
