@@ -236,7 +236,7 @@ Annotation(seurat_obj) <- annotations
 
 We have another dataset for the same type of sample, just processed with a different machine.
 
-The dataset is named `8k_mouse_cortex_ATACv2_nextgem_Chromium_Controller*` and is in the same data_directory.
+The dataset is named  and is in the same data_directory.
 
 For this activity, I want you to:
     - Read in the gene expression and chromatin accessibility matrices
@@ -766,7 +766,7 @@ I'm thinking for this we'll do...
     - differential accessibility between two groups in our dataset
     - get top 5 upregulated regions for each group
     - create ATAC feature plot of these regions
-    - create joint umap
+    <!-- - create joint umap -->
     - link peaks to genes
     - plot expression of peak-linked genes
 

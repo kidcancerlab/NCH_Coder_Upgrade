@@ -97,4 +97,59 @@ activity_ob <- subset(activity_ob,
                       TSS.enrichment > 1 &
                       FRiP > 0.25)
 
+DefaultAssay(activity_ob) <- "RNA"
+activity_ob <- NormalizeData(activity_ob) %>%
+    FindVariableFeatures() %>%
+    ScaleData() %>%
+    RunPCA() %>%
+    RunUMAP(reduction.name = "umap_rna",
+            dims = 1:10) %>%
+    FindNeighbors(dims = 1:10) %>%
+    FindClusters()
+
+activity_ob$RNA_cluster <- Idents(activity_ob)
+
+DefaultAssay(activity_ob) <- "ATAC"
+activity_ob <- RunTFIDF(activity_ob) %>%
+    FindTopFeatures(min.cutoff = "q0") %>%
+    RunSVD() %>%
+    FindNeighbors(reduction = "lsi") %>%
+    FindClusters(algorithm = 3) %>%
+    RunUMAP(reduction = "lsi",
+            dims = 2:30,
+            reduction.name = "umap_atac")
+
+activity_ob$ATAC_cluster <- Idents(activity_ob)
+
 qs::qsave(activity_ob, "testing_folder/qced_activity_ob.qs")
+
+r_dim_plot(activity_ob, reduction = "umap_rna", group.by = "RNA_cluster") |
+r_dim_plot(activity_ob, reduction = "umap_atac", group.by = "ATAC_cluster")
+
+
+#Last activity
+#make small object with just clusters 0 and 1
+activity_small <- subset(activity_ob, ATAC_cluster %in% c(0, 1)) %>%
+    RunTFIDF() %>%
+    FindTopFeatures(min.cutoff = "q0") %>%
+    RunSVD() %>%
+    FindNeighbors(reduction = "lsi") %>%
+    FindClusters(algorithm = 3) %>%
+    RunUMAP(reduction = "lsi",
+            dims = 2:30,
+            reduction.name = "umap_atac")
+
+#find differentially accessible peaks
+Idents(activity_small) <- activity_small$ATAC_cluster
+
+diff_peaks <- FindAllMarkers(activity_small,
+                          assay = "ATAC",
+                          min.pct = .2) %>%
+    subset(p_val_adj < 0.05)
+
+top_5_each <- group_by(diff_peaks, cluster) %>%
+    arrange(desc(avg_log2FC)) %>%
+    slice_head(n = 5)
+
+#plot peaks as atac feature plot
+r_feature_plot(activity_ob, features = top_5_each$gene)
