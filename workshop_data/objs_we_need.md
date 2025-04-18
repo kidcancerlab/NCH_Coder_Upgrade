@@ -22,7 +22,7 @@
 - **Wednesday - Combining datasets and data integration**
     - Input:
         - `output/rdata/OX1X_sobj_annotated.qs` (or the attendee’s object from Tuesday)
-        - `input/rdata_premade/scRNA_other_annotated.qs`
+        - `output/rdata_premade/scRNA_objs_list.qs`
           (a premade list of annotated brain Seurat objects from additional datasets)
     - Output:
         - `output/rdata/brain_scRNA_combined.qs`

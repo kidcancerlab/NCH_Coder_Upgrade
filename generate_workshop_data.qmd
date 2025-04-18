@@ -76,6 +76,10 @@ done
 source workshop_data/download_multiome.sh
 ```
 
+# Download model data for nichenetr
+```{bash download_nichenetr}
+source workshop_data/download_nichenetr.sh
+```
 
 # Session information
 ```{r session_info}
