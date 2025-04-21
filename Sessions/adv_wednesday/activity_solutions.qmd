@@ -1,0 +1,80 @@
+# Activity 1
+
+## Define receiver cell type and genes expressed by receiver cell type
+```{r}
+expressed_genes_receiver_2 <-
+    get_expressed_genes(
+        second_diff_cell_type,
+        brain_data,
+        pct = 0.10
+    )
+```
+
+## Define background expressed genes
+```{r}
+background_expressed_genes_2 <-
+    expressed_genes_receiver_2 %>%
+    .[. %in% rownames(ligand_target_matrix)]
+```
+
+## Define sender cells and genes expressed by sender cell types
+```{r}
+sender_celltypes_2 <-
+    discard(keep_cell_types, keep_cell_types %in% second_diff_cell_type)
+
+expressed_genes_sender_2 <-
+    sender_celltypes_2 %>%
+    # lapply to get expressed genes of every sender cell type separately here
+    lapply(get_expressed_genes, brain_data, 0.10) %>%
+    unlist() %>%
+    unique()
+```
+
+## Define geneset of interest
+```{r}
+geneset_oi_2 <-
+    de_list[[second_diff_cell_type]] %>%
+    filter(padj <= 0.05 &
+        abs(log2FoldChange) >= 1) %>%
+    pull(gene) %>%
+    .[. %in% rownames(ligand_target_matrix)]
+
+geneset_oi_2
+
+```
+
+## Get potential ligands and receptors
+```{r}
+ligands <-
+    lr_network %>%
+    pull(from) %>%
+    unique()
+
+receptors <-
+    lr_network %>%
+    pull(to) %>%
+    unique()
+
+expressed_ligands_2 <- intersect(ligands, expressed_genes_sender_2)
+expressed_receptors_2 <- intersect(receptors, expressed_genes_receiver_2)
+
+potential_ligands_2 <-
+    lr_network %>%
+    filter(from %in% expressed_ligands_2 &
+        to %in% expressed_receptors_2) %>%
+    pull(from) %>%
+    unique()
+```
+
+## Run NicheNet stepwise analysis
+```{r}
+nichenet_stepwise_output_2 <-
+    predict_ligand_activities(
+        geneset = geneset_oi_2,
+        background_expressed_genes = background_expressed_genes_2,
+        ligand_target_matrix = ligand_target_matrix,
+        potential_ligands = potential_ligands_2
+    ) %>%
+    arrange(-pearson) %>%
+    mutate(rank = rank(pearson))
+```
