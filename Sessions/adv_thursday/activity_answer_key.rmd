@@ -1,11 +1,15 @@
 # Activity 1
 
 ```{r activity-1-answers}
-activity_input_path <-
-    "input/multiomics/Duan_029_20088-1_input_lib_hg38only/outs/"
+library(Seurat)
+library(rrrSingleCellUtils)
+library(Signac)
 
-h5_list <- Read10X_h5(paste0(activity_input_path,
-                             "filtered_feature_bc_matrix.h5"))
+activity_input_path <-
+    "input/multiomics/downsampled_data/"
+
+h5_list <- qs::qread(paste0(activity_input_path,
+                             "gene_exp_peaks_list.qs"))
 
 activity_ob <-
     CreateSeuratObject(counts = h5_list[["Gene Expression"]],
@@ -17,24 +21,15 @@ activity_ob <-
 
 #going to add atac assay
 head(rownames(h5_list[["Peaks"]]))
-activity_frag <- paste0(activity_input_path, "atac_fragments.tsv.gz")
+activity_frag <- paste0(activity_input_path, "new_fragments.tsv.gz")
 activity_ob[["ATAC"]] <-
     CreateChromatinAssay(counts = h5_list[["Peaks"]],
                          sep = c(":", "-"),
                          fragments = activity_frag,
                          min.cells = 0)
+```
 
-# Need to downsample this
-set.seed(17)
-bcs_keep <- sample(colnames(activity_ob), size = 2000)
-activity_ob$keep_cell <- colnames(activity_ob) %in% bcs_keep
-activity_ob <- subset(activity_ob, keep_cell)
-
-qs::qsave(activity_ob, "testing_folder/downsampled_ob.qs")
-
-#think I'll downsample to ~2k, so I still have enough for QC
-DimPlot(activity_ob)
-
+```{r}
 #Add gene annotation information
 DefaultAssay(activity_ob) <- "ATAC"
 annotations <-
@@ -58,7 +53,7 @@ activity_ob <- TSSEnrichment(activity_ob, assay = "ATAC", fast = FALSE)
 
 total_frag_df <- CountFragments(activity_frag) %>%
     dplyr::filter(CB %in% colnames(activity_ob)) %>%
-    arrange(match(CB, colnames(activity_ob)))
+    dplyr::arrange(match(CB, colnames(activity_ob)))
 
 activity_ob@meta.data <- activity_ob@meta.data %>%
     dplyr::mutate(total_frag = total_frag_df$frequency_count*2,
@@ -98,6 +93,8 @@ feature_hist(activity_ob, features = cutoffs$feature, cutoff_table = cutoffs)
 
 Subset the seurat object by the above QC cutoffs and process the object for both the RNA and ATAC assays.
 
+Make separte metadata columns for the RNA-based clusters and the ATAC-based clusters
+
 ```{r}
 activity_ob <- subset(activity_ob,
                       nCount_RNA %in% c(1000:20000) &
@@ -127,6 +124,7 @@ activity_ob <- RunTFIDF(activity_ob) %>%
     RunUMAP(reduction = "lsi",
             dims = 2:30,
             reduction.name = "umap_atac")
+activity_ob$ATAC_cluster <- Idents(activity_ob)
 ```
 
 # Activity 3
