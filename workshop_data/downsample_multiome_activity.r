@@ -17,8 +17,8 @@ new_data <- list("Gene Expression" = new_gene_exp,
                  "Peaks" = new_atac)
 
 write.table(bcs_keep,
-            "../../downsampled_data/downsampled_bcs.tsv",
+            "../downsampled_data/downsampled_bcs.tsv",
             row.names = FALSE,
             quote = FALSE,
             col.names = FALSE)
-qs::qsave(new_data, "../../downsampled_data/gene_exp_peaks_list.qs")
+qs::qsave(new_data, "../downsampled_data/gene_exp_peaks_list.qs")
