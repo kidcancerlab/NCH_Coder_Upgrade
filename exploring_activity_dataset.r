@@ -160,12 +160,16 @@ diff_peaks <- FindAllMarkers(activity_small,
                           min.pct = .1) %>%
     subset(p_val_adj < 0.05)
 
-top_5_each <- group_by(diff_peaks, cluster) %>%
+top_10_each <- group_by(diff_peaks, cluster) %>%
     arrange(desc(avg_log2FC)) %>%
-    slice_head(n = 5)
+    slice_head(n = 10)
 
 #plot peaks as atac feature plot
 r_feature_plot(activity_ob, features = top_5_each$gene)
+
+
+
+
 
 #Link peaks to genes
 #First I'm going to find differentially expressed genes between ATAC clusters, bc we're only interested in genes whose expression is changing between states
@@ -205,24 +209,12 @@ links <- Links(activity_small) %>%
     arrange(pvalue)
 head(links)
 
-#lets see if any of our top 5 peaks are in here
-subset(links, peak %in% top_5_each$gene)
-r_feature_plot(activity_ob, reduction = "umap_rna", features = "KCTD8") |
-r_dim_plot(activity_ob, reduction = "umap_rna", group.by = c("RNA_cluster", "ATAC_cluster"))
-table(activity_small$RNA_cluster, activity_small$ATAC_cluster)
+#lets see if any of our top 10 peaks are in here
+subset(links, peak %in% top_10_each$gene)
+r_feature_plot(activity_small, reduction = "umap_rna", features = "NOL4") |
+r_dim_plot(activity_small, reduction = "umap_rna", group.by = c("RNA_cluster", "ATAC_cluster"))
 
 ##
 # NO LINKED PEAKS FOUND IN OBJECT!! HOW?????
 # ANSWER: YOUR DUMB ASS WASN'T USING THE peak COLUMN FROM THE LINKPEAKS OUTPUT
 ##
-
-#lets try closest feature instead and filter against degs
-close_genes <- ClosestFeature(activity_small, regions = diff_peaks$gene)
-head(close_genes)
-
-subset(close_genes,
-       gene_name %in% degs$gene &
-       distance == 0) %>%
-    pull(gene_name)
-
-#motif analysis

@@ -241,7 +241,6 @@ The dataset is named  and is in the same data_directory.
 For this activity, I want you to:
     - Read in the gene expression and chromatin accessibility matrices
     - Create a Seurat object with an RNA and ATAC assay
-    - Read in the cellranger metadata and add the columns `atac_mitochondrial_reads`, `atac_peak_region_fragments`, and `atac_fragments`
     - Add gene annotations to your Seurat object
 
 ```{r activity-1}
@@ -464,7 +463,7 @@ Now take object from the first activity and run QC steps and processing steps.
 
 2.3 Subset the seurat object by the above QC cutoffs and process the object for both the RNA and ATAC assays.
 
-### Subsample down to just RNA_cluster 0 and 1 to look at this subset
+### Subset down to just RNA_cluster 0 and 1 to look at this subset
 
 ```{r}
 DefaultAssay(seurat_obj) <- "ATAC"
@@ -526,6 +525,7 @@ qs::qsave(small_obj, paste0(session_path,
 Also add in annotation for nearest feature
 ```{r da_peaks}
 DefaultAssay(small_obj) <- "ATAC"
+Idents(small_obj) <- small_obj$ATAC_cluster
 da_peaks <-
     FindMarkers(small_obj,
                 ident.1 = "0",
