@@ -1,0 +1,114 @@
+
+## Library
+```{r lib, cache = FALSE}
+# Load necessary packages
+library(Seurat)
+library(tidyverse) # This package contains ggplot2 and dplyr
+library(patchwork)
+library(ggplot2) # For plotting
+library(rrrSingleCellUtils) # For plotting an processing
+library(qs) # For reading and writing .qs files
+library(harmony) # For Harmony integration
+# Set the random generator seed so that results are reproducible.
+set.seed(132)
+```
+
+
+
+## load the objects to be merged
+In this tutorial, we will demonstrate how to merge two single cell RNA-seq
+datasets using the MergeSeurat function in Seurat. Merging single cell RNA-seq 
+datasets is a crucial step in the analysis of single cell data. 
+It allows researchers to combine data from different sources and 
+increase the sample size for more robust and comparative analysis.
+Let's say we have many different datasets from different samples or
+experiments. We can load the datasets individually and then merge them using
+the MergeSeurat function in Seurat. The merged dataset can then be used for
+downstream analysis, such as dimensionality reduction, clustering, and
+differential expression analysis.
+
+```{r test}
+# read in the pre-made Seurat objects to be merge
+sobj1 <- 
+    qs::qread("output/rdata_premade/OX1X_sobj_annotated.qs")
+
+#check the object
+sobj1
+
+# read in the pre-made Seurat objects to be merge 
+# this is a list of Seurat objects
+sobj_list <-
+    qs::qread("output/rdata_premade/scRNA_objs_list.qs")
+
+#check the list
+sobj_list
+
+# merge the Seurat objects
+merged_sobj <-
+    merge(x= sobj1, 
+          y = sobj_list[1:length(sobj_list)])
+
+# check the merged Seurat object, you will see layers for each seurat object
+merged_sobj
+
+# join the layers so that they are all in the same object
+merged_sobj <-
+    merged_sobj %>%
+    JoinLayers()
+
+# check the object now, the layers are now joined or merged
+merged_sobj
+
+# need to re-run the normalization and scaling
+merged_sobj <- 
+    merged_sobj %>%
+    NormalizeData() %>%
+    FindVariableFeatures() %>%
+    ScaleData()
+
+# run PCA
+merged_sobj <- 
+    merged_sobj %>%
+    RunPCA()
+
+# run UMAP
+merged_sobj <- 
+    merged_sobj %>%
+    RunUMAP(dims = 1:30)
+
+# run clustering
+merged_sobj <- 
+    merged_sobj %>%
+    FindNeighbors(dims = 1:30) %>%
+    FindClusters(resolution = 0.5)
+# check the object
+merged_sobj
+
+# check the metadata
+DimPlot(merged_sobj,
+              group.by = "cell_type",
+              #split.by = "orig.ident",
+              #ncol = 6,
+              label = T) +
+    NoLegend()
+
+harm <-
+    RunHarmony(merged_sobj,
+              group.by.vars = "orig.ident")
+
+# check the object
+harm <-
+    RunUMAP(harm,
+            reduction = "harmony",
+            dims = 1:30) %>%
+    FindNeighbors(reduction = "harmony",
+                  dims = 1:30) %>%
+    FindClusters(resolution = 0.5)
+
+DimPlot(harm,
+              group.by = "cell_type",
+              #split.by = "orig.ident",
+              #ncol = 6,
+              label = T) +
+    NoLegend()
+```

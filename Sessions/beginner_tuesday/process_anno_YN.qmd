@@ -1,0 +1,535 @@
+---
+title: 'Seurat Lesson: Code'
+author: "Emily Franz and Jack Hedberg"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 5
+    number_sections: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  tidy = TRUE,
+  echo = TRUE,
+  cache = TRUE,
+  collapse = TRUE,
+  tidy.opts = list(width.cutoff = 95),
+  message = FALSE,
+  warning = FALSE,
+  cache.lazy = FALSE)
+```
+
+```{r lib, cache = FALSE}
+# Load necessary packages
+library(Seurat)
+library(tidyverse) # This package contains ggplot2 and dplyr
+library(patchwork)
+library(ggplot2) # For plotting
+library(rrrSingleCellUtils) # For plotting an processing
+library(qs) # For reading and writing .qs files
+# Set the random generator seed so that results are reproducible.
+set.seed(132)
+```
+
+# Load in seurtat object: 
+***YOU MAY NEED TO MODIFY THE CODE BELOW SO THAT THE FOLDER PATH POINTS R TO 
+WHEREVER THE RAW DATA IS LOCATED ON YOUR COMPUTER. Make sure that you include the 
+necessary folders in the path to the below folders. 
+Be careful with forward slashes. Folders always have a forward slash in front of 
+them, and files do not.
+
+# Perform Subsetting for Quality Control
+All subsetting will depend on your sample and its quality and conditions. For 
+instance, if one sample is a tumor treated with effective chemotherapy, you may 
+expect to see a higher percent of mitochondrial genes and may want to include 
+more of these dying cells in your subsetting (say, 25% mitochondrial genes). 
+All subsetting should depend on the spread of your data, with outliers (both 
+high and low) typically targeted for exclusion.
+**Feature subsetting:**
+nFeature_RNA: number of genes (features) detected per cell. 
+Subsetting the number of features per cells can help to remove doublets (two cells
+that grouped together as "one" -> high nFeature_RNA) and non-cells, such as 
+dead cells or free mRNA that grouped together (low nFeature_RNA). 
+nCount_RNA is also related to nFeature_RNA, so it is not necessary to use both
+methods.
+
+**nCount subsetting:**
+nCount_RNA: number of unique molecule identifiers (UMIs) per cell
+High nCount_RNA also indicates doublets, and so is another method for 
+filtering out those doublets. Some prefer using this method to using nFeatures to remove 
+doublets. Using both, one can be fairly confident of removing doublets. 
+
+**Mitochondrial gene subsetting:**
+Subsetting the data by percent mitochondrial genes helps remove poor quality 
+cells, such as dead cells or cells with a broken membrane (this causes leakage of
+mRNA). These cells have a higher percentage of mitochondrial genes. Typically, 
+25% and lower is preferred; however, again, this depends on your data spread 
+and your expectations for the sample. 
+Note: "^MT-" = all genes beginning with "MT-", which is how all mitochondrial 
+gene names begin. "^mt-" for mice gene pattern.
+
+```{r load}
+# read in the object
+sobj <-
+    qs::qread("output/rdata_premade/OX1X_sobj.qs")
+
+# check the object
+sobj
+colnames(sobj@meta.data)
+
+# check the metadata
+sobj[["percent.mt"]] <- 
+    PercentageFeatureSet(sobj, pattern = "^mt-")
+
+#check the metadata
+colnames(sobj@meta.data)
+
+# visualize the composition or distribution
+# Violin plot to visualize outliers, each dot is a cell
+VlnPlot(sobj,
+        features = c("nFeature_RNA",
+                     "nCount_RNA",
+                     "percent.mt"))
+
+# visualize the composition or distribution of ncount (nfeature is related to ncount)
+hist(sobj$nCount_RNA,
+     breaks = 100)
+
+# visualize the distribution of the percent of mitochondrial genes
+hist(sobj$percent.mt,
+     breaks = 100)
+
+# subset the dataset to remove the low quality cells
+sobj <- 
+    subset(sobj,
+           subset = nCount_RNA < 15000 &
+                    percent.mt < 20)
+
+# check the substetting
+hist(sobj$nCount_RNA,
+     breaks = 100)
+hist(sobj$percent.mt,
+        breaks = 100)
+
+# Violin plot to visualize that the subsetting has worked
+VlnPlot(sobj,
+        features = c("nFeature_RNA",
+                     "nCount_RNA",
+                     "percent.mt"))
+
+# showing that the nCount and nFeature are related
+FeatureScatter(sobj,
+                feature1 = "nCount_RNA",
+                feature2 = "nFeature_RNA") + 
+theme(legend.position="none")
+
+```
+
+
+# activity1 
+**Ribosomal and hemoglobin gene subsetting:**
+These are other options for identifying low quality samples based on the percent
+of these genes in each cell. Ribosomal genes begin with either "RPS" or "RPL". 
+Hemoglobin genes begin with either "HBA" or "HBB".
+
+make a new column in the metadata for the percent of ribosomal genes and hemoglobin genes. 
+Then visualize the distribution of these genes using a violin plot and histogram.
+
+Tips: the pattern for the ribosomal genes is "^Rp[sl]", which means that the gene name 
+begins with "Rp" and is followed by either "s" or "l". The pattern for the hemoglobin genes
+is "^Hb[ab]", which means that the gene name begins with "Hb" and is followed by either "a" or "b".
+
+```{r activity1}
+sobj[["percent.ribo"]] <- 
+        PercentageFeatureSet(sobj, pattern = "^Rp[sl]")
+
+#check the metadata
+colnames(sobj@meta.data)
+
+sobj[["percent.hb"]] <- 
+        PercentageFeatureSet(sobj, pattern = "^Hb[ab]")
+
+# visualize the composition or distribution
+VlnPlot(sobj,
+        features = c("percent.mt",
+                     "percent.ribo",
+                     "percent.hb"))
+
+```
+
+# Normalize 
+Normalization is the process of adjusting gene expression values to eliminate/reduce 
+the influence of technical effects impacting all genes the same way.
+
+# Identify Highly Variable Features
+This function identifies the n most highly variable features. By default, n = 2000 
+(defined by nfeatures=2000). This is used by the next step, scaling, to speed it
+up. Often, many biologically important features will be captured in this step, 
+however, you may lose important data, depending on your dataset. 
+
+# Scale Features
+Scaling applies linear transformation. Importantly, this step ensures that 
+highly-expressed genes do not dominate and drown out relatively lower-expressed 
+genes that have biological importance. This is a standard pre-processing step 
+prior to principle component analysis (dimensional reduction).
+  -Shifts the expression of each gene (feature), so that the mean expression across cells is 0
+  -Scales the expression of each gene (feature), so that the variance across cells is 1
+  -Results are stored in covid[["RNA"]]@scale.data
+  
+Note that if the features parameter is undefined, this function will perform 
+scaling on only 2,000 of the most variable features by default (may lose data).
+
+```{r normalize_and_scale_data}
+# normalize the data
+sobj <- 
+    NormalizeData(sobj,
+                  normalization.method = "LogNormalize",
+                  scale.factor = 10000)
+# check the normalization, a new layer is added called data, you can compare counts and data layers
+sobj
+sobj@assays$RNA$counts[1:10,1:10]
+sobj@assays$RNA$data[1:10,1:10]
+
+# find the variable features
+sobj <- 
+    FindVariableFeatures(sobj,
+                         selection.method = "vst",
+                         nfeatures = 2000)
+
+# visualize the variable features and layers
+sobj@assays$RNA
+
+# visualize the variable features
+top10 <- 
+    head(VariableFeatures(sobj),
+         10)
+top10
+
+Seurat::LabelPoints(plot = VariableFeaturePlot(sobj),
+                    points = top10,
+                    repel = TRUE)
+
+# scale the object
+sobj <- 
+    ScaleData(sobj,
+             features = VariableFeatures(sobj))
+
+#check the scaling, a new layer is added called scale.data
+sobj 
+sobj@assays$RNA$counts[1:10,1:10]
+sobj@assays$RNA$data[1:10,1:10]
+sobj@assays$RNA$scale.data[1:10,1:10]
+
+```
+
+# activity2
+perform normalization using different method and check and comapre how the numbers change
+normalization.method	
+Method for normalization.
+LogNormalize: Feature counts for each cell are divided by the total counts for that cell and multiplied by the scale.factor. This is then natural-log transformed using log1p.
+CLR: Applies a centered log ratio transformation
+RC: Relative counts. Feature counts for each cell are divided by the total counts for that cell and multiplied by the scale.factor. No log-transformation is applied. For counts per million (CPM) set scale.factor = 1e6
+
+perform scaling using using all the genes
+Pros of using highly variable features to scale:
+Focuses on informative genes: HVFs are the genes that show the most meaningful variation across cells, likely reflecting true biological differences.
+Faster & less memory-intensive: You're only scaling a subset of the data.
+Reduces noise: Non-variable genes often contribute mostly technical noise.
+cons:
+You exclude potentially important genes that didn't meet the variance threshold.
+
+pros of using all genes to scale:
+Retains all genes: Useful when you need scaled values for genes outside the HVF set (e.g., for scoring gene sets or marker genes not in HVFs).
+No bias toward only highly variable genes: For analyses like differential expression or custom scoring, this is sometimes better.
+Cons:
+Computationally heavier
+Noisy genes may dominate
+
+```{r activity2}
+# perform normalization using different method and check and comapre how the numbers change
+new_sobj <- 
+    NormalizeData(sobj,
+                  normalization.method = "CLR",
+                  scale.factor = 10000)
+
+# increase the variable features to 5000 and check the variable features, do the top 10 change?
+new_sobj <- 
+    FindVariableFeatures(new_sobj,
+                         selection.method = "vst",
+                         nfeatures = 5000)
+
+top10 <-
+        head(VariableFeatures(new_sobj),
+                10)
+
+Seurat::LabelPoints(plot = VariableFeaturePlot(new_sobj),
+                    points = top10,
+                    repel = TRUE)
+
+# perform scaling using all the genes
+new_sobj <- 
+        ScaleData(new_sobj,
+                  features = rownames(new_sobj))
+
+```
+
+
+## Perform Principle Component Analysis (PCA)
+This step can also be known as linear dimensional reduction. Numerous methods exist for visualization of principle components (PCs). A common method is `ElbowPlot`, which plots the standard deviations of the principle components. The left of the 'elbow' tends to represent the significant dimensions. 
+
+Other visualization methods include `JackStraw` (slow) and `DimHeatmap`. Note that higher dimensions can be chosen, especially if certain rare cell-type signatures are distinguishable in these PCs. `DimHeatmap` is helpful in seeing these genes. More information can be found at: [Seurat - Guided Clustering Tutorial: Perform linear dimensional reduction](https://satijalab.org/seurat/articles/pbmc3k_tutorial.html).
+
+```{r pca}
+
+#### Run PCA ####
+sobj <-
+  RunPCA(sobj,
+         features = VariableFeatures(object = sobj))
+
+#### Elbow Plot ####
+# Note the elbow around PC ______________________________________
+# (more specifically, the PCs from above PC 20 show nearly no difference in y-axis 
+# value to that of PC 20). Thus, we will proceed with dims = 1:20.
+ElbowPlot(sobj,
+          ndims = 50)
+
+```
+
+# Cluster Single Cells.
+This portion includes two steps. The first, `FindNeighbors`, takes the principle components selected above and constructs a graph based on the euclidean distance from the PCA and finds the similarities between two cells based on overlap of their local neighborhoods. The selected PCs are defined in the `dims` parameter. 
+The second step, `FindClusters`, iteratively groups cells together with the ability to set the resolution, or granularity, of the clustering. The higher the resolution, the greater the number of clusters in the output.
+
+```{r cluster}
+
+#### Find Neighbors ####
+sobj <-
+  FindNeighbors(sobj,
+                dims = 1:20)
+
+#### Find Clusters ####
+# Low resolution (low number of clusters)
+sobj <-
+  FindClusters(sobj,
+               resolution = 0.2)
+```
+
+# Run Non-linear Dimensional Reduction (UMAP/tSNE)
+Using the same PCs and resolution as defined above, this step places similar cells together in a low-dimension (2D) space. Those cells calculated as co-localized in the clusters generated above should co-localize in the UMAP or tSNE space. Cells are colored by their cluster or identity class. As for differences between tSNE and UMAP, UMAP lowers the dimensions of the high dimensional graph from above using compression, whereas t-SNE moves the high  dimensional graph to a lower dimensional space points by points. Their parameters, thus, differ, but both can be used as graph-based methods for non-linear dimensional reduction. Neither is perfect, but UMAP tends to provide better balance between local versus global structure and is more time-effective. For more information, please see [Comparing UMAP vs t-SNE in Single-cell RNA-Seq Data Visualization, Simply Explained](https://blog.bioturing.com/2022/01/14/umap-vs-t-sne-single-cell-rna-seq-data-visualization/)and [Understanding UMAP](https://pair-code.github.io/understanding-umap/).
+
+`RunTSNE()` is used, similarly to below, to acheive a TSNE plot.
+
+```{r umap}
+
+#### Run UMAP ####
+# Use the same dimensions as those in FindNeighbors()
+sobj <-
+  RunUMAP(sobj,
+          dims = 1:20)
+
+#### Plot UMAP ####
+DimPlot(sobj,
+        reduction = "umap")
+
+# Visualize cluster labels on UMAP
+## Note: reduction parameter, if not specified, first searches for umap, then tsne, then pca
+## By default, then, it will select whichever dimensional reduction method is used above,
+## unless both umap and tsne have been generated. 
+DimPlot(sobj,
+        label = TRUE,
+        repel = TRUE)
+
+```
+
+## Practice
+
+Generate a tSNE plot with a higher clustering resolution of 1.0. (You do not need to rerun anything prior to FindClusters).
+
+```{r practice}
+
+sobj <-
+  FindClusters(sobj,
+               resolution = 1.0)
+
+sobj <-
+  RunTSNE(sobj,
+          dims = 1:20)
+
+DimPlot(sobj,
+        reduction = "tsne")
+
+```
+
+## Load in reference data 
+
+Load in the PBMC reference Seurat object to serve as the reference for cell typing. 
+
+
+This object has several different levels of granularity. For the examples, we will use `cell_type`.
+
+```{r ref_data}
+
+# Read in the reference Seurat object
+ref <-
+  qread("/Users/rcnxs010/Downloads/OneDrive_1_4-16-2025/mouse_brain_ref_data.qs")
+
+# Set the idents to cell_type so that we can examine which cell types are present in the dataset
+Idents(ref) <- "cell_type"
+
+# Visualize the reference dataset
+DimPlot(ref)
+
+DimPlot(ref,
+        group.by = "cell_type")
+
+```
+
+```{r annotate}
+
+# Find anchors between reference and query datasets
+anchors <-
+  FindTransferAnchors(reference = ref,
+                      query = sobj,
+                      dims = 1:30,
+                      reference.reduction = "pca")
+
+# Transfer anchors from reference dataset
+predictions <-
+  TransferData(anchorset = anchors,
+               refdata = ref$cell_type,
+               dims = 1:30)
+
+# Add query to metadata of Seurat object
+sobj <- AddMetaData(sobj,
+                    metadata = predictions) 
+
+# Rename "predicted.id" to "cell_types"
+sobj$cell_types <- sobj$predicted.id
+
+# Set active identity to new cell type labels and visualize typed clusters via DimPlot
+Idents(sobj) <- sobj$cell_types
+DimPlot(sobj,
+        reduction = "umap")
+
+# Tally number of cells in each cell type 
+table(sobj$cell_types)
+
+```
+
+## Practice 2
+
+Now annotate the dataset using `neighborhood_label` instead of `cell_type`.
+
+```{r annotate}
+
+# Transfer anchors 
+predictions2 <- TransferData(anchorset = anchors,
+                             refdata = ref$neighborhood_label,
+                             dims = 1:30)
+
+# Add query to metadata of Seurat object 
+sobj <- AddMetaData(sobj,
+                    metadata = predictions2) 
+
+# Rename "predicted.id" to "cell_types"
+sobj$cell_types2 <- sobj$predicted.id
+
+# Set active identity to new cell type labels and visualize typed clusters via DimPlot
+DimPlot(sobj,
+        reduction = "umap",
+        group.by = "cell_types2")
+
+# Tally number of cells in each cell type 
+table(sobj$cell_types2)
+
+```
+
+
+
+
+
+# Yogesh's part2
+## Celltype Annotation
+```{r using markers}
+# Load the reference data
+sobj <-
+    process_seurat(sobj,
+                 resolution = 1)
+DimPlot(sobj,
+        group.by = "seurat_clusters",
+        label = TRUE,
+        repel = TRUE) +
+  NoLegend()
+
+# Load the reference data
+markers <- list(
+  Excitatory_Neurons = c("Slc17a7", "Camk2a", "Neurod6", "Satb2"),  
+  Inhibitory_Neurons = c("Gad1", "Gad2", "Meis2", "Sst"),  
+  Hippocampal_Neurons = c("Prox1", "Grik4", "Wfs1", "Dcn"),  
+  Astrocytes = c("Aldh1l1", "Gfap", "Aqp4", "Slc1a3"),  
+  Oligodendrocytes = c("Mog", "Plp1", "Cnp", "Olig1", "Olig2"),  
+  Endothelial_Cells = c("Cldn5", "Pecam1", "Flt1"),  
+  Leptomeningeal_Cells = c("Lum", "Col1a1", "Dcn"),  
+  Pericytes_SMC = c("Acta2", "Myh11", "Pdgfrb"), 
+  Microglia = c("Cx3cr1", "P2ry12", "Tmem119", "Aif1"),
+  Other_Neurons = c("Car3", "Nxph1", "Reln") 
+)
+
+DotPlot(sobj,
+        features = markers$Microglia,
+        cols = c("blue", "red"),
+        dot.scale = 8)
+
+
+DimPlot(sobj,
+        group.by = "cell_type",
+        label = TRUE,
+        repel = TRUE) +
+  NoLegend()
+
+# Add the cell type annotation 
+sobj$cell_type <-
+    str_replace_all(sobj$seurat_clusters, 
+                c("^0$" = "Oligodendrocytes",
+                    "^1$" = "Microglia",
+                    "^2$" = "Astrocytes",
+                    "^3$" = "Inhibitory_Neurons",
+                    "^4$" = "Endothelial_Cells",
+                    "^5$" = "Oligodendrocytes",
+                    "^6$" = "Astrocytes",
+                    "^7$" = "Astrocytes",
+                    "^8$" = "Pericytes_SMC",
+                    "^9$" = "Oligodendrocytes",
+                    "^10$" = "Excitatory_Neurons"))
+
+# check the object
+DimPlot(sobj,
+        group.by = "cell_type",
+        label = TRUE,
+        repel = TRUE) +
+  NoLegend()
+
+
+
+```
+
+
+## Activity
+We can further look deeper into these annotation. As a part of this exercise we
+will look at the immune cell types. We will subset the microglia and reprocess and
+annoate in the deeper level using the markers given below.
+Maybe there are other celltypes in that bigger cluster if we look deeply and at granular level.
+```{r activity3}
+# Subset the microglia
+immune_markers <- list(
+  B_Cells = c("Cd79a", "Cd79b", "Ms4a1", "Cd19", "Ighm"),
+  T_Cells = c("Cd3e", "Cd3d", "Cd3g", "Cd4", "Cd8a", "Cd8b1"),
+  Dendritic_Cells = c("Itgax", "H2-Ab1", "Flt3", "Cd74", "Clec9a"),
+  Monocytes = c("Ly6c2", "Ccr2", "Cd14", "Csf1r"),
+  Macrophages = c("Cd68", "Adgre1", "Csf1r", "Fcgr1"),
+  Microglia = c("Cx3cr1", "P2ry12", "Tmem119", "Aif1")
+)
+
+```

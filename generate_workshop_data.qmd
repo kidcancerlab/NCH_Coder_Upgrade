@@ -27,7 +27,7 @@ lightbox: true
 #| include: FALSE
 library(rrrSingleCellUtils)
 library(Seurat)
-library(DropletUtils)
+# library(DropletUtils)
 library(qs)
 library(tidyverse)
 theme_set(theme_bw())
