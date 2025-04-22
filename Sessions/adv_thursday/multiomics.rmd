@@ -145,7 +145,7 @@ The GEX data can be analyzed like normal
 I'm not going to walk through the GEX analysis as that's been covered in previous sessions
 
 ```{r}
-data_path <- "/home/gdworkshop/lab/Sessions/adv_thursday/"
+data_path <- "input/multiomics/lesson_data/"
 session_path <- "Sessions/adv_thursday/"
 
 ##  If you're running the code on the IGM AWS instance, you can use this path: ##
@@ -154,7 +154,7 @@ session_path <- "Sessions/adv_thursday/"
 # library("hdf5r")
 
 h5_data <-
-    Read10X_h5(paste0(session_path,
+    Read10X_h5(paste0(data_path,
                       "human_brain_3k_filtered_feature_bc_matrix.h5"))
 
 # mt_pattern <- "^MT-" because this is human data
@@ -180,7 +180,7 @@ The format is `chr:start-end`, so we'll pass `c(":", "-")` to the sep argument.
 
 ```{r}
 frag_file <-
-    paste0(session_path,
+    paste0(data_path,
            "human_brain_3k_atac_fragments.tsv.gz")
 
 seurat_obj[["ATAC"]] <-
@@ -197,7 +197,7 @@ Cellranger is nice neough to output a csv with cell-level metadata. We'll read t
 There's 30 columns in the metadata file, so we're going to only add the columns that are of interest to our ATAC QC metrics.
 
 ```{r}
-metadata <- read.table(file = paste0(session_path,
+metadata <- read.table(file = paste0(data_path,
                                      "human_brain_3k_per_barcode_metrics.csv"),
                        sep = ",",
                        header = TRUE,
@@ -236,12 +236,14 @@ Annotation(seurat_obj) <- annotations
 
 We have another dataset for the same type of sample, just processed with a different machine.
 
-The dataset is named  and is in the same data_directory.
+The dataset is in input/multiomics/downsampled_data
 
 For this activity, I want you to:
-    - Read in the gene expression and chromatin accessibility matrices
+    - Read in the gene expression and chromatin accessibility matrices*
     - Create a Seurat object with an RNA and ATAC assay
     - Add gene annotations to your Seurat object
+
+*instead of the matrices being given as an h5 file, they are given as the qs object named `gene_exp_peaks_list.qs`
 
 ```{r activity-1}
 
@@ -299,7 +301,7 @@ seurat_obj$frip <-
 feature_hist(seurat_obj, "frip")
 ```
 
-This is also achievable with the `FRiP` function, which doesn't need the cellranger metadata file.
+This is also achievable with the `FRiP` function, which doesn't need the cellranger metadata file (this will be useful for the activity ;) ).
 
 First we'll run `CountFragments`. This takes a path to a fragment file, and will calculate the following metrics for each droplet:
 
@@ -346,7 +348,7 @@ Generally we want:
 -   FRiP > 0.2
 
 ```{r plot-atac-qc}
-atac_cutoffs <-
+    atac_cutoffs <-
     tribble(~feature, ~min_val, ~max_val,
             "nCount_ATAC", 2000, 100000,
             "nucleosome_signal", 0, 4,
@@ -468,6 +470,7 @@ Now take object from the first activity and run QC steps and processing steps.
 ```{r}
 DefaultAssay(seurat_obj) <- "ATAC"
 
+#we have to reprocess because our clusters will likely change with a different set of cells
 small_obj <-
     subset(seurat_obj,
            subset = RNA_cluster %in% c(0, 1)) %>%
@@ -817,7 +820,7 @@ I'm thinking for this we'll do...
     - link peaks to genes
     - plot expression of peak-linked genes
 
-3.1 Subset ATAC clusters 0 and 1 from our object (or should I do cell types?) and find the top 5 differentially accessibile peaks between the two groups as determined by log-fold change
+3.1 Read in the object `input/multiomics/activity_data/activity_small.qs`. This is the object from before, downsampled to only contain cells in ATAC clusters 0 and 1. Find the top 5 differentially accessibile peaks between the two groups as determined by log-fold change
 
 3.2 Create a feature plot of these regions
 
