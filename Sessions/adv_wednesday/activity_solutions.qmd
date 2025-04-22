@@ -75,6 +75,5 @@ nichenet_stepwise_output_2 <-
         ligand_target_matrix = ligand_target_matrix,
         potential_ligands = potential_ligands_2
     ) %>%
-    arrange(-pearson) %>%
-    mutate(rank = rank(pearson))
-```
+    arrange(-aupr_corrected) %>%
+    mutate(rank = rank(-aupr_corrected))
