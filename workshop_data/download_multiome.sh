@@ -18,6 +18,11 @@ then
     mkdir input/multiomics/downsampled_data
 fi
 
+if [ ! -d input/multiomics/lesson_data ]
+then
+    mkdir input/multiomics/lesson_data
+fi
+
 cd input/multiomics
 
 # From 10x genomics website
@@ -44,8 +49,8 @@ wget https://cf.10xgenomics.com/samples/cell-arc/2.0.0/human_brain_3k/human_brai
 # wget https://cf.10xgenomics.com/samples/cell-arc/2.0.0/human_brain_3k/human_brain_3k_atac_cut_sites.bigwig
 # wget https://cf.10xgenomics.com/samples/cell-arc/2.0.0/human_brain_3k/human_brain_3k_atac_peak_annotation.tsv
 
-#move this data into activity_data
-mv human_brain* activity_data/
+#move this data into lesson_data
+mv human_brain* lesson_data/
 
 
 #Download the activity dataset
@@ -53,17 +58,23 @@ mv human_brain* activity_data/
 wget https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM8793nnn/GSM8793216/suppl/GSM8793216%5FDuan%5F029%5F20088%2D1%5Finput%5Flib%5Fhg38only.tar.gz
 tar -xf GSM8793216_Duan_029_20088-1_input_lib_hg38only.tar.gz
 
+#move activity data set into activity_data
+mv Duan_029_20088-1_input_lib_hg38only/outs/* activity_data
+#delete empty directory
+rmdir Duan_029_20088-1_input_lib_hg38only/outs
+rmdir Duan_029_20088-1_input_lib_hg38only
+rm GSM8793216_Duan_029_20088-1_input_lib_hg38only.tar.gz
 
 cd ${my_loc}
 
-cd input/multiomics/Duan_029_20088-1_input_lib_hg38only/outs
+cd input/multiomics/activity_data
 
 echo randomly sampling 2000 barcodes
 ml R/4.3.0
 Rscript ${my_loc}/workshop_data/downsample_multiome_activity.r
 
 gunzip atac_fragments.tsv.gz
-cp atac_fragments.tsv /home/gdrobertslab/lab/Analysis/MattGust/projects/non_lab/25_coder_upgrade/input/multiomics/downsampled_data/atac_fragments.tsv
+cp atac_fragments.tsv ${my_loc}/input/multiomics/downsampled_data/atac_fragments.tsv
 
 cd ${my_loc}/input/multiomics/downsampled_data
 #write the header to a new fragments file first

@@ -10,9 +10,6 @@ bcs_keep <- sample(colnames(old_data[["Gene Expression"]]), size = 2000)
 
 new_gene_exp <- old_data[["Gene Expression"]][, bcs_keep]
 
-# write10xCounts("/home/gdrobertslab/lab/Analysis/MattGust/projects/non_lab/25_coder_upgrade/input/multiomics/downsampled_data/filtered_feature_bc_matrix/",
-            #    x = new_gene_exp)
-
 #write off h5 with atac data too
 new_atac <- old_data[["Peaks"]][, bcs_keep]
 

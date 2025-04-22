@@ -9,7 +9,7 @@ activity_input_path <-
     "input/multiomics/downsampled_data/"
 
 h5_list <- qs::qread(paste0(activity_input_path,
-                             "gene_exp_peaks_list.qs"))
+                            "gene_exp_peaks_list.qs"))
 
 activity_ob <-
     CreateSeuratObject(counts = h5_list[["Gene Expression"]],
@@ -134,30 +134,40 @@ activity_ob$ATAC_cluster <- Idents(activity_ob)
 Subset ATAC clusters 0 and 1 from our object, re-process the object (for both assays), and find the top 5 differentially accessibile peaks between the two groups as determined by log-fold change
 
 ```{r}
-DefaultAssay(activity_small) <- "ATAC"
-activity_small <- subset(activity_ob, ATAC_cluster %in% c(0, 1)) %>%
-    RunTFIDF() %>%
-    FindTopFeatures(min.cutoff = "q0") %>%
-    RunSVD() %>%
-    FindNeighbors(reduction = "lsi") %>%
-    FindClusters(algorithm = 3) %>%
-    RunUMAP(reduction = "lsi",
-            dims = 2:30,
-            reduction.name = "umap_atac")
+# DefaultAssay(activity_small) <- "ATAC"
+# activity_small <- subset(activity_ob, ATAC_cluster %in% c(0, 1)) %>%
+#     RunTFIDF() %>%
+#     FindTopFeatures(min.cutoff = "q0") %>%
+#     RunSVD() %>%
+#     FindNeighbors(reduction = "lsi") %>%
+#     FindClusters(algorithm = 3) %>%
+#     RunUMAP(reduction = "lsi",
+#             dims = 2:30,
+#             reduction.name = "umap_atac")
 
-DefaultAssay(activity_small) <- "RNA"
-activity_small <- NormalizeData(activity_small) %>%
-    FindVariableFeatures() %>%
-    ScaleData() %>%
-    RunPCA() %>%
-    RunUMAP(reduction.name = "umap_rna",
-            dims = 1:10) %>%
-    FindNeighbors(dims = 1:10) %>%
-    FindClusters()
-activity_small$RNA_cluster <- activity_small$seurat_clusters
+# DefaultAssay(activity_small) <- "RNA"
+# activity_small <- NormalizeData(activity_small) %>%
+#     FindVariableFeatures() %>%
+#     ScaleData() %>%
+#     RunPCA() %>%
+#     RunUMAP(reduction.name = "umap_rna",
+#             dims = 1:10) %>%
+#     FindNeighbors(dims = 1:10) %>%
+#     FindClusters()
+# activity_small$RNA_cluster <- activity_small$seurat_clusters
 
-#Find differentially accessible peaks
-Idents(activity_small) <- activity_small$ATAC_cluster
+# #Find differentially accessible peaks
+# Idents(activity_small) <- activity_small$ATAC_cluster
+
+# qs::qsave(activity_small, "input/multiomics/activity_3_ob.qs")
+
+# #maybe I just write off metadata? then we can recreate object in downsample data script
+# write.table(activity_small@meta.data,
+#             "Sessions/adv_thursday/activity_small_metadata.tsv",
+#             quote = FALSE,
+#             sep = "\t")
+
+activity_small <- qs::qread("input/multiomics/activity_data/activity_small.qs")
 
 diff_peaks <- FindAllMarkers(activity_small,
                           assay = "ATAC",
