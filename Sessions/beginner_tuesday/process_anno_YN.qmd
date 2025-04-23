@@ -477,17 +477,31 @@ markers <- list(
   Other_Neurons = c("Car3", "Nxph1", "Reln") 
 )
 
+# plot and test one by one
 DotPlot(sobj,
         features = markers$Microglia,
         cols = c("blue", "red"),
         dot.scale = 8)
 
+# plot and test all the markers
+markers_all <-
+    markers %>%
+    unlist() %>%
+    as.character() %>%
+    unique()
 
-DimPlot(sobj,
-        group.by = "cell_type",
-        label = TRUE,
-        repel = TRUE) +
-  NoLegend()
+
+DotPlot(sobj,
+        features = markers_all,
+        cols = c("blue", "red"),
+        dot.scale = 8) +
+    theme(axis.text.x = element_text(angle = 90)) # makes the gene names 90 degrees
+
+# save the plot
+ggsave("output/figures/markers_dotplot.png",
+       width = 12,
+       height = 7,
+       bg = "white")
 
 # Add the cell type annotation 
 sobj$cell_type <-
@@ -505,13 +519,20 @@ sobj$cell_type <-
                     "^10$" = "Excitatory_Neurons"))
 
 # check the object
-DimPlot(sobj,
-        group.by = "cell_type",
-        label = TRUE,
-        repel = TRUE) +
-  NoLegend()
+dimplot_annotated <- 
+    DimPlot(sobj,
+            group.by = "cell_type",
+            label = TRUE,
+            repel = TRUE,
+            label.box = T) +
+    NoLegend()
 
-
+# save the plot
+ggsave("output/figures/annotated_celltypes.png",
+       plot = dimplot_annotated,
+       width = 12,
+       height = 7,
+       bg = "white")
 
 ```
 
@@ -520,16 +541,37 @@ DimPlot(sobj,
 We can further look deeper into these annotation. As a part of this exercise we
 will look at the immune cell types. We will subset the microglia and reprocess and
 annoate in the deeper level using the markers given below.
-Maybe there are other celltypes in that bigger cluster if we look deeply and at granular level.
+Case: CD74 is expressed in microglia in the central nervous system, particularly in 
+reactive microglia, which are activated microglia under disease conditions. Identify the 
+cluster of cells within microglia that express Cd74 and annotate them as "Reactive Microglia".
+leave all the options as default including the resolution.
 ```{r activity3}
-# Subset the microglia
-immune_markers <- list(
-  B_Cells = c("Cd79a", "Cd79b", "Ms4a1", "Cd19", "Ighm"),
-  T_Cells = c("Cd3e", "Cd3d", "Cd3g", "Cd4", "Cd8a", "Cd8b1"),
-  Dendritic_Cells = c("Itgax", "H2-Ab1", "Flt3", "Cd74", "Clec9a"),
-  Monocytes = c("Ly6c2", "Ccr2", "Cd14", "Csf1r"),
-  Macrophages = c("Cd68", "Adgre1", "Csf1r", "Fcgr1"),
-  Microglia = c("Cx3cr1", "P2ry12", "Tmem119", "Aif1")
-)
+# Subset the microglia and reprocess
+immune_cells <-
+    sobj %>%
+    subset(cell_type == "Microglia") %>%
+    NormalizeData() %>%
+    FindVariableFeatures() %>%
+    ScaleData() %>%
+    RunPCA() %>%
+    RunUMAP(dims = 1:20) %>%
+    FindNeighbors() %>%
+    FindClusters()
+
+# check the object
+DimPlot(immune_cells,
+        group.by = "seurat_clusters",
+        label = TRUE,
+        repel = TRUE) +
+    NoLegend()
+
+DotPlot(immune_cells,
+        features = "Cd74",
+        cols = c("blue", "red"),
+        #scale = F,
+        dot.scale = 8) +
+    theme(axis.text.x = element_text(angle = 90)) # makes the gene names 90 degrees
+
+# plot and test one by one
 
 ```

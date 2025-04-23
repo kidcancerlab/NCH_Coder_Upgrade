@@ -81,6 +81,17 @@ merged_sobj <-
     merged_sobj %>%
     FindNeighbors(dims = 1:30) %>%
     FindClusters(resolution = 0.5)
+# all opf the above steps can be done in one go using pipe function
+merged_sobj <-
+    merged_sobj %>%
+    NormalizeData() %>%
+    FindVariableFeatures() %>%
+    ScaleData() %>%
+    RunPCA() %>%
+    RunUMAP(dims = 1:30) %>%
+    FindNeighbors(dims = 1:30) %>%
+    FindClusters()
+
 # check the object
 merged_sobj
 
