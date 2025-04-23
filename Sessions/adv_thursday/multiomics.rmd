@@ -234,18 +234,33 @@ Annotation(seurat_obj) <- annotations
 
 ## Activity 1
 
-We have another dataset for the same type of sample, just processed with a different machine.
+We have another dataset for cultured neurons treated with KCI, measured 1 hour post stimulation. They were aligned to the same genome as the lesson dataset.
 
 The dataset is in input/multiomics/downsampled_data
 
-For this activity, I want you to:
-    - Read in the gene expression and chromatin accessibility matrices*
-    - Create a Seurat object with an RNA and ATAC assay
-    - Add gene annotations to your Seurat object
+### 1.1
+
+Read in the gene expression and chromatin accessibility matrices*.
 
 *instead of the matrices being given as an h5 file, they are given as the qs object named `gene_exp_peaks_list.qs`
 
-```{r activity-1}
+```{r activity-1-1}
+
+```
+
+### 1.2
+
+Create a Seurat object with an RNA and ATAC assay
+
+```{r activity-1-2}
+
+```
+
+### 1.3
+
+Add gene annotations to your Seurat object
+
+```{r activity-1-3}
 
 ```
 
@@ -301,7 +316,7 @@ seurat_obj$frip <-
 feature_hist(seurat_obj, "frip")
 ```
 
-This is also achievable with the `FRiP` function, which doesn't need the cellranger metadata file (this will be useful for the activity ;) ).
+This is also achievable with the `FRiP` function, which doesn't need the cellranger metadata file (this will be useful for the activity 😉).
 
 First we'll run `CountFragments`. This takes a path to a fragment file, and will calculate the following metrics for each droplet:
 
@@ -348,7 +363,7 @@ Generally we want:
 -   FRiP > 0.2
 
 ```{r plot-atac-qc}
-    atac_cutoffs <-
+atac_cutoffs <-
     tribble(~feature, ~min_val, ~max_val,
             "nCount_ATAC", 2000, 100000,
             "nucleosome_signal", 0, 4,
@@ -448,24 +463,46 @@ DimPlot(seurat_obj,
         repel = TRUE)
 
 qs::qsave(seurat_obj, paste0(session_path,
-                             "human_brain_3.qs"))
+                             "human_brain_processed.qs"))
 ```
 
-## ACTIVITY
+# Activity 2
 
 Now take object from the first activity and run QC steps and processing steps.
 
-2.1 Calculate the nucleosome signal, transcription start site enrichment score, and the fraction of reads in peaks.
+## 2.1
+
+Calculate the nucleosome signal, transcription start site enrichment score, and the fraction of reads in peaks.
 
 ```{r activity-2}
 
 ```
 
-2.2 Plot the different QC metrics, and set cutoffs for the ATAC + RNA data.
+## 2.2
 
-2.3 Subset the seurat object by the above QC cutoffs and process the object for both the RNA and ATAC assays.
+Plot the different QC metrics, and set cutoffs for the ATAC + RNA data.
 
-### Subset down to just RNA_cluster 0 and 1 to look at this subset
+```{r activity-2-2}
+
+```
+
+## 2.3
+
+Subset the seurat object by the above QC cutoffs and process the object for both the RNA and ATAC assays.
+
+```{r activity-2-3}
+
+```
+
+# Further Analysis
+
+Now that our object is QC'ed and processed, we can proceed with more in-depth analysis of our multiomic data. This will involve identifying differentially accessible peaks between computationally defined clusters, and then connecting these peaks to our transcriptional data to uncover biological meaning.
+
+## Subset down to just RNA_cluster 0 and 1 to look at this subset
+
+For this analysis, we will just be comparing RNA clusters 0 and 1.
+
+After subsetting down to these clusters, we need to re-process our data, because this subset of cells will have a different set of computationally-defined clusters, for both the ATAC and RNA assays.
 
 ```{r}
 DefaultAssay(seurat_obj) <- "ATAC"
@@ -524,8 +561,10 @@ qs::qsave(small_obj, paste0(session_path,
                                "small_obj.qs"))
 ```
 
-### Find differential accessibility between cell types
-Also add in annotation for nearest feature
+## Find differential accessibility between cell types
+
+Now we'll find differentially accessible peaks. We will look at ATAC clusters 0 and 2 in our newly-processed dataset.
+
 ```{r da_peaks}
 DefaultAssay(small_obj) <- "ATAC"
 Idents(small_obj) <- small_obj$ATAC_cluster
@@ -575,8 +614,6 @@ ggsave("Sessions/adv_thursday/atac_peaks.png",
 > Show ppt of plots
 
 ### Matching cells between datasets
-
-    - add in different clustering methods for atac (recall how 1 method worked better w/ my stuff)
 
 Compare heterogeneity of gene expression vs. chromatin accessibility
 
@@ -714,7 +751,7 @@ small_obj <-
                 genome = BSgenome.Hsapiens.UCSC.hg38::BSgenome.Hsapiens.UCSC.hg38)
 # ignore the warning - our object just doesn't have some of the junk contigs
 
-#finding differentially accissible peaks between atac cluster 0 and 1
+#finding differentially accissible peaks between atac cluster 0 and 2
 diff_peaks <-
     FindMarkers(small_obj,
                 assay = "ATAC",
@@ -734,11 +771,11 @@ if (all(rownames(small_obj) == diff_peaks$region)) {
     stop("Regions don't match")
 }
 
-# Here, RNA clusters 1 and 2 are roughly equal to ATAC clusters 0 and 2
+# Here, RNA clusters 0 and 2 are roughly equal to ATAC clusters 0 and 2
 de_genes <-
     FindMarkers(small_obj,
                 assay = "RNA",
-                ident.1 = "1",
+                ident.1 = "0",
                 ident.2 = "2",
                 logfc.threshold = 2) %>%
     dplyr:: filter(p_val_adj < 0.000001 & # Using a really low number since the p-values are so skewed
@@ -754,7 +791,7 @@ small_obj <-
               peak.assay = "ATAC",
               expression.assay = "RNA",
               min.distance = 5000,
-              genes.use = rownames(de_genes)[1:200])
+              genes.use = rownames(de_genes)[1:100])
 # Ignore the warnings about the junk contigs
 
 qs::qsave(small_obj,
@@ -767,6 +804,9 @@ links <-
     arrange(pvalue)
 
 links
+
+links$peak %in% diff_peaks$region %>% summary()
+#all of these peaks associated with genes are also differentially accessible between clusters 0 and 2
 
 CoveragePlot(object = small_obj,
              region = links$gene[1],
@@ -810,7 +850,7 @@ dplyr::select(matching_motifs,
     head(n = 15)
 ```
 
-## LAST ACTIVITY
+# Activity 3
 
 I'm thinking for this we'll do...
     - differential accessibility between two groups in our dataset
@@ -820,14 +860,37 @@ I'm thinking for this we'll do...
     - link peaks to genes
     - plot expression of peak-linked genes
 
-3.1 Read in the object `input/multiomics/activity_data/activity_small.qs`. This is the object from before, downsampled to only contain cells in ATAC clusters 0 and 1. Find the top 5 differentially accessibile peaks between the two groups as determined by log-fold change
+## 3.1
 
-3.2 Create a feature plot of these regions
+Read in the object `input/multiomics/activity_data/activity_small.qs`. This is the object from before, downsampled to only contain cells in ATAC clusters 0 and 1. Find the top 5 differentially accessibile peaks between the two groups as determined by log-fold change
 
-3.3 Identify what genes are associated with these peaks
+```{r activity-3-1}
 
-3.4 Find what motifs are enriched in our differentially accessible peaks.
+```
 
+## 3.2
+
+Create a feature plot of these regions
+
+```{r activity-3-2}
+
+```
+
+## 3.3
+
+Identify what genes are associated with these peaks
+
+```{r activity-3-3}
+
+```
+
+## 3.4
+
+Find what motifs are enriched in our differentially accessible peaks.
+
+```{r activity-3-4}
+
+```
 
 # Resources
 Methods and applications for single-cell and spatial multi-omics: https://www.nature.com/articles/s41576-023-00580-2
