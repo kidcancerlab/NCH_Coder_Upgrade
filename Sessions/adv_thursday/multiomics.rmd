@@ -17,24 +17,7 @@ knitr::opts_chunk$set(echo = TRUE,
                       cache.lazy = FALSE)
 ```
 
-## Set up environment
-The HPC support folks set up a module for us to use on Franklin. We can load it with the following command:
-`ml purge; ml GCC/9.3.0 OpenMPI/4.0.3 scrgot/24`
-
-
-This module includes the R packages we'll be using for the workshop.
-
-If you're on the IGM cluster, you can just log into the server and you should be good to go.
-
-# Franklin setup
-```{bash setup}
-#| eval: false
-srun -c 2 --x11 --pty bash
-ml purge
-ml GCC/9.3.0 OpenMPI/4.0.3 scrgot/24
-```
-
-Load libraries
+# Load libraries
 ```{r libraries, cache=FALSE, warning=FALSE, error=FALSE, message=FALSE}
 library(rrrSingleCellUtils)
 library(tidyverse)
