@@ -138,6 +138,8 @@ Subset ATAC clusters 0 and 1 from our object, re-process the object (for both as
 ```{r}
 activity_small <- qs::qread("input/multiomics/activity_data/activity_small.qs")
 
+DefaultAssay(activity_small) <- "ATAC"
+Idents(activity_small) <- activity_small$ATAC_cluster
 diff_peaks <- FindAllMarkers(activity_small,
                           assay = "ATAC",
                           min.pct = .1) %>%
@@ -152,7 +154,11 @@ top_5_each <- group_by(diff_peaks, cluster) %>%
 
 Create a coverage plot of these regions
 ```{r}
-FeaturePlot(activity_ob, features = top_5_each$gene, reduction = "umap_atac")
+CoveragePlot(activity_small,
+             region = top_5_each$gene,
+             idents = c(0, 1),
+             extend.downstream = 5000,
+             extend.upstream = 5000)
 ```
 
 ## 3.3
