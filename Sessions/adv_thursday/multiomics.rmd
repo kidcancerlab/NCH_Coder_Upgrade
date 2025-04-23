@@ -234,7 +234,7 @@ Annotation(seurat_obj) <- annotations
 
 ## Activity 1
 
-We have another dataset for cultured neurons treated with KCI, measured 1 hour post stimulation. They were aligned to the same genome as the lesson dataset.
+We have another dataset for cultured neurons treated with KCl, measured 1 hour post stimulation. They were aligned to the same genome as the lesson dataset.
 
 The dataset is in input/multiomics/downsampled_data
 
@@ -856,7 +856,7 @@ I'm thinking for this we'll do...
     - differential accessibility between two groups in our dataset
     - get top 5 upregulated regions for each group
     - create ATAC feature plot of these regions
-    <!-- - create joint umap -->
+    - create joint umap
     - link peaks to genes
     - plot expression of peak-linked genes
 
