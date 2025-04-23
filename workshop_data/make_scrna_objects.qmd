@@ -6,12 +6,14 @@ source workshop_data/download_scrna.sh
 ## Make output from Monday beginner session
 ```{r make_scrna_monday}
 ox1x_raw <-
-  Read10X("input/scRNA/GSM6925133_OX1X")
+    Read10X("input/scRNA/GSM6925133_OX1X")
 
 ox1x_sobj <-
-  CreateSeuratObject(counts = ox1x_raw,
-                     min.cells = 3,
-                     min.features = 200)
+    CreateSeuratObject(
+        counts = ox1x_raw,
+        min.cells = 3,
+        min.features = 200
+    )
 
 ox1x_sobj$orig.ident <- "GSM6925133_OX1X"
 
@@ -37,9 +39,10 @@ brain_ref_data <- qread("output/rdata_premade/mouse_brain_ref_data.qs")
 
 ox1x_sobj <-
     subset(ox1x_sobj,
-           subset = nFeature_RNA > ncount_min &
-                    nCount_RNA < ncount_max &
-                    percent.mt < percent_mt_max) %>%
+        subset = nFeature_RNA > ncount_min &
+            nCount_RNA < ncount_max &
+            percent.mt < percent_mt_max
+    ) %>%
     process_seurat() %>%
     annotate_celltypes(
         ref = list(
@@ -54,10 +57,11 @@ ox1x_sobj <-
     )
 
 DimPlot(ox1x_sobj,
-        group.by = "cell_type",
-        label = TRUE,
-        repel = TRUE,
-        label.box = TRUE) +
+    group.by = "cell_type",
+    label = TRUE,
+    repel = TRUE,
+    label.box = TRUE
+) +
     NoLegend()
 
 qsave(ox1x_sobj, "output/rdata_premade/OX1X_sobj_annotated.qs")
@@ -71,7 +75,8 @@ rm(ox1x_sobj)
 ```{r mk_scrna_wed}
 samples <-
     list.dirs("input/scRNA",
-              recursive = FALSE) %>%
+        recursive = FALSE
+    ) %>%
     basename() %>%
     grep(
         "GSM6925133_OX1X", # We already have an object for this sample
@@ -120,7 +125,8 @@ obj_list <-
                 ggtitle(this_sample)
 
             return(list(sobj = sobj, histogram = histogram))
-        })
+        }
+    )
 
 sobj_list <- lapply(obj_list, function(x) x$sobj)
 names(sobj_list) <- samples
