@@ -8,16 +8,17 @@ output:
         toc_float: true
         toc_depth: 5
         number_sections: false
-        code_folding: show
+        code-fold: true
+        code-link: true
+        df-print: kable
+        embed-resources: true
+        self_contained: true
+knitr:
+    opts_chunk:
+        cache.lazy: false
+        warning: false
+        message: false
 ---
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(
-    echo = TRUE,
-    cache = TRUE,
-    cache.lazy = FALSE
-)
-```
 
 Load libraries
 ```{r libraries, cache=FALSE, warning=FALSE, error=FALSE, message=FALSE}
@@ -25,15 +26,12 @@ library(rrrSingleCellUtils)
 library(tidyverse)
 library(Seurat)
 library(nichenetr)
-library(cowplot)
-library(ggpubr)
-library(RColorBrewer)
 library(DESeq2)
 ```
 
 --------------------------------------------------------------------------------
 
-# Section 1: Overview
+# Overview
 
 
 ## What is the goal of cell-cell interaction analysis?
@@ -41,9 +39,8 @@ library(DESeq2)
 ## What are common tools used to do this?
 
 Nichenetr
-CellphoneDB
 Cellchat
-
+CellphoneDB
 
 ## Get data to work with
 
@@ -180,6 +177,7 @@ second_diff_cell_type <-
     names()
 
 second_diff_cell_type
+# vascular leptomeningeal cells
 
 de_list[[most_diff_cell_type]] %>%
     ggplot(
@@ -351,7 +349,7 @@ qs::qsave(
 
 --------------------------------------------------------------------------------
 
-# Activity 1 (1:30 - 2ish)
+# Activity 1
 
 We need:
 
@@ -398,7 +396,7 @@ Don't re-use variable names for outputs so our original data is not overwritten
 
 --------------------------------------------------------------------------------
 
-# Section 2: Visualizing nichenetr results
+# Visualizing nichenetr results
 
 ```{r}
 ## Ligand predicted based on DEG
@@ -472,7 +470,6 @@ ligand_receptor_links_df <-
 vis_ligand_receptor_network <-
     prepare_ligand_receptor_visualization(
         ligand_receptor_links_df,
-        best_upstream_ligands,
         order_hclust = "both"
     )
 
@@ -484,7 +481,6 @@ ligand_receptor_heatmap <-
         legend_title = "Prior interaction potential"
     ) +
     scale_fill_gradient2(low = "whitesmoke", high = "mediumvioletred") +
-    #coord_fixed() +
     labs(fill = "Prior interaction\npotential") +
     theme_bw() +
     theme(
@@ -554,27 +550,31 @@ ggsave(
 ```
 
 
-# Activity 2 (2:30 - 3ish)
-Make plots from nichenetr output
+# Activity 2
+Make plots from your nichenetr output
 
 
-## Get data to use from nichenetr output and make ligand activity heatmap
-
+## Get top ligands
 ```{r}
 
 ```
 
-##
+## Make a heatmap of ligand regulatory potential
 ```{r}
 
 ```
 
-##
+## Ligand - receptor plot
 ```{r}
 
 ```
-##
 
+## Make dotplots of expression of ligands in sender cell types
+```{r}
+
+```
+
+## Assemble
 ```{r}
 
 ```
