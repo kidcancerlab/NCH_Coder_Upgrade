@@ -853,7 +853,7 @@ Read in the object `input/multiomics/activity_data/activity_small.qs`. This is t
 
 ## 3.2
 
-Create a feature plot of these regions
+Create a coverage plot of these regions
 
 ```{r activity-3-2}
 
