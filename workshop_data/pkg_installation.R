@@ -41,7 +41,8 @@ bioc_dependencies <-
         "S4Vectors",
         "BiocGenerics",
         "limma",
-        "ComplexHeatmap"
+        "ComplexHeatmap",
+        "ensembldb"
     )
 
 needed_packages_cran <-
