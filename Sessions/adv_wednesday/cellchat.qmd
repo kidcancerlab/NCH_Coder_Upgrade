@@ -1,0 +1,190 @@
+---
+title: "Coder Upgrade 2025: Cell Cell interaction analysis"
+author: "Matt Cannon and Xin Wang"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+output:
+    html_document:
+        toc: true
+        toc_float: true
+        toc_depth: 5
+        number_sections: false
+        code-fold: true
+        code-link: true
+        df-print: kable
+        embed-resources: true
+        self_contained: true
+knitr:
+    opts_chunk:
+        cache.lazy: false
+        warning: false
+        message: false
+---
+
+Load libraries
+```{r libraries, cache=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+library(rrrSingleCellUtils)
+library(tidyverse)
+library(Seurat)
+library(DESeq2)
+library(CellChat)
+```
+
+
+--------------------------------------------------------------------------------
+
+# CellChat Overview
+
+https://www.nature.com/articles/s41467-021-21246-9
+
+Essentially, CellChat quantifies the expression of ligands and receptors in a cell type, and then uses that to infer which cell types are likely to be communicating with each other. It uses a hand-curated database of ligand-receptor interactions and signaling pathways. It quantifies the number of interactions and the strength of those interactions and has nice tools for visualizing the results.
+
+## Load in the data
+
+```{r}
+brain_data <-
+    qs::qread("output/rdata_premade/brain_scRNA_combined.qs")
+
+brain_data$age <-
+    if_else(
+        grepl("OX", brain_data$orig.ident),
+        "Old",
+        "Young"
+    )
+
+brain_data$cell_sample <-
+    paste(
+        brain_data$cell_type,
+        brain_data$orig.ident,
+        sep = "_"
+    )
+
+brain_data$samples <- brain_data$orig.ident
+```
+
+## Filter down to just prominent cell types
+```{r}
+min_cells <- 200
+
+cell_type_counts <-
+    table(brain_data$cell_type) %>%
+    as.list()
+
+keep_cell_types <-
+    cell_type_counts[cell_type_counts > min_cells] %>%
+    names()
+
+brain_data <-
+    subset(brain_data, cell_type %in% keep_cell_types)
+
+Idents(brain_data) <-
+    brain_data$cell_sample
+
+brain_data <-
+    subset(brain_data, downsample = 50)
+```
+
+## Make CellChat object
+```{r}
+cellchat_obj <-
+    createCellChat(
+        object = brain_data,
+        group.by = "cell_type",
+        assay = "RNA"
+    )
+
+groupSize <- as.numeric(table(cellchat_obj@idents))
+```
+
+
+## Load in ligand-receptor interactions
+```{r}
+cellchat_db <- CellChatDB.mouse
+
+showDatabaseCategory(cellchat_db)
+
+cellchat_obj@DB <-
+    subsetDB(
+        cellchat_db,
+        search = "Secreted Signaling",
+        key = "annotation"
+    )
+```
+
+## Preprocess the data
+```{r}
+cellchat_obj <-
+    subsetData(cellchat_obj) %>%
+    identifyOverExpressedGenes() %>%
+    identifyOverExpressedInteractions()
+```
+
+## Compute the communication network
+```{r}
+cellchat_obj <- computeCommunProb(cellchat_obj, type = "triMean")
+```
+
+## Infer at signaling pathway level
+```{r}
+cellchat_obj <- computeCommunProbPathway(cellchat_obj)
+```
+
+## Calculate aggregated communication network
+```{r}
+cellchat_obj <- aggregateNet(cellchat_obj)
+```
+
+## Pull results out of the object
+```{r}
+cc_results <-
+    subsetCommunication(cellchat_obj) %>%
+    as_tibble()
+
+cc_results_pathway <-
+    subsetCommunication(cellchat_obj, slot.name = "netP") %>%
+    as_tibble()
+```
+
+## Visualize the results
+```{r}
+png(
+    filename = "output/figures/cc_num_interactions_plot.png",
+    width = 2000,
+    height = 2000,
+    res = 300
+)
+netVisual_circle(
+    cellchat_obj@net$count,
+    vertex.weight = groupSize,
+    weight.scale = TRUE,
+    label.edge = FALSE,
+    title.name = "Number of interactions"
+)
+dev.off()
+
+png(
+    filename = "output/figures/cc_weights_plot.png",
+    width = 2000,
+    height = 2000,
+    res = 300
+)
+netVisual_circle(
+    cellchat_obj@net$weight,
+    vertex.weight = groupSize,
+    weight.scale = TRUE,
+    label.edge = FALSE,
+    title.name = "Number of interactions"
+)
+dev.off()
+
+
+netVisual_aggregate(cellchat_obj, signaling = "MK", layout = "chord")
+
+
+netVisual_chord_gene(
+    cellchat_obj,
+    sources.use = "Oligo",
+    targets.use = c("VLMC", "Astro", "Oligo"),
+    lab.cex = 1,
+    legend.pos.y = 30
+)
+```
