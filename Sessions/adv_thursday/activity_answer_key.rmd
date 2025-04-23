@@ -150,8 +150,7 @@ top_5_each <- group_by(diff_peaks, cluster) %>%
 
 ## 3.2
 
-Plot the expression of a few of these regions in the original object using FeaturePlot, using the ATAC reduction
-
+Create a coverage plot of these regions
 ```{r}
 FeaturePlot(activity_ob, features = top_5_each$gene, reduction = "umap_atac")
 ```
