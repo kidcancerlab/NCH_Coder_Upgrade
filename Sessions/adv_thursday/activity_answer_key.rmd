@@ -1,16 +1,18 @@
 # Activity 1
 
-```{r activity-1-answers}
-library(Seurat)
-library(rrrSingleCellUtils)
-library(Signac)
+## 1.1
 
+```{r activity-1-answers}
 activity_input_path <-
     "input/multiomics/downsampled_data/"
 
 h5_list <- qs::qread(paste0(activity_input_path,
                             "gene_exp_peaks_list.qs"))
+```
 
+## 1.2
+
+```{r}
 activity_ob <-
     CreateSeuratObject(counts = h5_list[["Gene Expression"]],
                        assay = "RNA",
@@ -28,6 +30,8 @@ activity_ob[["ATAC"]] <-
                          fragments = activity_frag,
                          min.cells = 0)
 ```
+
+## 1.3
 
 ```{r}
 #Add gene annotation information
@@ -70,14 +74,12 @@ activity_ob <- FRiP(activity_ob,
 Plot the different QC metrics, and set cutoffs for the ATAC + RNA data.
 
 ```{r}
-VlnPlot(activity_ob,
+feature_hist(activity_ob,
         features = c("nCount_RNA",
                      "percent.mt_rna",
                      "nucleosome_signal",
                      "TSS.enrichment",
-                     "FRiP"),
-        group.by = "orig.ident",
-        ncol = 5)
+                     "FRiP"))
 
 cutoffs <- tribble(~feature, ~min_val, ~max_val,
                    "nCount_RNA", 1000, 20000,
@@ -181,10 +183,10 @@ top_5_each <- group_by(diff_peaks, cluster) %>%
 
 ## 3.2
 
-Plot the expression of these regions in the original object, using the ATAC reduction
+Plot the expression of a few of these regions in the original object using FeaturePlot, using the ATAC reduction
 
 ```{r}
-FeaturePlot(activity_ob, features = top_10_each$gene, reduction = "umap_atac")
+FeaturePlot(activity_ob, features = top_5_each$gene, reduction = "umap_atac")
 ```
 
 ## 3.3

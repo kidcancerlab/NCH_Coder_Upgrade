@@ -50,4 +50,12 @@ activity_small <- NormalizeData(activity_small) %>%
     FindNeighbors(dims = 1:10) %>%
     FindClusters()
 
+## Add gene annotation information
+DefaultAssay(activity_small) <- "ATAC"
+annotations <-
+    GetGRangesFromEnsDb(ensdb = EnsDb.Hsapiens.v86::EnsDb.Hsapiens.v86)
+seqlevels(annotations) <- paste0("chr", seqlevels(annotations))
+genome(annotations) <- "hg38"
+
+Annotation(activity_small) <- annotations
 qs::qsave(activity_small, "input/multiomics/activity_data/activity_small.qs")
