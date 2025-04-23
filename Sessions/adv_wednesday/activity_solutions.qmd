@@ -35,28 +35,27 @@ expressed_genes_sender_2 <-
 geneset_oi_2 <-
     de_list[[second_diff_cell_type]] %>%
     filter(padj <= 0.05 &
-        abs(log2FoldChange) >= 1) %>%
+            abs(log2FoldChange) >= 1) %>%
     pull(gene) %>%
     .[. %in% rownames(ligand_target_matrix)]
 
 geneset_oi_2
-
 ```
 
 ## Get potential ligands and receptors
 ```{r}
-ligands <-
+ligands_2 <-
     lr_network %>%
     pull(from) %>%
     unique()
 
-receptors <-
+receptors_2 <-
     lr_network %>%
     pull(to) %>%
     unique()
 
-expressed_ligands_2 <- intersect(ligands, expressed_genes_sender_2)
-expressed_receptors_2 <- intersect(receptors, expressed_genes_receiver_2)
+expressed_ligands_2 <- intersect(ligands_2, expressed_genes_sender_2)
+expressed_receptors_2 <- intersect(receptors_2, expressed_genes_receiver_2)
 
 potential_ligands_2 <-
     lr_network %>%
@@ -77,3 +76,163 @@ nichenet_stepwise_output_2 <-
     ) %>%
     arrange(-aupr_corrected) %>%
     mutate(rank = rank(-aupr_corrected))
+```
+
+
+
+# Activity 2
+Make plots from your nichenetr output
+
+## Get top ligands
+```{r}
+# Select the top 10 ligands
+ligands_top10_2 <-
+    nichenet_stepwise_output_2 %>%
+    pull(test_ligand) %>%
+    head(n = 10)
+```
+
+## Let's make a heatmap of ligand regulatory potential
+```{r}
+active_ligand_target_links_df_2 <-
+    ligands_top10_2 %>%
+    lapply(
+        get_weighted_ligand_target_links,
+        geneset = geneset_oi_2,
+        ligand_target_matrix = ligand_target_matrix,
+        n = 100
+    ) %>%
+    bind_rows() %>%
+    drop_na()
+
+active_ligand_target_links_2 <-
+    prepare_ligand_target_visualization(
+        ligand_target_df = active_ligand_target_links_df_2,
+        ligand_target_matrix = ligand_target_matrix
+    )
+
+order_ligands_2 <-
+    intersect(ligands_top10_2, colnames(active_ligand_target_links_2)) %>%
+    rev()
+
+order_targets_2 <-
+    active_ligand_target_links_df_2$target %>%
+    unique() %>%
+    intersect(rownames(active_ligand_target_links_2))
+
+vis_ligand_target_2 <- t(active_ligand_target_links_2[order_targets_2, order_ligands_2])
+
+ligand_target_heatmap_2 <-
+    make_heatmap_ggplot(
+        vis_ligand_target_2,
+        "Prioritized ligands",
+        "Predicted target genes",
+        legend_title = "Regulatory potential"
+    ) +
+    scale_fill_gradient2(low = "whitesmoke", high = "purple") +
+    coord_fixed() +
+    theme_bw()
+
+ggsave(
+    "output/figures/nn_ligand_target_heatmap_2.png",
+    plot = ligand_target_heatmap_2,
+    width = 10,
+    height = 10
+)
+```
+
+## Ligand - receptor plot
+```{r}
+ligand_receptor_links_df_2 <-
+    get_weighted_ligand_receptor_links(
+        ligands_top10_2,
+        expressed_receptors_2,
+        lr_network_strict,
+        weighted_networks$lr_sig
+    )
+
+vis_ligand_receptor_network_2 <-
+    prepare_ligand_receptor_visualization(
+        ligand_receptor_links_df_2,
+        order_hclust = "both"
+    )
+
+ligand_receptor_heatmap_2 <-
+    make_heatmap_ggplot(
+        t(vis_ligand_receptor_network_2),
+        y_name = "Ligands",
+        x_name = "Receptors",
+        legend_title = "Prior interaction potential"
+    ) +
+    scale_fill_gradient2(low = "whitesmoke", high = "mediumvioletred") +
+    #coord_fixed() +
+    labs(fill = "Prior interaction\npotential") +
+    theme_bw() +
+    theme(
+        axis.text.x = element_text(angle = 90, hjust = 0),
+        legend.position = "top"
+    )
+
+ggsave(
+    "output/figures/nn_ligand_receptor_heatmap_2.png",
+    plot = ligand_receptor_heatmap_2,
+    width = 10,
+    height = 10
+)
+```
+
+## Make dotplots of expression of ligands in sender cell types
+```{r}
+sender_dotplot_2 <-
+    brain_data %>%
+    subset(cell_type %in% sender_celltypes_2) %>%
+    DotPlot(
+        features = colnames(vis_ligand_receptor_network_2),
+        scale = FALSE
+    ) +
+    coord_flip() +
+    labs(
+        x = NULL,
+        y = NULL
+    ) +
+    theme(
+        axis.text.x = element_text(angle = 90, vjust = 0.5)
+    )
+
+receiver_dotplot_2 <-
+    brain_data %>%
+    subset(cell_type %in% second_diff_cell_type) %>%
+    DotPlot(
+        features = rownames(vis_ligand_receptor_network_2),
+        scale = FALSE,
+        group.by = "age"
+    ) +
+    labs(title = second_diff_cell_type) +
+    theme(
+        axis.text.x = element_text(angle = 90, vjust = 0.5),
+        legend.position = "bottom"
+    )
+```
+
+## Assemble
+```{r}
+combined_heatmaps_2 <-
+    ligand_receptor_heatmap_2 +
+    sender_dotplot_2 +
+    receiver_dotplot_2 +
+    patchwork::plot_layout(
+        axes = "collect",
+        ncol = 2,
+        widths = c(2, 1),
+        heights = c(2, 1)
+    )
+
+ggsave(
+    "output/figures/nn_combined_heatmap_dots.png",
+    plot = combined_heatmaps_2,
+    width = 10,
+    height = 8
+)
+```
+
+
