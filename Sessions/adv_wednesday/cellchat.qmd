@@ -1,0 +1,260 @@
+---
+title: "Coder Upgrade 2025: Cell Cell interaction analysis"
+author: "Matt Cannon and Xin Wang"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+output:
+    html_document:
+        toc: true
+        toc_float: true
+        toc_depth: 5
+        number_sections: false
+        code-fold: true
+        code-link: true
+        df-print: kable
+        embed-resources: true
+        self_contained: true
+knitr:
+    opts_chunk:
+        cache.lazy: false
+        warning: false
+        message: false
+---
+
+Load libraries
+```{r libraries, cache=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+library(tidyverse)
+library(Seurat)
+library(CellChat)
+```
+
+--------------------------------------------------------------------------------
+
+# CellChat Overview
+
+https://www.nature.com/articles/s41467-021-21246-9
+
+Essentially, CellChat quantifies the expression of ligands and receptors in a cell type, and then uses that to infer which cell types are likely to be communicating with each other. It uses a hand-curated database of ligand-receptor interactions and signaling pathways. It quantifies the number of interactions and the strength of those interactions and has nice tools for visualizing the results.
+
+https://htmlpreview.github.io/?https://github.com/jinworks/CellChat/blob/master/tutorial/CellChat-vignette.html
+
+## Load in the data
+
+```{r}
+brain_data <-
+    qs::qread("output/rdata_premade/brain_scRNA_combined.qs")
+
+brain_data$age <-
+    if_else(
+        grepl("OX", brain_data$orig.ident),
+        "Old",
+        "Young"
+    )
+
+brain_data$cell_sample <-
+    paste(
+        brain_data$cell_type,
+        brain_data$orig.ident,
+        sep = "_"
+    )
+
+# CellChat requires your metadata to have this column
+brain_data$samples <- as.factor(brain_data$orig.ident)
+```
+
+## Filter down to just prominent cell types
+```{r}
+min_cells <- 200
+
+cell_type_counts <-
+    table(brain_data$cell_type) %>%
+    as.list()
+
+keep_cell_types <-
+    cell_type_counts[cell_type_counts > min_cells] %>%
+    names()
+
+brain_data <-
+    subset(brain_data, cell_type %in% keep_cell_types)
+
+Idents(brain_data) <-
+    brain_data$cell_sample
+```
+
+## Downsample to reduce memory usage and speed things up
+```{r}
+brain_data <-
+    subset(brain_data, downsample = 50)
+```
+
+## Make CellChat object
+```{r}
+cellchat_obj <-
+    createCellChat(
+        object = brain_data,
+        group.by = "cell_type",
+        assay = "RNA"
+    )
+
+# Calculate the number of cells in each group (cell_type)
+groupSize <- as.numeric(table(cellchat_obj@idents))
+groupSize
+```
+
+## Load in ligand-receptor interactions
+```{r}
+cellchat_db <- CellChatDB.mouse
+
+showDatabaseCategory(cellchat_db)
+
+cellchat_obj@DB <-
+    subsetDB(
+        cellchat_db,
+        search = "Secreted Signaling",
+        key = "annotation"
+    )
+```
+
+## Preprocess the data
+subsetData() subsets the data down to just genes in the database. This adds data to the data.signaling slot.
+
+identifyOverExpressedGenes() identifies genes that are overexpressed in each cell type. This is used to identify which cell types are likely to be communicating with each other. This adds data into the var.features slot which is a list.
+
+identifyOverExpressedInteractions() identifies interactions that are overexpressed in each cell type. This adds data into the LRsig slot as a data frame.
+```{r}
+cellchat_obj <-
+    subsetData(cellchat_obj) %>%
+    identifyOverExpressedGenes() %>%
+    identifyOverExpressedInteractions()
+```
+
+## Compute the communication network
+Populates the cellchat_obj@net slot with interaction probability and pvalues.
+```{r}
+cellchat_obj <- computeCommunProb(cellchat_obj, type = "triMean")
+```
+
+## Lets look at the interaction probability
+```{r}
+cellchat_obj@net$LRs
+
+dimnames(cellchat_obj@net$prob)[[3]] %>% head(n = 20)
+cellchat_obj@net$prob[, , 1:2]
+
+third_d_names <- dimnames(cellchat_obj@net$prob)[[3]]
+third_d_names
+
+interaction_index <- grep("^PSAP_GPR37L1$", third_d_names)
+
+cellchat_obj@net$prob[, , interaction_index] %>%
+    pheatmap::pheatmap(
+        display_numbers = TRUE,
+        main = third_d_names[interaction_index]
+    )
+```
+
+## Infer at signaling pathway level
+Populates the cellchat_obj@netP slot with interaction probability and pvalues, operating at the pathway level.
+
+`prob` is the calculated probability and is a 3d array. The first two dimensions are the cell types and the third dimension is the pathway. The values in the array are the probabilities of interaction between the cell types for each pathway.
+
+```{r}
+cellchat_obj <- computeCommunProbPathway(cellchat_obj)
+
+cellchat_obj@netP$pathways
+
+third_d_names <- dimnames(cellchat_obj@netP$prob)[[3]]
+
+cellchat_obj@netP$prob[, , 1:2]
+
+# Look at "MK" pathway
+cellchat_obj@netP$prob[, , 4] %>%
+    pheatmap::pheatmap(display_numbers = TRUE)
+```
+
+## Calculate aggregated communication network
+Populates "weight" and "count" inside the cellchat_obj@net slot. This is the aggregated communication network. The weight is the sum of the probabilities of interaction between the cell types for each pathway. The count is the number of interactions between the cell types for each pathway.
+```{r}
+cellchat_obj <- aggregateNet(cellchat_obj)
+
+cellchat_obj@net$weight
+
+cellchat_obj@net$weight %>%
+    pheatmap::pheatmap(
+        display_numbers = TRUE,
+        main = "Weight of interactions"
+    )
+
+cellchat_obj@net$count %>%
+    pheatmap::pheatmap(
+        display_numbers = TRUE,
+        main = "Number of interactions"
+    )
+```
+
+## Pull results out of the object
+This gets the data in a more friendly format (long format)
+```{r}
+cc_results <-
+    subsetCommunication(cellchat_obj) %>%
+    as_tibble()
+
+cc_results_pathway <-
+    subsetCommunication(cellchat_obj, slot.name = "netP") %>%
+    as_tibble()
+
+cc_results_pathway %>%
+    filter(prob >= 0.1) %>%
+    arrange(desc(prob))
+```
+
+## Visualize the results
+CellChat makes very pretty plots
+```{r}
+png(
+    filename = "output/figures/cc_num_interactions_plot.png",
+    width = 2000,
+    height = 2000,
+    res = 300
+)
+netVisual_circle(
+    cellchat_obj@net$count,
+    vertex.weight = groupSize,
+    weight.scale = TRUE,
+    label.edge = FALSE,
+    title.name = "Number of interactions"
+)
+dev.off()
+
+png(
+    filename = "output/figures/cc_weights_plot.png",
+    width = 2000,
+    height = 2000,
+    res = 300
+)
+netVisual_circle(
+    cellchat_obj@net$weight,
+    vertex.weight = groupSize,
+    weight.scale = TRUE,
+    label.edge = FALSE,
+    title.name = "Number of interactions"
+)
+dev.off()
+
+netVisual_aggregate(cellchat_obj, signaling = "MK", layout = "chord")
+
+cellchat_db$interaction %>%
+    filter(pathway_name == "MK") %>%
+    head()
+
+cellchat_db$interaction %>%
+    filter(pathway_name == "MK") %>%
+    pull(ligand.keyword) %>%
+    head(n = 1)
+```
+
+## See what genes are in the pathway
+```{r}
+cellchat_db$interaction %>%
+    filter(pathway_name == "MK") %>%
+    select(ligand.symbol, receptor.symbol)
+```

@@ -11,32 +11,40 @@ library(Seurat)
 library(tidyverse)
 library("hdf5r")
 
-dir <-
-  "input/scRNA"
+dir <- "input/scRNA"
 
 files <-
-  list.files(path = dir,
-             pattern = "10X.txt.gz",
-             full.names = T)
+    list.files(
+        path = dir,
+        pattern = "10X.txt.gz",
+        full.names = TRUE
+    )
 
-for (this_file in files){
-  counts <-
-    read.table(gzfile(this_file),
-               sep = "\t",
-               header = TRUE)
-  sample <-
-    basename(this_file) %>%
-    gsub(".txt.gz", "", .)
-  new <-
-    CreateSeuratObject(counts = counts)
-  write10xCounts(paste0(dir, sample),
-                 x = new@assays$RNA$counts,
-                 barcodes = colnames(new),
-                 type = "sparse",
-                 version = "3")
-  write10xCounts(paste0(dir, sample, "/filtered_feature_bc_matrix.h5"),
-                 new@assays$RNA$counts,
-                 type = "HDF5")
+for (this_file in files) {
+    counts <-
+        read.table(gzfile(this_file),
+            sep = "\t",
+            header = TRUE
+        )
+    sample <-
+        basename(this_file) %>%
+        gsub(".txt.gz", "", .)
+    new <-
+        CreateSeuratObject(counts = counts)
+    write10xCounts(
+        paste0(
+            dir,
+            sample
+        ),
+        x = new@assays$RNA$counts,
+        barcodes = colnames(new),
+        type = "sparse",
+        version = "3"
+    )
+    write10xCounts(paste0(dir, sample, "/filtered_feature_bc_matrix.h5"),
+        new@assays$RNA$counts,
+        type = "HDF5"
+    )
 }
 ```
 

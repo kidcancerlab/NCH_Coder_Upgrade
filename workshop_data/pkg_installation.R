@@ -1,9 +1,9 @@
 #!/usr/bin/env Rscript
 
 # Notes on the RStudio server:
-   # Adam installed: quarto, libiconv, miniforge, python
-   # We needed to put LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib in environment
-   # We also increased /tmp to around 30G
+# Adam installed: quarto, libiconv, miniforge, python
+# We needed to put LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib in environment
+# We also increased /tmp to around 30G
 
 # install with: dzdo Rscript test_install.R
 
@@ -29,7 +29,7 @@ install.packages(
     cran_dependencies,
     Ncpus = 4,
     lib = pkg_install_dir,
-    repos='https://cran.rstudio.com'
+    repos = "https://cran.rstudio.com"
 )
 
 bioc_dependencies <-
@@ -80,7 +80,6 @@ pak::pkg_install(
     lib = pkg_install_dir
 )
 
-
 github_packages <-
     c(
         "saeyslab/nichenetr",
@@ -91,7 +90,9 @@ github_packages <-
         "satijalab/seurat-wrappers",
         "satijalab/azimuth",
         "drieslab/Giotto",
-        "10xGenomics/loupeR"
+        "10xGenomics/loupeR",
+        "jinworks/CellChat",
+        "immunogenomics/crescendo"
     )
 
 pak::pkg_install(
@@ -102,7 +103,9 @@ pak::pkg_install(
 # Need to chmod the library folders afterwards as default seems to be 500 for pak
 # ls -d /rstudio-workshop/apps/R/R-4.4.2_install/lib64/R/library/* | xargs dzdo chmod 555
 
-warning("Remember to run `ls -d /rstudio-workshop/apps/R/R-4.4.2_install/lib64/R/library/* | xargs dzdo chmod 555`")
+warning(
+    "Remember to run `ls -d /rstudio-workshop/apps/R/R-4.4.2_install/lib64/R/library/* | xargs dzdo chmod 555`"
+)
 
 # For rstudio server, modify the server's global settings
 # [mvc002@rpl-rstudiows01 NCH_Coder_Upgrade]$ cat /etc/rstudio/rstudio-prefs.json
