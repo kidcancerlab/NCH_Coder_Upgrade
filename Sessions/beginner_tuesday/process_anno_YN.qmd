@@ -30,6 +30,7 @@ library(patchwork)
 library(ggplot2) # For plotting
 library(rrrSingleCellUtils) # For plotting an processing
 library(qs) # For reading and writing .qs files
+library(SingleR) # For cell type annotation
 # Set the random generator seed so that results are reproducible.
 set.seed(132)
 ```
@@ -538,15 +539,30 @@ ggsave("output/figures/annotated_celltypes.png",
 
 
 ## Activity
-We can further look deeper into these annotation. As a part of this exercise we
-will look at the immune cell types. We will subset the microglia and reprocess and
-annoate in the deeper level using the markers given below.
-Case: CD74 is expressed in microglia in the central nervous system, particularly in 
-reactive microglia, which are activated microglia under disease conditions. Identify the 
-cluster of cells within microglia that express Cd74 and annotate them as "Reactive Microglia".
-leave all the options as default including the resolution.
+The dotplot allows us to visualize the expression of the markers in the clusters.
+We can see that the clusters are not well separated. This is because the clusters
+are not well defined. The clusters are not well defined because the cells are
+not well separated. In this case we can visualize the markers in individual cells
+using the feature plot. 
+As a part of this exercise we will look at the immune cell types. We will subset the 
+microglia and reprocess and annoate in the deeper level using the markers given below.
+In this analysis we can test if there are other immune cells that are lumped together
+into microglia using feature plot. We can do this by using marker based feature plots. 
+The marekrs for each celltypes are given below.
+We will find that there are B and T cells that are lumped together with microglia. 
+
 ```{r activity3}
 # Subset the microglia and reprocess
+immune_markers <- list(
+  B_Cells = c("Cd79a", "Cd79b", "Ms4a1", "Cd19", "Ighm"),
+  T_Cells = c("Cd3e", "Cd3d", "Cd3g", "Cd4", "Cd8a", "Cd8b1"),
+  Nk_Cells = c("Nkg7", "Gzmb", "Klrc1", "Klrd1"),
+  Dendritic_Cells = c("Itgax", "H2-Ab1", "Flt3", "Cd74", "Clec9a"),
+#   Monocytes = c("Ly6c2", "Ccr2", "Cd14", "Csf1r"),
+#   Macrophages = c("Cd68", "Adgre1", "Csf1r", "Fcgr1"),
+  Microglia = c("Cx3cr1", "P2ry12", "Tmem119", "Aif1")
+)
+
 immune_cells <-
     sobj %>%
     subset(cell_type == "Microglia") %>%
@@ -556,7 +572,7 @@ immune_cells <-
     RunPCA() %>%
     RunUMAP(dims = 1:20) %>%
     FindNeighbors() %>%
-    FindClusters()
+    FindClusters(resolution = 2)
 
 # check the object
 DimPlot(immune_cells,
@@ -566,12 +582,64 @@ DimPlot(immune_cells,
     NoLegend()
 
 DotPlot(immune_cells,
-        features = "Cd74",
+        features = immune_markers %>% unlist() %>% as.character() %>% unique(),
         cols = c("blue", "red"),
         #scale = F,
         dot.scale = 8) +
     theme(axis.text.x = element_text(angle = 90)) # makes the gene names 90 degrees
 
 # plot and test one by one
+FeaturePlot(immune_cells,
+        features = immune_markers$B_Cells,
+        cols = c("blue", "red"),
+        pt.size = 0.5) +
+    theme(axis.text.x = element_text(angle = 90)) # makes the gene names 90 degrees
+
+DimPlot(sobj1, 
+        group.by = "cell_type",
+        label = TRUE,
+        repel = TRUE) +
+    NoLegend()
+```
+
+
+## SingleR Annotation, reference based
+An alternative approach would be to annotate cell by cell using other methods such as
+SingleR or Mapquery. These methods use the reference data to annotate the cells.
+```{r singleR}
+# reference data
+brain_ref_data <- 
+    qs::qread("output/rdata_premade/mouse_brain_ref_data.qs")
+
+# check the object labels that will be used for annotation
+DimPlot(brain_ref_data,
+        group.by = "cell_type",
+        label = TRUE,
+        repel = TRUE) +
+    NoLegend()
+
+# singleR annotation
+annotation <-
+    SingleR(test = as.SingleCellExperiment(sobj),
+            ref = GetAssayData(brain_ref_data),
+            labels = brain_ref_data$cell_type,
+            aggr.ref = TRUE)
+
+# check the object
+sobj$SingleR_annotation <- annotation$labels
+
+# cell scores
+sobj$SingleR_scores <- 
+    apply(X = annotation$scores,
+          MARGIN = 1,
+          function(x) max(x, na.rm = TRUE))
+
+# check thee annoation
+DimPlot(sobj,
+        group.by = "SingleR_annotation",
+        label = TRUE,
+        label.box = T) +
+    NoLegend()
+
 
 ```
