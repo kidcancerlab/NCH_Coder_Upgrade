@@ -90,7 +90,8 @@ github_packages <-
         "satijalab/azimuth",
         "drieslab/Giotto",
         "10xGenomics/loupeR",
-        "jinworks/CellChat"
+        "jinworks/CellChat",
+        "immunogenomics/crescendo"
     )
 
 pak::pkg_install(
