@@ -12,9 +12,11 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE,
-                      cache = TRUE,
-                      cache.lazy = FALSE)
+knitr::opts_chunk$set(
+    echo = TRUE,
+    cache = TRUE,
+    cache.lazy = FALSE
+)
 ```
 
 # Load libraries
@@ -137,17 +139,23 @@ session_path <- "Sessions/adv_thursday/"
 # library("hdf5r")
 
 h5_data <-
-    Read10X_h5(paste0(data_path,
-                      "human_brain_3k_filtered_feature_bc_matrix.h5"))
+    Read10X_h5(paste0(
+        data_path,
+        "human_brain_3k_filtered_feature_bc_matrix.h5"
+    ))
 
 # mt_pattern <- "^MT-" because this is human data
 seurat_obj <-
-    CreateSeuratObject(counts = h5_data$`Gene Expression`,
-                       assay = "RNA",
-                       project = "10x_multiomics") %>%
-    PercentageFeatureSet(pattern = "^MT-",
-                         col.name = "percent_mt_rna",
-                         assay = "RNA")
+    CreateSeuratObject(
+        counts = h5_data$`Gene Expression`,
+        assay = "RNA",
+        project = "10x_multiomics"
+    ) %>%
+    PercentageFeatureSet(
+        pattern = "^MT-",
+        col.name = "percent_mt_rna",
+        assay = "RNA"
+    )
 ```
 
 ## Add the ATAC data to the Seurat object
@@ -163,14 +171,18 @@ The format is `chr:start-end`, so we'll pass `c(":", "-")` to the sep argument.
 
 ```{r}
 frag_file <-
-    paste0(data_path,
-           "human_brain_3k_atac_fragments.tsv.gz")
+    paste0(
+        data_path,
+        "human_brain_3k_atac_fragments.tsv.gz"
+    )
 
 seurat_obj[["ATAC"]] <-
-    CreateChromatinAssay(counts = h5_data$Peaks,
-                         sep = c(":", "-"),
-                         fragments = frag_file,
-                         min.cells = 5)
+    CreateChromatinAssay(
+        counts = h5_data$Peaks,
+        sep = c(":", "-"),
+        fragments = frag_file,
+        min.cells = 5
+    )
 ```
 
 ### Add in Metadata Output by cellranger
@@ -180,21 +192,29 @@ Cellranger is nice neough to output a csv with cell-level metadata. We'll read t
 There's 30 columns in the metadata file, so we're going to only add the columns that are of interest to our ATAC QC metrics.
 
 ```{r}
-metadata <- read.table(file = paste0(data_path,
-                                     "human_brain_3k_per_barcode_metrics.csv"),
-                       sep = ",",
-                       header = TRUE,
-                       row.names = NULL) %>%
+metadata <- read.table(
+    file = paste0(
+        data_path,
+        "human_brain_3k_per_barcode_metrics.csv"
+    ),
+    sep = ",",
+    header = TRUE,
+    row.names = NULL
+) %>%
     subset(barcode != "NO_BARCODE" &
-           barcode %in% colnames(seurat_obj)) %>%
+        barcode %in% colnames(seurat_obj)) %>%
     remove_rownames() %>%
     column_to_rownames("barcode") %>%
-    dplyr::select(atac_mitochondrial_reads,
-           atac_peak_region_fragments,
-           atac_fragments)
+    dplyr::select(
+        atac_mitochondrial_reads,
+        atac_peak_region_fragments,
+        atac_fragments
+    )
 
-seurat_obj <- AddMetaData(object = seurat_obj,
-                          metadata = metadata)
+seurat_obj <- AddMetaData(
+    object = seurat_obj,
+    metadata = metadata
+)
 ```
 
 ### Add Gene Annotation Information
@@ -209,7 +229,7 @@ DefaultAssay(seurat_obj) <- "ATAC"
 
 annotations <-
     GetGRangesFromEnsDb(ensdb = EnsDb.Hsapiens.v86::EnsDb.Hsapiens.v86)
-seqlevels(annotations) <- paste0('chr', seqlevels(annotations))
+seqlevels(annotations) <- paste0("chr", seqlevels(annotations))
 genome(annotations) <- "hg38"
 
 Annotation(seurat_obj) <- annotations
@@ -259,7 +279,7 @@ ATAC seq does have a few similar QC metrics to RNA seq, as well as some addition
 This is analagous to nCount_RNA, and follows a similar-shaped distribution to nCount_RNA albeit with larger numbers.
 
 ```{r}
-feature_hist(seurat_obj, features = c("nCount_RNA","nCount_ATAC"))
+feature_hist(seurat_obj, features = c("nCount_RNA", "nCount_ATAC"))
 ```
 
 ### Nucleosome Signal
@@ -295,7 +315,7 @@ We'll calculate this using the metadata columns we added earlier from the cellra
 
 ```{r calc-frip}
 seurat_obj$frip <-
-    seurat_obj$atac_peak_region_fragments/seurat_obj$atac_fragments
+    seurat_obj$atac_peak_region_fragments / seurat_obj$atac_fragments
 feature_hist(seurat_obj, "frip")
 ```
 
@@ -316,19 +336,20 @@ HOWEVER, if we're using a counts matrix from 10x then we need to multiply the re
 
 ```{r new-frip}
 total_frags <- CountFragments(frag_file) %>%
-    dplyr::filter(CB %in% colnames(seurat_obj)) %>% #filter out barcodes not in our object #nolint
-    arrange(match(CB, colnames(seurat_obj))) %>% #arrange in same order as barcodes in object #nolint
-    mutate(num_insertions = frequency_count*2) %>% #make column for total fragments
+    dplyr::filter(CB %in% colnames(seurat_obj)) %>% # filter out barcodes not in our object #nolint
+    arrange(match(CB, colnames(seurat_obj))) %>% # arrange in same order as barcodes in object #nolint
+    mutate(num_insertions = frequency_count * 2) %>% # make column for total fragments
     column_to_rownames("CB")
 
-#add this metadata to our object
+# add this metadata to our object
 seurat_obj <- AddMetaData(seurat_obj, total_frags)
 
-#Now we'll call FRiP
+# Now we'll call FRiP
 seurat_obj <- FRiP(seurat_obj,
-                   assay = "ATAC",
-                   total.fragments = "num_insertions",
-                   col.name = "FRiP")
+    assay = "ATAC",
+    total.fragments = "num_insertions",
+    col.name = "FRiP"
+)
 
 feature_hist(seurat_obj, features = c("FRiP", "frip"))
 ```
@@ -347,18 +368,22 @@ Generally we want:
 
 ```{r plot-atac-qc}
 atac_cutoffs <-
-    tribble(~feature, ~min_val, ~max_val,
-            "nCount_ATAC", 2000, 100000,
-            "nucleosome_signal", 0, 4,
-            "TSS.enrichment", 1, 20,
-            "frip", 0.2, 1)
+    tribble(
+        ~feature, ~min_val, ~max_val,
+        "nCount_ATAC", 2000, 100000,
+        "nucleosome_signal", 0, 4,
+        "TSS.enrichment", 1, 20,
+        "frip", 0.2, 1
+    )
 feature_hist(seurat_obj,
-             features = c("nCount_ATAC",
-                          "nucleosome_signal",
-                          "TSS.enrichment",
-                          "frip"),
-             cutoff_table = atac_cutoffs)
-
+    features = c(
+        "nCount_ATAC",
+        "nucleosome_signal",
+        "TSS.enrichment",
+        "frip"
+    ),
+    cutoff_table = atac_cutoffs
+)
 ```
 
 ## QC and Process RNA
@@ -368,36 +393,44 @@ I won't go into too much detail for this since we've seen it already.
 ```{r}
 DefaultAssay(seurat_obj) <- "RNA"
 cutoffs <-
-    tribble(~feature, ~min_val, ~max_val,
-            "nCount_RNA", 2000, 50000,
-            "nFeature_RNA", 1000, 10000,
-            "percent_mt_rna", 0, 20,
-            "nCount_ATAC", 2000, 100000,
-            "nFeature_ATAC", 1000, 40000)
+    tribble(
+        ~feature, ~min_val, ~max_val,
+        "nCount_RNA", 2000, 50000,
+        "nFeature_RNA", 1000, 10000,
+        "percent_mt_rna", 0, 20,
+        "nCount_ATAC", 2000, 100000,
+        "nFeature_ATAC", 1000, 40000
+    )
 
 feature_hist(seurat_obj,
-             features = c("nCount_RNA",
-                          "nFeature_RNA",
-                          "percent_mt_rna",
-                          "nCount_ATAC",
-                          "nFeature_ATAC"),
-             cutoff_table = cutoffs)
+    features = c(
+        "nCount_RNA",
+        "nFeature_RNA",
+        "percent_mt_rna",
+        "nCount_ATAC",
+        "nFeature_ATAC"
+    ),
+    cutoff_table = cutoffs
+)
 
 length(Cells(seurat_obj))
 
 seurat_obj <-
     subset(seurat_obj,
-           subset = nCount_RNA >= cutoffs$min_val[1] &
-                    nCount_RNA <= cutoffs$max_val[1] &
-                    nFeature_RNA >= cutoffs$min_val[2] &
-                    nFeature_RNA <= cutoffs$max_val[2] &
-                    percent_mt_rna <= cutoffs$max_val[3]) %>%
+        subset = nCount_RNA >= cutoffs$min_val[1] &
+            nCount_RNA <= cutoffs$max_val[1] &
+            nFeature_RNA >= cutoffs$min_val[2] &
+            nFeature_RNA <= cutoffs$max_val[2] &
+            percent_mt_rna <= cutoffs$max_val[3]
+    ) %>%
     NormalizeData() %>%
     FindVariableFeatures() %>%
     ScaleData() %>%
     RunPCA() %>%
-    RunUMAP(reduction.name = "umap_rna",
-            dims = 1:10) %>%
+    RunUMAP(
+        reduction.name = "umap_rna",
+        dims = 1:10
+    ) %>%
     FindNeighbors(dims = 1:10) %>%
     FindClusters(resolution = 0.4)
 
@@ -428,25 +461,31 @@ seurat_obj <-
     RunSVD() %>%
     FindNeighbors(reduction = "lsi") %>%
     FindClusters(algorithm = 3) %>%
-    RunUMAP(reduction = "lsi",
-            dims = 2:30,
-            reduction.name = "umap_atac")
+    RunUMAP(
+        reduction = "lsi",
+        dims = 2:30,
+        reduction.name = "umap_atac"
+    )
 
 seurat_obj$ATAC_cluster <- Idents(seurat_obj)
 
 DimPlot(seurat_obj,
-        group.by = "ATAC_cluster",
-        reduction = "umap_atac",
-        label = TRUE,
-        repel = TRUE) |
-DimPlot(seurat_obj,
+    group.by = "ATAC_cluster",
+    reduction = "umap_atac",
+    label = TRUE,
+    repel = TRUE
+) |
+    DimPlot(seurat_obj,
         group.by = "RNA_cluster",
         reduction = "umap_rna",
         label = TRUE,
-        repel = TRUE)
+        repel = TRUE
+    )
 
-qs::qsave(seurat_obj, paste0(session_path,
-                             "human_brain_processed.qs"))
+qs::qsave(seurat_obj, paste0(
+    session_path,
+    "human_brain_processed.qs"
+))
 ```
 
 # Activity 2
@@ -490,27 +529,33 @@ After subsetting down to these clusters, we need to re-process our data, because
 ```{r}
 DefaultAssay(seurat_obj) <- "ATAC"
 
-#we have to reprocess because our clusters will likely change with a different set of cells
+# we have to reprocess because our clusters will likely change with a different set of cells
 small_obj <-
     subset(seurat_obj,
-           subset = RNA_cluster %in% c(0, 1)) %>%
+        subset = RNA_cluster %in% c(0, 1)
+    ) %>%
     RunTFIDF() %>%
     FindTopFeatures(min.cutoff = "q0") %>%
     RunSVD() %>%
     FindNeighbors(reduction = "lsi") %>%
-    FindClusters(algorithm = 3,
-                 resolution = 0.1) %>%
-    RunUMAP(reduction = "lsi",
-            dims = 2:30,
-            reduction.name = "umap_atac")
+    FindClusters(
+        algorithm = 3,
+        resolution = 0.1
+    ) %>%
+    RunUMAP(
+        reduction = "lsi",
+        dims = 2:30,
+        reduction.name = "umap_atac"
+    )
 
 small_obj$ATAC_cluster <- Idents(small_obj)
 
 atac_dimplot <-
     DimPlot(small_obj,
-            group.by = "ATAC_cluster",
-            reduction = "umap_atac",
-            label = TRUE) +
+        group.by = "ATAC_cluster",
+        reduction = "umap_atac",
+        label = TRUE
+    ) +
     NoLegend()
 
 DefaultAssay(small_obj) <- "RNA"
@@ -521,8 +566,10 @@ small_obj <-
     FindVariableFeatures() %>%
     ScaleData() %>%
     RunPCA() %>%
-    RunUMAP(reduction.name = "umap_rna",
-            dims = 1:10) %>%
+    RunUMAP(
+        reduction.name = "umap_rna",
+        dims = 1:10
+    ) %>%
     FindNeighbors(dims = 1:10) %>%
     FindClusters(resolution = 0.3)
 
@@ -530,18 +577,22 @@ small_obj$RNA_cluster <- Idents(small_obj)
 
 rna_dimplot <-
     DimPlot(small_obj,
-            group.by = "RNA_cluster",
-            reduction = "umap_rna",
-            label = TRUE) +
+        group.by = "RNA_cluster",
+        reduction = "umap_rna",
+        label = TRUE
+    ) +
     NoLegend()
 
 rna_dimplot + atac_dimplot
 ggsave("Sessions/adv_thursday/neuron_clusters_both.png",
-       width = 10,
-       height = 6)
+    width = 10,
+    height = 6
+)
 
-qs::qsave(small_obj, paste0(session_path,
-                               "small_obj.qs"))
+qs::qsave(small_obj, paste0(
+    session_path,
+    "small_obj.qs"
+))
 ```
 
 ## Find differential accessibility between cell types
@@ -553,11 +604,13 @@ DefaultAssay(small_obj) <- "ATAC"
 Idents(small_obj) <- small_obj$ATAC_cluster
 da_peaks <-
     FindMarkers(small_obj,
-                ident.1 = "0",
-                ident.2 = "2") %>%
+        ident.1 = "0",
+        ident.2 = "2"
+    ) %>%
     rownames_to_column("region") %>%
     left_join(ClosestFeature(small_obj,
-                             regions = .$region) %>%
+        regions = .$region
+    ) %>%
         dplyr::rename(region = query_region))
 
 head(da_peaks)
@@ -570,9 +623,9 @@ fav_peaks <-
     da_peaks %>%
     mutate(abs_logfc = abs(avg_log2FC)) %>%
     dplyr::filter(p_val_adj < 1e-20 &
-               abs_logfc > 0.5 &
-               gene_biotype == "protein_coding" &
-               distance == 0) %>%
+        abs_logfc > 0.5 &
+        gene_biotype == "protein_coding" &
+        distance == 0) %>%
     group_by(avg_log2FC > 0) %>%
     arrange(desc(abs_logfc)) %>%
     slice_head(n = 2) %>%
@@ -581,15 +634,17 @@ fav_peaks <-
 DefaultAssay(seurat_obj) <- "ATAC"
 plot_name <-
     CoveragePlot(seurat_obj,
-                 region = fav_peaks,
-                 idents = c("0", "2"),
-                 extend.downstream = 5000,
-                 extend.upstream = 5000)
+        region = fav_peaks,
+        idents = c("0", "2"),
+        extend.downstream = 5000,
+        extend.upstream = 5000
+    )
 
 ggsave("Sessions/adv_thursday/atac_peaks.png",
-       plot_name,
-       width = 15,
-       height = 15)
+    plot_name,
+    width = 15,
+    height = 15
+)
 ```
 
 ## Joint analysis of multimodal data
@@ -602,8 +657,10 @@ Compare heterogeneity of gene expression vs. chromatin accessibility
 
 ```{r}
 small_obj <-
-    qs::qread(paste0(session_path,
-                     "small_obj.qs"))
+    qs::qread(paste0(
+        session_path,
+        "small_obj.qs"
+    ))
 
 rna_umap <-
     Embeddings(small_obj, reduction = "umap_rna") %>%
@@ -611,18 +668,22 @@ rna_umap <-
     rownames_to_column("cell") %>%
     as_tibble() %>%
     mutate(rna_cluster = as.vector(small_obj$RNA_cluster)) %>%
-    dplyr::rename(UMAP_1 = umaprna_1,
-                  UMAP_2 = umaprna_2)
+    dplyr::rename(
+        UMAP_1 = umaprna_1,
+        UMAP_2 = umaprna_2
+    )
 
 atac_umap <-
     Embeddings(small_obj, reduction = "umap_atac") %>%
     as.data.frame() %>%
     rownames_to_column("cell") %>%
     as_tibble() %>%
-    dplyr::rename(UMAP_1 = umapatac_1,
-                  UMAP_2 = umapatac_2) %>%
+    dplyr::rename(
+        UMAP_1 = umapatac_1,
+        UMAP_2 = umapatac_2
+    ) %>%
     full_join(rna_umap %>%
-                dplyr::select(cell, rna_cluster))
+        dplyr::select(cell, rna_cluster))
 
 # Merging the UMAP data
 # Shifted UMAP_1 for both by offset_num to separate the datasets
@@ -631,45 +692,67 @@ offset_num <- 15
 
 combined_umap <-
     rna_umap %>%
-    mutate(data_type = "RNAseq",
-           UMAP_1 = UMAP_1 - offset_num) %>%
+    mutate(
+        data_type = "RNAseq",
+        UMAP_1 = UMAP_1 - offset_num
+    ) %>%
     bind_rows(atac_umap %>%
-               mutate(data_type = "ATACseq",
-                      UMAP_1 = UMAP_1 + offset_num))
+        mutate(
+            data_type = "ATACseq",
+            UMAP_1 = UMAP_1 + offset_num
+        ))
 
 draw_cluster_1 <- 1
 draw_cluster_2 <- 2
 
 # Make plot of the combined UMAP projections
-ggplot(combined_umap,
-       aes(x = UMAP_1,
-           y = UMAP_2,
-           shape = data_type)) +
+ggplot(
+    combined_umap,
+    aes(
+        x = UMAP_1,
+        y = UMAP_2,
+        shape = data_type
+    )
+) +
     geom_point(aes(color = rna_cluster == draw_cluster_1),
-               alpha = 0.5) +
-    scale_color_brewer(palette = "Paired",
-                       name = "Data type") +
-    geom_vline(xintercept = 0,
-               linetype = "dashed",
-               color = "black") +
-    geom_line(data = combined_umap %>%
-              dplyr::filter(rna_cluster == draw_cluster_1),
-              aes(x = UMAP_1,
-                  y = UMAP_2,
-                  group = cell),
-              color = "black",
-              alpha = 0.05) +
-    geom_line(data = combined_umap %>%
-              dplyr::filter(rna_cluster == draw_cluster_2),
-              aes(x = UMAP_1,
-                  y = UMAP_2,
-                  group = cell),
-              color = "red",
-              alpha = 0.05)
+        alpha = 0.5
+    ) +
+    scale_color_brewer(
+        palette = "Paired",
+        name = "Data type"
+    ) +
+    geom_vline(
+        xintercept = 0,
+        linetype = "dashed",
+        color = "black"
+    ) +
+    geom_line(
+        data = combined_umap %>%
+            dplyr::filter(rna_cluster == draw_cluster_1),
+        aes(
+            x = UMAP_1,
+            y = UMAP_2,
+            group = cell
+        ),
+        color = "black",
+        alpha = 0.05
+    ) +
+    geom_line(
+        data = combined_umap %>%
+            dplyr::filter(rna_cluster == draw_cluster_2),
+        aes(
+            x = UMAP_1,
+            y = UMAP_2,
+            group = cell
+        ),
+        color = "red",
+        alpha = 0.05
+    )
 
 ggsave("Sessions/adv_thursday/combined_umap_lines.png",
-       width = 10,
-       height = 6)
+    width = 10,
+    height = 6
+)
 ```
 
 ### Multimodal UMAP
@@ -677,51 +760,61 @@ Better separation of cell types due to increased dimensionality of data
 ```{r}
 small_obj <-
     small_obj %>%
-    FindMultiModalNeighbors(reduction.list = list("pca", "lsi"),
-                            dims.list = list(1:20, 2:20))
+    FindMultiModalNeighbors(
+        reduction.list = list("pca", "lsi"),
+        dims.list = list(1:20, 2:20)
+    )
 
 # build a joint UMAP visualization
 small_obj <-
     small_obj %>%
-    RunUMAP(nn.name = "weighted.nn",
-            assay = "RNA",
-            reduction.name = "joint_umap") %>%
-    FindClusters(algorithm = 3,
-                 graph.name = "wsnn")
+    RunUMAP(
+        nn.name = "weighted.nn",
+        assay = "RNA",
+        reduction.name = "joint_umap"
+    ) %>%
+    FindClusters(
+        algorithm = 3,
+        graph.name = "wsnn"
+    )
 
 small_obj$joint_cluster <- Idents(small_obj)
 
 joint_umap <-
     DimPlot(small_obj,
-            reduction = "joint_umap",
-            label = TRUE,
-            repel = TRUE,
-            pt.size = 0.5,
-            group.by = "joint_cluster") +
+        reduction = "joint_umap",
+        label = TRUE,
+        repel = TRUE,
+        pt.size = 0.5,
+        group.by = "joint_cluster"
+    ) +
     NoLegend()
 
 rna_umap <-
     DimPlot(small_obj,
-            reduction = "umap_rna",
-            label = TRUE,
-            repel = TRUE,
-            pt.size = 0.5,
-            group.by = "RNA_cluster") +
+        reduction = "umap_rna",
+        label = TRUE,
+        repel = TRUE,
+        pt.size = 0.5,
+        group.by = "RNA_cluster"
+    ) +
     NoLegend()
 
 atac_umap <-
     DimPlot(small_obj,
-            reduction = "umap_atac",
-            label = TRUE,
-            repel = TRUE,
-            pt.size = 0.5,
-            group.by = "ATAC_cluster") +
+        reduction = "umap_atac",
+        label = TRUE,
+        repel = TRUE,
+        pt.size = 0.5,
+        group.by = "ATAC_cluster"
+    ) +
     NoLegend()
 
 joint_umap + (rna_umap / atac_umap)
 ggsave("Sessions/adv_thursday/joint_umap.png",
-       width = 15,
-       height = 10)
+    width = 15,
+    height = 10
+)
 ```
 
 ### Correlation of ATAC peaks with gene expression
@@ -731,23 +824,27 @@ Idents(small_obj) <- "ATAC_cluster"
 
 small_obj <-
     RegionStats(small_obj,
-                genome = BSgenome.Hsapiens.UCSC.hg38::BSgenome.Hsapiens.UCSC.hg38)
+        genome = BSgenome.Hsapiens.UCSC.hg38::BSgenome.Hsapiens.UCSC.hg38
+    )
 # ignore the warning - our object just doesn't have some of the junk contigs
 
-#finding differentially accissible peaks between atac cluster 0 and 2
+# finding differentially accissible peaks between atac cluster 0 and 2
 diff_peaks <-
     FindMarkers(small_obj,
-                assay = "ATAC",
-                ident.1 = "0",
-                ident.2 = "2") %>%
+        assay = "ATAC",
+        ident.1 = "0",
+        ident.2 = "2"
+    ) %>%
     rownames_to_column("region") %>%
     as_tibble() %>%
     full_join(tibble(region = rownames(small_obj))) %>%
     arrange(match(region, rownames(small_obj))) %>%
     mutate(p_val_adj = ifelse(is.na(p_val_adj), 1, p_val_adj))
 
-qs::qsave(diff_peaks,
-          "Sessions/adv_thursday/diff_peaks.qs")
+qs::qsave(
+    diff_peaks,
+    "Sessions/adv_thursday/diff_peaks.qs"
+)
 if (all(rownames(small_obj) == diff_peaks$region)) {
     small_obj[["ATAC"]][["neuron_signif"]] <- diff_peaks$p_val_adj < 0.05
 } else {
@@ -757,12 +854,13 @@ if (all(rownames(small_obj) == diff_peaks$region)) {
 # Here, RNA clusters 0 and 2 are roughly equal to ATAC clusters 0 and 2
 de_genes <-
     FindMarkers(small_obj,
-                assay = "RNA",
-                ident.1 = "0",
-                ident.2 = "2",
-                logfc.threshold = 2) %>%
-    dplyr:: filter(p_val_adj < 0.000001 & # Using a really low number since the p-values are so skewed
-           abs(pct.1 - pct.2) > 0.6) %>%
+        assay = "RNA",
+        ident.1 = "0",
+        ident.2 = "2",
+        logfc.threshold = 2
+    ) %>%
+    dplyr::filter(p_val_adj < 0.000001 & # Using a really low number since the p-values are so skewed
+        abs(pct.1 - pct.2) > 0.6) %>%
     arrange(desc(abs(pct.1 - pct.2)))
 
 # Getting this down to a smallish number so it doesn't take forever to run
@@ -770,15 +868,19 @@ nrow(de_genes)
 
 # link peaks to top 100 genes as determined by the difference in pct expression
 small_obj <-
-    LinkPeaks(object = small_obj,
-              peak.assay = "ATAC",
-              expression.assay = "RNA",
-              min.distance = 5000,
-              genes.use = rownames(de_genes)[1:100])
+    LinkPeaks(
+        object = small_obj,
+        peak.assay = "ATAC",
+        expression.assay = "RNA",
+        min.distance = 5000,
+        genes.use = rownames(de_genes)[1:100]
+    )
 # Ignore the warnings about the junk contigs
 
-qs::qsave(small_obj,
-          "Sessions/adv_thursday/small_obj_linked.qs")
+qs::qsave(
+    small_obj,
+    "Sessions/adv_thursday/small_obj_linked.qs"
+)
 
 links <-
     Links(small_obj) %>%
@@ -789,16 +891,18 @@ links <-
 links
 
 links$peak %in% diff_peaks$region %>% summary()
-#all of these peaks associated with genes are also differentially accessible between clusters 0 and 2
+# all of these peaks associated with genes are also differentially accessible between clusters 0 and 2
 
-CoveragePlot(object = small_obj,
-             region = links$gene[1],
-             features = links$gene[1],
-             idents = c("0", "2"),
-             peaks.group.by = "neuron_signif",
-             expression.assay = "RNA",
-             extend.upstream = 100000,
-             extend.downstream = 100000)
+CoveragePlot(
+    object = small_obj,
+    region = links$gene[1],
+    features = links$gene[1],
+    idents = c("0", "2"),
+    peaks.group.by = "neuron_signif",
+    expression.assay = "RNA",
+    extend.upstream = 100000,
+    extend.downstream = 100000
+)
 ```
 
 Now we're going to find enriched motifs in our differentially accessible peaks in the following steps:
@@ -810,25 +914,35 @@ Recall that the features we are calculating motif enrichment within are differen
 
 ```{r}
 freq_matrix <-
-    TFBSTools::getMatrixSet(x = JASPAR2020::JASPAR2020,
-                            opts = list(collection = "CORE",
-                                        tax_group = "vertebrates",
-                                        all_versions = FALSE))
+    TFBSTools::getMatrixSet(
+        x = JASPAR2020::JASPAR2020,
+        opts = list(
+            collection = "CORE",
+            tax_group = "vertebrates",
+            all_versions = FALSE
+        )
+    )
 
 small_obj <-
-    AddMotifs(object = small_obj,
-              genome = BSgenome.Hsapiens.UCSC.hg38::BSgenome.Hsapiens.UCSC.hg38,
-              pfm = freq_matrix)
+    AddMotifs(
+        object = small_obj,
+        genome = BSgenome.Hsapiens.UCSC.hg38::BSgenome.Hsapiens.UCSC.hg38,
+        pfm = freq_matrix
+    )
 
 matching_motifs <-
-    FindMotifs(object = small_obj,
-               features = links$peak %>% unique())
+    FindMotifs(
+        object = small_obj,
+        features = links$peak %>% unique()
+    )
 
-dplyr::select(matching_motifs,
-              percent.observed,
-              percent.background,
-              motif.name,
-              p.adjust) %>%
+dplyr::select(
+    matching_motifs,
+    percent.observed,
+    percent.background,
+    motif.name,
+    p.adjust
+) %>%
     arrange(p.adjust) %>%
     head(n = 15)
 ```

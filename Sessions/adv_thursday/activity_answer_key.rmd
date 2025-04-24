@@ -6,35 +6,43 @@
 activity_input_path <-
     "input/multiomics/downsampled_data/"
 
-h5_list <- qs::qread(paste0(activity_input_path,
-                            "gene_exp_peaks_list.qs"))
+h5_list <- qs::qread(paste0(
+    activity_input_path,
+    "gene_exp_peaks_list.qs"
+))
 ```
 
 ## 1.2
 
 ```{r}
 activity_ob <-
-    CreateSeuratObject(counts = h5_list[["Gene Expression"]],
-                       assay = "RNA",
-                       project = "10x_multiomics") %>%
-    PercentageFeatureSet(pattern = "^MT",
-                         col.name = "percent.mt_rna",
-                         assay = "RNA")
+    CreateSeuratObject(
+        counts = h5_list[["Gene Expression"]],
+        assay = "RNA",
+        project = "10x_multiomics"
+    ) %>%
+    PercentageFeatureSet(
+        pattern = "^MT",
+        col.name = "percent.mt_rna",
+        assay = "RNA"
+    )
 
-#going to add atac assay
+# going to add atac assay
 head(rownames(h5_list[["Peaks"]]))
 activity_frag <- paste0(activity_input_path, "new_fragments.tsv.gz")
 activity_ob[["ATAC"]] <-
-    CreateChromatinAssay(counts = h5_list[["Peaks"]],
-                         sep = c(":", "-"),
-                         fragments = activity_frag,
-                         min.cells = 0)
+    CreateChromatinAssay(
+        counts = h5_list[["Peaks"]],
+        sep = c(":", "-"),
+        fragments = activity_frag,
+        min.cells = 0
+    )
 ```
 
 ## 1.3
 
 ```{r}
-#Add gene annotation information
+# Add gene annotation information
 DefaultAssay(activity_ob) <- "ATAC"
 annotations <-
     GetGRangesFromEnsDb(ensdb = EnsDb.Hsapiens.v86::EnsDb.Hsapiens.v86)
@@ -60,13 +68,16 @@ total_frag_df <- CountFragments(activity_frag) %>%
     dplyr::arrange(match(CB, colnames(activity_ob)))
 
 activity_ob@meta.data <- activity_ob@meta.data %>%
-    dplyr::mutate(total_frag = total_frag_df$frequency_count*2,
-                  mononucleosomal = total_frag_df$mononucleosomal,
-                  nucleosome_free = total_frag_df$nucleosome_free)
+    dplyr::mutate(
+        total_frag = total_frag_df$frequency_count * 2,
+        mononucleosomal = total_frag_df$mononucleosomal,
+        nucleosome_free = total_frag_df$nucleosome_free
+    )
 activity_ob <- FRiP(activity_ob,
-                    assay = "ATAC",
-                    total.fragments = "total_frag",
-                    col.name = "FRiP")
+    assay = "ATAC",
+    total.fragments = "total_frag",
+    col.name = "FRiP"
+)
 ```
 
 ## 2.2
@@ -75,18 +86,23 @@ Plot the different QC metrics, and set cutoffs for the ATAC + RNA data.
 
 ```{r}
 feature_hist(activity_ob,
-        features = c("nCount_RNA",
-                     "percent.mt_rna",
-                     "nucleosome_signal",
-                     "TSS.enrichment",
-                     "FRiP"))
+    features = c(
+        "nCount_RNA",
+        "percent.mt_rna",
+        "nucleosome_signal",
+        "TSS.enrichment",
+        "FRiP"
+    )
+)
 
-cutoffs <- tribble(~feature, ~min_val, ~max_val,
-                   "nCount_RNA", 1000, 20000,
-                   "percent.mt_rna", 0, 20,
-                   "nucleosome_signal", 0, 2,
-                   "TSS.enrichment", 1, 50,
-                   "FRiP", 0.25, 1)
+cutoffs <- tribble(
+    ~feature, ~min_val, ~max_val,
+    "nCount_RNA", 1000, 20000,
+    "percent.mt_rna", 0, 20,
+    "nucleosome_signal", 0, 2,
+    "TSS.enrichment", 1, 50,
+    "FRiP", 0.25, 1
+)
 
 feature_hist(activity_ob, features = cutoffs$feature, cutoff_table = cutoffs)
 ```
@@ -98,20 +114,24 @@ Subset the seurat object by the above QC cutoffs and process the object for both
 Make separte metadata columns for the RNA-based clusters and the ATAC-based clusters
 
 ```{r}
-activity_ob <- subset(activity_ob,
-                      nCount_RNA %in% c(1000:20000) &
-                      percent.mt_rna < 20 &
-                      nucleosome_signal < 2 &
-                      TSS.enrichment > 1 &
-                      FRiP > 0.25)
+activity_ob <- subset(
+    activity_ob,
+    nCount_RNA %in% c(1000:20000) &
+        percent.mt_rna < 20 &
+        nucleosome_signal < 2 &
+        TSS.enrichment > 1 &
+        FRiP > 0.25
+)
 
 DefaultAssay(activity_ob) <- "RNA"
 activity_ob <- NormalizeData(activity_ob) %>%
     FindVariableFeatures() %>%
     ScaleData() %>%
     RunPCA() %>%
-    RunUMAP(reduction.name = "umap_rna",
-            dims = 1:10) %>%
+    RunUMAP(
+        reduction.name = "umap_rna",
+        dims = 1:10
+    ) %>%
     FindNeighbors(dims = 1:10) %>%
     FindClusters()
 
@@ -123,9 +143,11 @@ activity_ob <- RunTFIDF(activity_ob) %>%
     RunSVD() %>%
     FindNeighbors(reduction = "lsi") %>%
     FindClusters(algorithm = 3) %>%
-    RunUMAP(reduction = "lsi",
-            dims = 2:30,
-            reduction.name = "umap_atac")
+    RunUMAP(
+        reduction = "lsi",
+        dims = 2:30,
+        reduction.name = "umap_atac"
+    )
 activity_ob$ATAC_cluster <- Idents(activity_ob)
 ```
 
@@ -141,8 +163,9 @@ activity_small <- qs::qread("input/multiomics/activity_data/activity_small.qs")
 DefaultAssay(activity_small) <- "ATAC"
 Idents(activity_small) <- activity_small$ATAC_cluster
 diff_peaks <- FindAllMarkers(activity_small,
-                          assay = "ATAC",
-                          min.pct = .1) %>%
+    assay = "ATAC",
+    min.pct = .1
+) %>%
     subset(p_val_adj < 0.05)
 
 top_5_each <- group_by(diff_peaks, cluster) %>%
@@ -155,10 +178,11 @@ top_5_each <- group_by(diff_peaks, cluster) %>%
 Create a coverage plot of these regions
 ```{r}
 CoveragePlot(activity_small,
-             region = top_5_each$gene,
-             idents = c(0, 1),
-             extend.downstream = 5000,
-             extend.upstream = 5000)
+    region = top_5_each$gene,
+    idents = c(0, 1),
+    extend.downstream = 5000,
+    extend.upstream = 5000
+)
 ```
 
 ## 3.3
@@ -171,22 +195,26 @@ Identify what differentially expressed genes are associated with differentially 
 DefaultAssay(activity_small) <- "RNA"
 Idents(activity_small) <- activity_small$RNA_cluster
 degs <- FindAllMarkers(activity_small,
-                       assay = "RNA",
-                       only.pos = TRUE,
-                       min.pct = 0.1) %>%
+    assay = "RNA",
+    only.pos = TRUE,
+    min.pct = 0.1
+) %>%
     subset(p_val_adj < 0.05 & avg_log2FC > 1) %>%
     arrange(desc(avg_log2FC))
 
-#Link these genes to peaks
+# Link these genes to peaks
 DefaultAssay(activity_small) <- "ATAC"
 activity_small <-
     RegionStats(activity_small,
-                genome = BSgenome.Hsapiens.UCSC.hg38::BSgenome.Hsapiens.UCSC.hg38)
+        genome = BSgenome.Hsapiens.UCSC.hg38::BSgenome.Hsapiens.UCSC.hg38
+    )
 
-activity_small <- LinkPeaks(object = activity_small,
-                            peak.assay = "ATAC",
-                            expression.assay = "RNA",
-                            genes.use = rownames(degs)[1:100])
+activity_small <- LinkPeaks(
+    object = activity_small,
+    peak.assay = "ATAC",
+    expression.assay = "RNA",
+    genes.use = rownames(degs)[1:100]
+)
 qs::qsave(activity_small, "testing_folder/activity_small.qs")
 
 links <- Links(activity_small) %>%
@@ -201,26 +229,35 @@ Find what motifs are enriched in our differentially accessible peaks.
 
 ```{r}
 freq_matrix <-
-    TFBSTools::getMatrixSet(x = JASPAR2020::JASPAR2020,
-                            opts = list(collection = "CORE",
-                                        tax_group = "vertebrates",
-                                        all_versions = FALSE))
+    TFBSTools::getMatrixSet(
+        x = JASPAR2020::JASPAR2020,
+        opts = list(
+            collection = "CORE",
+            tax_group = "vertebrates",
+            all_versions = FALSE
+        )
+    )
 
 
 activity_small <-
-    AddMotifs(object = activity_small,
-              genome = BSgenome.Hsapiens.UCSC.hg38::BSgenome.Hsapiens.UCSC.hg38,
-              pfm = freq_matrix)
+    AddMotifs(
+        object = activity_small,
+        genome = BSgenome.Hsapiens.UCSC.hg38::BSgenome.Hsapiens.UCSC.hg38,
+        pfm = freq_matrix
+    )
 
-activity_motifs <- FindMotifs(object = activity_small,
-                              features = unique(links$peak))
+activity_motifs <- FindMotifs(
+    object = activity_small,
+    features = unique(links$peak)
+)
 
-dplyr::select(activity_motifs,
-              percent.observed,
-              percent.background,
-              motif.name,
-              p.adjust) %>%
+dplyr::select(
+    activity_motifs,
+    percent.observed,
+    percent.background,
+    motif.name,
+    p.adjust
+) %>%
     arrange(p.adjust) %>%
     head(n = 20)
-
 ```
