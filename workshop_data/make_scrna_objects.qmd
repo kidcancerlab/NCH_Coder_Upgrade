@@ -30,17 +30,15 @@ ox1x_sobj <-
 
 feature_hist(ox1x_sobj, c("nFeature_RNA", "percent.mt"))
 
-ncount_min <- 500
-ncount_max <- 10000
+ncount_max <- 15000
 # going high here as there seems to be lots of cells with high percent mt, and I know neurons tend to have high mt content
-percent_mt_max <- 30
+percent_mt_max <- 20
 
 brain_ref_data <- qread("output/rdata_premade/mouse_brain_ref_data.qs")
 
 ox1x_sobj <-
     subset(ox1x_sobj,
-        subset = nFeature_RNA > ncount_min &
-            nCount_RNA < ncount_max &
+        subset = nCount_RNA < ncount_max &
             percent.mt < percent_mt_max
     ) %>%
     process_seurat() %>%
@@ -151,8 +149,7 @@ sobj_list <-
             filtered_sobj <-
                 subset(
                     sobj_list[[x]],
-                    subset = nCount_RNA > ncount_min &
-                        nCount_RNA < ncount_max &
+                    subset = nCount_RNA < ncount_max &
                         percent.mt < percent_mt_max
                 ) %>%
                 process_seurat()
