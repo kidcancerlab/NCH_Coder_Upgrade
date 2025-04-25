@@ -347,6 +347,42 @@ for (item in list_new) {
 }
 ```
 
+
+## Perform cell type annotation. 
+
+```{r}
+obj = new_list_obj[[1]]
+
+annotation <-
+
+    SingleR(test = as.SingleCellExperiment(obj),
+
+            ref = GetAssayData(brain_ref_data),
+
+            labels = brain_ref_data$cell_type,
+
+            aggr.ref = TRUE)
+
+ 
+
+# check the object
+
+object2$SingleR_annotation <- annotation$labels
+
+ 
+
+# cell scores
+
+object2$SingleR_scores <-
+
+    apply(X = annotation$scores,
+
+          MARGIN = 1,
+
+          function(x) max(x, na.rm = TRUE))
+```
+
+
 ## Save the objects. 
 
 ```{r}
