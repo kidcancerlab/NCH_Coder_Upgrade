@@ -31,6 +31,7 @@ library(ggplot2) # For plotting
 library(rrrSingleCellUtils) # For plotting an processing
 library(qs) # For reading and writing .qs files
 library(SingleR) # For cell type annotation
+library(biomaRt) # For gene annotation
 # Set the random generator seed so that results are reproducible.
 set.seed(132)
 ```
@@ -643,3 +644,5 @@ DimPlot(sobj,
 
 
 ```
+
+

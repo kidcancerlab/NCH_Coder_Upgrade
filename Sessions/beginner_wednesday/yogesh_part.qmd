@@ -129,6 +129,9 @@ merged_sobj <-
     subset(merged_sobj,
           features = setdiff(rownames(merged_sobj), mito_genes))
 
+#save the object
+qs::qsave(merged_sobj,
+        "input/scRNA/downloaded_source1.qs")
 
 ```
 
@@ -140,19 +143,19 @@ same tissue. The actvity is to merge the two objects and check for batch effect.
 1. Load the second object
 ```{r activity1}
 # read in the second object
-object2 <-
-    qs::qread("input/scRNA/comb_sobj_source1.qs")
+object1 <-
+    qs::qread("input/scRNA/downloaded_source1.qs")
 
 #save the batch information
-object2$batch <- "batch1"
+object1$batch <- "batch1"
 
 # save the batch information in the merged_sobj as well
-merged_sobj$batch <- "batch2"
+object2 <-
+    qs::qread("input/scRNA/downloaded_source2.qs")
+object2$batch <- "batch2"
+object2$cell_type <- object2$SingleR_annotation
 
 #merge the two objects and process it together unto plotting dimplot
-
-
-
 
 
 
@@ -161,10 +164,7 @@ merged_sobj$batch <- "batch2"
 
 
 
-
-
 ```
-
 
 
 
@@ -186,18 +186,20 @@ Harmony integration to remove the batch effect.
 
 ```{r harmony_integration}
 # read in the second object
-object2 <-
-    qs::qread("input/scRNA/comb_sobj_source1.qs")
+object1 <-
+    qs::qread("input/scRNA/downloaded_source1.qs")
 
 #save the batch information
-object2$batch <- "batch1"
+object1$batch <- "batch1"
 
 # save the batch information in the merged_sobj as well
-merged_sobj$batch <- "batch2"
+object2 <-
+    qs::qread("input/scRNA/downloaded_source2.qs")
+object2$batch <- "batch2"
 
-# check the object
+# merge the two objects and process it together unto plotting dimplot
 merge_all <-
-    merge(x = merged_sobj,
+    merge(x = object1,
           y = object2) %>%
     JoinLayers() %>%
     NormalizeData() %>%
@@ -346,8 +348,6 @@ DimPlot(merge_all_harmony4,
 # there are opportunities to explore more of the harmony parameters such as lambda and tau.
 # you can also try using multiple theta each time, low and high and see how it works.
 # you can also try using multiple lambda each time, low and high and see how it works.
-
-
 ```
 
 ## Crescendo
@@ -380,7 +380,6 @@ merge_all_sub <-
                   reduction = "harmony") %>%
     FindClusters()
 
-
 # check the batch effect
 DimPlot(merge_all_sub,
         group.by = "orig.ident",
@@ -398,17 +397,16 @@ DimPlot(merge_all_sub,
 
 # run crescendo integration
 merge_all_sub$nUMI <- merge_all_sub$nCount_RNA
+
 corr_counts <-
     crescendo(Ycounts = GetAssayData(merge_all_sub, layer = 'counts'), # genes by cells
               meta_data = merge_all_sub@meta.data,
               R = t(Embeddings(merge_all_sub, reduction = "harmony")), # dims by cells
-              batch_var = "orig.ident",
+              batch_var = "batch",
               alpha = 0,
-              mc.cores = 15,
+              mc.cores = 10,
               return_obj = TRUE,
-              verbose = TRUE
-    )
-
+              verbose = TRUE)
 
 # create sobj
 cres_obj <-
@@ -422,11 +420,64 @@ cres_obj <-
     FindNeighbors(dims = 1:30) %>%
     FindClusters()
 
-    
-
-    
-
 # if this takes too long just have an object fort visualization
+
+stuff2 <-
+    CreateSeuratObject(
+        counts = t(corr_counts$corrected_matching),
+        meta.data = mm_mets@meta.data
+    ) %>%
+    process_seurat()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+mm_mets <- qs::qread("/gpfs0/home2/gdrobertslab/lab/Analysis/Yogesh/CellTypeAnnRefs/output/seurat_objects/final_tumor_vs_stroma/mm_prim_normal_cells.qs")
+mm_mets$nUMI <- mm_mets$nCount_RNA
+mm_mets$batch <- mm_mets$model
+
+uncor_mm_mets <-
+    mm_mets %>%
+    process_seurat()
+
+DimPlot(
+    uncor_mm_mets,
+    group.by = c("model", "Ann_Level3"),
+    label = TRUE,
+    repel = TRUE,
+    ncol = 1
+) +
+    NoLegend()
+
+corr_counts <-
+    crescendo(
+        Ycounts = GetAssayData(mm_mets, layer = 'counts'), # genes by cells
+        meta_data = mm_mets@meta.data,                     # Cells by metadata
+        R = t(Embeddings(mm_mets, reduction = "harmony")), # dims by cells
+        batch_var = "batch",
+        #genes_use = genes_use,
+        #prop = 0.25,
+        #min_cells = min_cells,
+        #lambda = lambda,
+        alpha = 0,
+        mc.cores = 15,
+        return_obj = TRUE,
+        verbose = TRUE
+    )
+
+dim(corr_counts)
+
+dim(mm_mets)
 
 stuff2 <-
     CreateSeuratObject(
@@ -438,6 +489,4 @@ stuff2 <-
 mm_mets_uncorr <-
     mm_mets %>%
     process_seurat()
-
-
 ```
