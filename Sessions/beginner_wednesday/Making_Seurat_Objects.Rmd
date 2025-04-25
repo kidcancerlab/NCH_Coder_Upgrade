@@ -1,0 +1,361 @@
+---
+title: "Creating additional Seurat Objects"
+output: html_notebook
+---
+
+# 4 h5ad datasets were downloaded from https://allen-brain-cell-atlas.s3.us-west-2.amazonaws.com/index.html#expression_matrices/WMB-10Xv2/20230630/. 
+#TH - thalamus, MB - midbrain, CTXsp - cortical subplate, HY - hypothalamus. 
+
+
+## Load libraries for analysis. 
+
+```{r}
+library(Seurat)
+
+library(anndata)
+
+library(tidyverse)
+
+library(biomaRt)
+
+library(SingleR)
+```
+
+## Create Seurat objects from the h5ad data. Preprocess each of the objects and downsample them. Each of the object is filtered using diferent filtering cutoffs. 
+
+```{r}
+ctx <- read_h5ad("~/Projects/2025_workshop/WMB-10Xv2-CTXsp-raw.h5ad")
+
+ctx_obj = CreateSeuratObject(counts = t(as.matrix(ctx$X)), 
+                             
+  meta.data = ctx$obs, 
+  
+  min.features = 200, 
+  
+  min.cells = 3, 
+  
+  project = "CTX")
+
+ctx_obj <- PercentageFeatureSet(ctx_obj, pattern = "^mt", col.name = "percent.mt")
+
+hist(ctx_obj@meta.data$nFeature_RNA)
+
+hist(ctx_obj@meta.data$nCount_RNA)
+
+hist(ctx_obj@meta.data$percent.mt)
+
+ctx_obj <- subset(ctx_obj, subset = nFeature_RNA > 500 &
+                    
+  nCount_RNA < 20000 &
+    
+  percent.mt < 5) 
+
+ctx_obj <- NormalizeData(ctx_obj, 
+                        
+  normalization.method = "LogNormalize", 
+  
+  scale.factor = 10000)
+
+ctx_obj <- FindVariableFeatures(ctx_obj, 
+                                
+  selection.method = "vst", 
+  
+  nfeatures = 2000)
+
+ctx_obj <- ScaleData(ctx_obj, features = rownames(ctx_obj))
+
+ctx_obj <- RunPCA(ctx_obj, features = VariableFeatures(object = ctx_obj))
+
+ctx_obj <- FindNeighbors(ctx_obj, dims = 1:10)
+
+ctx_obj <- FindClusters(ctx_obj, resolution = 0.1)
+
+ctx_obj <- RunUMAP(ctx_obj, dims = 1:10)
+
+DimPlot(ctx_obj)
+
+ctx_obj_subset <- subset(ctx_obj, downsample = 200)
+
+DimPlot(ctx_obj_subset)
+
+saveRDS(ctx_obj_subset, "ctx_obj_downsampled.rds")
+```
+
+## Repeat with the MB object. 
+
+```{r}
+mb <- read_h5ad("~/Projects/2025_workshop/WMB-10Xv2-MB-raw.h5ad")
+
+mb_obj <- CreateSeuratObject(counts = t(as.matrix(mb$X)), 
+                             
+  meta.data = mb$obs, 
+  
+  min.features = 200, 
+  
+  min.cells = 3, 
+  
+  project = "MB")
+
+mb_obj <- PercentageFeatureSet(mb_obj, pattern = "^mt", col.name = "percent.mt")
+
+hist(mb_obj@meta.data$nFeature_RNA)
+
+hist(mb_obj@meta.data$nCount_RNA)
+
+hist(mb_obj@meta.data$percent.mt)
+
+mb_obj <- subset(mb_obj, subset = nFeature_RNA > 500 &
+                   
+  nCount_RNA < 20000 &
+    
+  percent.mt < 5)
+
+mb_obj <- NormalizeData(mb_obj, 
+                        
+  normalization.method = "LogNormalize", 
+  
+  scale.factor = 10000)
+
+mb_obj <- FindVariableFeatures(mb_obj, 
+                              
+  selection.method = "vst", 
+  
+  nfeatures = 2000)
+
+mb_obj <- ScaleData(mb_obj, features = rownames(mb_obj))
+
+mb_obj <- RunPCA(mb_obj, features = VariableFeatures(object = mb_obj))
+
+mb_obj <- FindNeighbors(mb_obj,  dims = 1:10)
+
+mb_obj <- FindClusters(mb_obj, resolution = 0.1)
+
+mb_obj <- RunUMAP(mb_obj, dims = 1:10)
+
+DimPlot(mb_obj)
+
+mb_obj_subset <- subset(mb_obj, downsample = 200)
+
+DimPlot(mb_obj_subset)
+
+saveRDS(mb_obj_subset, "mb_obj_downsampled.rds")
+```
+
+## Repeat with the HY object. 
+
+```{r}
+hy <- read_h5ad("~/Projects/2025_workshop/WMB-10Xv2-HY-raw.h5ad")
+
+hy_obj <- CreateSeuratObject(counts = t(as.matrix(hy$X)), 
+                            
+  meta.data = hy$obs, 
+  
+  min.features = 200, 
+  
+  min.cells = 3, 
+  
+  project = "HY")
+
+hy_obj <- PercentageFeatureSet(hy_obj, pattern = "^mt", col.name = "percent.mt")
+
+hist(hy_obj@meta.data$nFeature_RNA)
+
+hist(hy_obj@meta.data$nCount_RNA)
+
+hist(hy_obj@meta.data$percent.mt)
+
+hy_obj <- subset(hy_obj, subset = nFeature_RNA > 500 &
+                   
+  nCount_RNA < 20000 &
+    
+  percent.mt < 5)
+
+hy_obj <- NormalizeData(hy_obj, 
+                        
+  normalization.method = "LogNormalize", 
+  
+  scale.factor = 10000)
+
+hy_obj <- FindVariableFeatures(hy_obj, 
+                               
+  selection.method = "vst", 
+  
+  nfeatures = 2000)
+
+hy_obj <- ScaleData(hy_obj, features = rownames(hy_obj))
+
+hy_obj <- RunPCA(hy_obj, 
+                
+  features = VariableFeatures(object = hy_obj))
+
+hy_obj <- FindNeighbors(hy_obj, dims = 1:10)
+
+hy_obj <- FindClusters(hy_obj, resolution = 0.1)
+
+hy_obj <- RunUMAP(hy_obj, dims = 1:10)
+
+DimPlot(hy_obj)
+
+hy_obj_subset <- subset(hy_obj, downsample = 200)
+
+DimPlot(hy_obj_subset)
+
+saveRDS(hy_obj_subset, "hy_obj_downsampled.rds")
+```
+
+## Repeat with the TH specimen. 
+
+```{r}
+th <- read_h5ad("~/Projects/2025_workshop/WMB-10Xv2-TH-raw.h5ad")
+
+th_obj <- CreateSeuratObject(counts = t(as.matrix(th$X)), 
+                            
+  meta.data = th$obs, 
+  
+  min.features = 200, 
+  
+  min.cells = 3, 
+  
+  project = "TH")
+
+th_obj <- PercentageFeatureSet(th_obj, pattern = "^mt", col.name = "percent.mt")
+
+hist(th_obj@meta.data$nFeature_RNA)
+
+hist(th_obj@meta.data$nCount_RNA)
+
+hist(th_obj@meta.data$percent.mt)
+
+VlnPlot(th_obj, features <- c("percent.mt", "n_FeatureRNA", "n_CountRNA"))
+
+th_obj <- subset(th_obj, subset = nFeature_RNA > 500 &
+                   
+  nCount_RNA < 30000 &
+    
+  percent.mt < 5)
+
+th_obj <- NormalizeData(th_obj, 
+                        
+  normalization.method = "LogNormalize", 
+  
+  scale.factor = 10000)
+
+th_obj <- FindVariableFeatures(th_obj, 
+                              
+  selection.method = "vst", 
+  
+  nfeatures = 2000)
+
+th_obj <- ScaleData(th_obj, features = rownames(th_obj))
+
+th_obj <- RunPCA(th_obj, features = VariableFeatures(object = th_obj))
+
+th_obj <- FindNeighbors(th_obj, dims = 1:10)
+
+th_obj <- FindClusters(th_obj, resolution = 0.1)
+
+th_obj <- RunUMAP(th_obj, dims = 1:10)
+
+DimPlot(th_obj)
+
+th_obj_subset <- subset(th_obj, downsample = 200)
+
+DimPlot(th_obj_subset)
+
+saveRDS(th_obj_subset, "~/Projects/2025_workshop/th_obj_downsampled.rds")
+```
+
+## Read in thw downsampled objects and convert Ensembl IDs to Gene Symbols. 
+
+```{r}
+ctx_obj_subset <- readRDS("ctx_obj_downsampled.rds")
+
+mb_obj_subset <- readRDS("mb_obj_downsampled.rds")
+
+hy_obj_subset <- readRDS("hy_obj_downsampled.rds")
+
+th_obj_subset <- readRDS("th_obj_downsampled.rds")
+```
+
+## Process the objects. 
+
+```{r}
+list_new <-
+
+    list(ctx_obj_subset, mb_obj_subset, hy_obj_subset, th_obj_subset)
+
+mart = useMart("ensembl")
+
+mart = useDataset("mmusculus_gene_ensembl", mart)
+
+new_list_obj <- list()
+
+for (item in list_new) {
+
+    matrix <-
+      
+        GetAssayData(item,
+
+                layer = "counts")
+
+    gene_symbol <-
+
+        biomaRt::getBM(attributes = c("ensembl_gene_id", "mgi_symbol"),
+
+                    filters = "ensembl_gene_id",
+
+                    values = rownames(matrix),
+
+                    mart = mart)
+
+    matrix_new <-
+
+        matrix %>%
+
+        as.data.frame() %>%
+
+        rownames_to_column(var = "ensembl_gene_id") %>%
+
+        left_join(gene_symbol) %>%
+
+        dplyr::group_by(mgi_symbol) %>%
+
+        slice_head(n=1) %>%
+
+        filter(!is.na(mgi_symbol)) %>%
+
+        filter(mgi_symbol != "") %>%
+
+        column_to_rownames(var = "mgi_symbol") %>%
+
+        dplyr::select(-ensembl_gene_id) %>%
+
+        as.matrix()
+
+    seurat_object <-
+
+        CreateSeuratObject(counts = matrix_new,
+
+                        meta.data = item@meta.data)
+
+    new_list_obj <-
+
+        append(new_list_obj,
+
+            list(seurat_object))    
+
+}
+```
+
+## Save the objects. 
+
+```{r}
+saveRDS(new_list_obj, "additional_objects.rds")
+```
+
+
+
+
+
+
+
