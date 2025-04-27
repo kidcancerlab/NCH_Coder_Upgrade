@@ -1,0 +1,783 @@
+---
+title: "Coder Upgrade 2025: Spatial Analysis"
+author: "Corinne Strawser"
+date: "2025-04-21"
+output:
+    html_document:
+        toc: true
+        toc_float: true
+        toc_depth: 5
+        number_sections: false
+        code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      cache = TRUE,
+                      cache.lazy = FALSE)
+
+# load libraries
+library(Seurat,
+        lib.loc = "/igm/apps/R/R-4.3.3_install/lib64/R/library/")
+library(tidyverse)
+dyn.load("/igm/apps/hdf5/hdf5-1.12.1/lib/libhdf5_hl.so.200")
+library("hdf5r")
+library(patchwork)
+library(qs)
+library(SPOTlight)
+library(spacexr)
+library(fgsea)
+library(msigdbr)
+library(data.table)
+
+# set random generator seed to facilitate reproducibility
+addTaskCallback(function(...) {set.seed(999);TRUE})
+
+# load some colors
+colorset <- 
+  c("#0166d8", "#ec102f", "#3aa609", "#6524ff", "#f8d147", "#5ce8ef", "#fd6ca0",
+    "#476ba5", "#fea27a", "#add465", "#b775e1", "#fe8f06", "#5cfdc4", "#feafda",
+    "#00228b", "#fd5925", "#166d2a", "#a90aa1", "#f3c011", "#5ac7dc", "#c1c2f5",
+    "#1f29a1", "#e13224", "#86ec5a", "#672396", "#e1c637", "#069668", "#fcb2c7",
+    "#1288da", "#c26a6b", "#6e9d50", "#1e0e76", "#fea53b", "#15729c", "#ffa8ff",
+    "#270fe2", "#8a1341", "#285d28", "#956bed", "#f79302", "#116966", "#d945c2",
+    "#94a6fd", "#e13219", "#01c472", "#afc6fe", "#e3c60b", "#aedfca", "#c2639f",
+    "#0e2450", "#6d1a44", "#91fc40", "#5858e1", "#fca283", "#1eefc9", "#fb2076", 
+    "#8bd0eb")
+
+# set directories
+session_path <- "/igm/home/cnh008/projects/scrgot/scrgot_2025/NCH_Coder_Upgrade/Sessions/adv_tuesday/"
+data_path <- "/igm/home/cnh008/projects/scrgot/scrgot_2025/workshop_data"
+setwd(session_path)
+```
+
+# Session Description
+
+This session will provide an introduction to 10X Visium spatial transcriptomics analysis with Seurat. We will also cover experimental design considerations and adaptability of this code to other spatial technologies.
+
+# Session Learning Objectives
+
+After completion, you should be able to load 10X Visium spatial transcriptomics data into Seurat, perform normalization and unsupervised clustering, identify spatially-defined tissue domains, integrate with scRNA-seq data (spot deconvolution), subset out regions of interest (ROI), and perform differential expression and gene set enrichment analyses. 
+
+# Section 1: Overview (advanced_tuesday.pptx)
+
+* What is spatial transcriptomics?
+* Benefits of spatial transcriptomics
+* Challenges of spatial transcriptomics
+* 10X Visium Technology
+* 10X Visium Data Requirements
+* 10X Visium Space Ranger Output
+* Today's Demo Data
+
+--------------------------------------------------------------------------------
+
+# Section 2: Load 10X Visium data
+
+Visium data can easily be loaded into Seurat using the spaceranger output directory. Load the B slice from the young mouse.
+
+```{r load_young_data}
+# load data
+young_b1 <-
+  Load10X_Spatial(data.dir = paste0(data_path, "/spatial/GSM5773454_Young_mouse_brain_B1-1/"),
+                  slice = "Young_B1")
+
+# look at data
+View(young_b1)
+```
+
+How is the Visium data organized in the Seurat object?
+
+* Spatial Assay (S4 object of class Assay5)
+  - layers: counts (cells x features)
+* Metadata (data frame)
+* Image with our given slice name (S4 object of class VisiumV1)
+  - image: hires or lowres image supplied to spaceranger
+  - scale.factors: scale factors used for mapping pixel positions 
+  - coordinates: tissue (1 = inside, 0 = outside), array position (col, row) and pixel position (imagecol, imagerow)
+  
+```{r modify_scale_factors}
+# this publically available data set, unfortunately, did not have a lowres image available, so we copied the hires image in. we can copy the hires scale.factors into the lowres scale.factors to make plotting easier down the road
+young_b1@images$Young_B1@scale.factors$lowres <- 
+  young_b1@images$Young_B1@scale.factors$hires
+```
+
+
+--------------------------------------------------------------------------------
+
+# Section 3: QC
+
+Are there differences in QC parameters based on anatomical differences?
+
+```{r qc_plots}
+# add % of reads mapping to mitochondrial genes as a measure of cell health
+young_b1[["percent.mt"]] <-
+  PercentageFeatureSet(object = young_b1, 
+                       pattern = "^Mt\\d")
+head(young_b1)
+
+# add mouse age to meta data
+young_b1$age <- "young"
+
+# add brain slice to meta data
+young_b1$slice <- "B"
+
+# make QC violin plots
+VlnPlot(object = young_b1,
+        features = c("nCount_Spatial",
+                     "nFeature_Spatial",
+                     "percent.mt"))
+
+# make QC spatial plots
+SpatialFeaturePlot(object = young_b1,
+                   features = c("nCount_Spatial",
+                                "nFeature_Spatial",
+                                "percent.mt"))
+# note, if we didn't adjust the scale factors we could have used the image.scale = "hires" argument
+```
+
+
+Yes, so standard log normalization, which forces each spot to have the save underlying size after normalization, may be inappropriate. SCTransform, which takes into account variation in number of molecules detected within each spot.
+
+--------------------------------------------------------------------------------
+
+# Section 4: Normalization, dimensionality reduction, and clustering 
+
+```{r young_normalization}
+young_b1 <-
+  SCTransform(object = young_b1,
+              assay = "Spatial",
+              vars.to.regress = "percent.mt",
+              return.only.var.genes = FALSE) 
+young_b1_clustered <-
+  RunPCA(object = young_b1,
+         npcs = 30) %>%
+  RunUMAP(dims = 1:30) %>%
+  FindNeighbors(k.parm = 30) %>%
+  FindClusters(resolution = 0.5)
+```
+
+# Section 5: Visualization
+
+```{r young_vis}
+# set a color palette
+colors <-
+  colorset[1:length(levels(young_b1_clustered))] 
+names(colors) <-
+  levels(young_b1_clustered)
+
+# plot clusters as a umap
+DimPlot(object = young_b1_clustered,
+        cols = colors)
+
+# plot as a spatial plot
+a <- 
+  SpatialDimPlot(object = young_b1_clustered,
+                 cols = colors) &
+  ggtitle("Default")
+
+# adjust point size parameter
+b <- 
+  SpatialDimPlot(object = young_b1_clustered,
+                 cols = colors,
+                 pt.size.factor = 2) &
+  ggtitle("pt.size.factor")
+
+# adjust image alpha parameter
+c <- 
+  SpatialDimPlot(object = young_b1_clustered,
+                 cols = colors,
+                 image.alpha = 0.5) &
+  ggtitle("image.alpha")
+
+# adjust spot alpha parameter
+d <-
+  SpatialDimPlot(object = young_b1_clustered,
+                 cols = colors,
+                 alpha = 0.4) &
+  ggtitle("alpha")
+
+(a+b)/(c+d)
+```
+
+--------------------------------------------------------------------------------
+
+# Activity 1:
+
+Let's look at the same slice from the old mouse
+
+## Load in old slice B and add a column to the meta data indicating it's from the old mouse and what slice it's from
+
+```{r load_old_data}
+old_b1 <-
+  Load10X_Spatial(data.dir = paste0(data_path, "/spatial/GSM5773458_Old_mouse_brain_B1-2/"),
+                  slice = "Old_B1")
+old_b1$age <- "old"
+old_b1$slice <- "B"
+
+old_b1@images$Old_B1@scale.factors$lowres <- 
+  old_b1@images$Old_B1@scale.factors$hires
+```
+
+## Does the old brain have a similar distribution of reads and percent of molecules mapping to mitochondrial genes?
+
+```{r qc_old}
+# calculate percent.mt
+old_b1[["percent.mt"]] <-
+  PercentageFeatureSet(object = old_b1, 
+                       pattern = "^Mt\\d")
+
+# make QC violin plots
+VlnPlot(object = young_b1,
+        group.by = "orig.ident",
+        features = c("nCount_Spatial",
+                     "nFeature_Spatial",
+                     "percent.mt")) 
+
+VlnPlot(object = old_b1,
+        features = c("nCount_Spatial",
+                     "nFeature_Spatial",
+                     "percent.mt"))
+
+# make QC spatial plots
+SpatialFeaturePlot(object = young_b1_clustered,
+                   features = c("nCount_Spatial",
+                                "nFeature_Spatial",
+                                "percent.mt"))
+
+SpatialFeaturePlot(object = old_b1,
+                   features = c("nCount_Spatial",
+                                "nFeature_Spatial",
+                                "percent.mt"))
+```
+
+## Perform normalization, dimensionality reduction, and clustering.
+
+```{r old_normalization}
+old_b1 <-
+  SCTransform(object = old_b1,
+              assay = "Spatial",
+              vars.to.regress = "percent.mt",
+              return.only.var.genes = FALSE)
+old_b1_clustered <-
+  RunPCA(object = old_b1,
+         npcs = 30) %>%
+  RunUMAP(dims = 1:30) %>%
+  FindNeighbors(k.parm = 30) %>%
+  FindClusters(resolution = 0.5)
+
+DimPlot(object = old_b1_clustered,
+        cols = colors)
+
+SpatialDimPlot(object = old_b1_clustered,
+               cols = colors)
+```
+
+--------------------------------------------------------------------------------
+
+# Sidebar: There are many other ways to cluster your spatial data! 
+
+Some other popular methods you might want to look at:
+1. BANKSY: https://doi.org/10.1038/s41588-024-01664-3 & https://github.com/prabhakarlab/Banksy
+2. BayesSpace: https://doi.org/10.1038/s41587-021-00935-2 & https://github.com/edward130603/BayesSpace
+3. GraphST: https://doi.org/10.1038/s41467-023-36796-3 & https://github.com/JinmiaoChenLab/GraphST
+
+--------------------------------------------------------------------------------
+
+# Section 6: Identify spatially variable features using cluster identities
+
+```{r spatial_features}
+# prep for DEG analysis
+young_b1_clustered <-
+  NormalizeData(object = young_b1_clustered,
+                assay = "Spatial") %>%
+  ScaleData(return.only.var.genes=FALSE,
+            assay = "Spatial")
+
+# make a vector of genes we're interested in
+bad_genes <-
+  c(rownames(young_b1_clustered)[str_ends(string = rownames(young_b1_clustered), 
+                                          pattern = "Rik")],
+    rownames(young_b1_clustered)[str_starts(string = rownames(young_b1_clustered),
+                                            pattern = "Gm[:digit:]")])
+genes_we_like <-
+  rownames(young_b1_clustered)[!rownames(young_b1_clustered) %in% bad_genes]
+
+# perform DE analysis on clusters
+Idents(young_b1_clustered) <- "seurat_clusters"
+DefaultAssay(young_b1_clustered) <- "Spatial"
+cluster_markers <-
+  FindAllMarkers(object = young_b1_clustered,
+                 only.pos = TRUE,
+                 features = genes_we_like,
+                 min.pct = 0.1,
+                 logfc.threshold = 0.2)
+
+# make a dot plot of top 3 genes (by adjusted p value) per cluster
+top3_genes <-
+  cluster_markers %>%
+  filter(p_val_adj <= 0.05) %>%
+  group_by(cluster) %>%
+  slice_min(order_by = p_val_adj,
+            n = 50) %>%
+  slice_max(order_by = avg_log2FC,
+            n = 3) %>%
+  pull(gene) %>%
+  unique()
+DotPlot(object = young_b1_clustered,
+        features = top3_genes) &
+  scale_color_continuous(type = "viridis") &
+  theme(axis.text.x = element_text(angle = 45,
+                                   hjust = 1,
+                                   vjust = 1))
+
+# make a spatial feature plot of top gene (by adjusted p value and avg_log2FC) per cluster
+top1_gene <-
+  cluster_markers %>%
+  filter(p_val_adj <= 0.05) %>%
+  group_by(cluster) %>%
+  slice_min(order_by = p_val_adj,
+            n = 50) %>%
+  slice_max(order_by = avg_log2FC,
+            n = 1) %>%
+  pull(gene) %>%
+  unique()
+SpatialFeaturePlot(object = young_b1_clustered,
+                   features = top1_gene,
+                   pt.size.factor = 2)
+```
+
+--------------------------------------------------------------------------------
+
+# Section 7: Merge young and old mouse data
+
+```{r merge_data}
+# make a list of the data to integrate
+obj_list <-
+  list("Young_B1" = young_b1,
+       "Old_B1" = old_b1)
+
+# merge normalized, but not clustered objects
+spatial <-
+  merge(x = obj_list[[1]],
+        y = obj_list[2:length(obj_list)],
+        add.cell.ids = names(obj_list))
+
+View(spatial)
+
+# notice we have two layers called counts in the spatial assay and two models in the SCT assay 
+
+# select variable genes from both objects by ranking the features by the number of datasets they are deemed variable in, breaking ties by the median variable feature rank across datasets
+var_feats <-
+  SelectIntegrationFeatures(object = obj_list,
+                            nfeatures = 4000)
+VariableFeatures(object = spatial) <- var_feats
+
+# perform dimensionality reduction and clustering
+DefaultAssay(object = spatial) <- "SCT"
+spatial <- 
+  spatial %>%
+  RunPCA(assay = "SCT",
+         npcs = 30) %>%
+  RunUMAP(dims = 1:30) %>%
+  FindNeighbors(k.parm = 30) %>%
+  FindClusters(res = 0.6,
+               assay = "SCT")
+
+# join Spatial data layers
+spatial <- 
+  JoinLayers(object = spatial,
+             assay = "Spatial")
+
+# normalize and scale Spatial slot
+spatial <-
+  NormalizeData(object = spatial,
+                assay = "Spatial") %>%
+  ScaleData(assay = "Spatial",
+            features = rownames(spatial))
+
+# what do our clusters look like now?
+cluster_colors <-
+  colorset[1:length(levels(spatial$seurat_clusters))]
+names(cluster_colors) <-
+  levels(spatial$seurat_clusters)
+SpatialDimPlot(object = spatial,
+               group.by = "seurat_clusters",
+               cols = cluster_colors,
+               pt.size.factor = 2)
+
+# do we have any batch effects?
+DimPlot(object = spatial,
+        group.by = c("age","seurat_clusters"),
+        cols = c(c("young" = "#4deeea",
+                   "old" = "#fb2076"),
+                 cluster_colors))
+
+# not too shabby!!
+```
+
+--------------------------------------------------------------------------------
+
+# Section 8: Perform spot deconvolution
+
+```{r deconvolution}
+# load in reference data
+ref <-
+  qread(file = paste0(data_path, "/mouse_brain_ref_data.qs"))
+
+# take a look at the data
+head(ref@meta.data)
+DimPlot(object = ref,
+        group.by = "cell_type")
+
+# spacexr doesn't like labels with "/" in it, so let's change that
+ref$cell_type <-
+  gsub(pattern = "/", 
+       replacement = "-", 
+       x = ref$cell_type)
+
+# create the spacexr reference object
+spacexr_reference <-
+    spacexr::Reference(counts = GetAssayData(object = ref, 
+                                             layer = "counts"),
+                       cell_types = as.factor(ref$cell_type))
+
+# get x and y coordinates for our visium data
+coords <- 
+  rbind(GetTissueCoordinates(object = spatial, 
+                             image = "Young_B1"),
+        GetTissueCoordinates(object = spatial, 
+                             image = "Old_B1")) %>%
+  dplyr::select(!cell)
+
+# create the spacexr data object
+my_data <- 
+  spacexr::SpatialRNA(coords = coords,
+                      counts = GetAssayData(object = spatial, 
+                                            layer = "counts",
+                                            assay = "Spatial"))
+
+# create the rctd object 
+rctd_obj <- 
+  spacexr::create.RCTD(spatialRNA = my_data, 
+                       reference = spacexr_reference,
+                       CELL_MIN_INSTANCE = 1, # minimum number of cells required per cell type (default = 25)
+                       fc_cutoff = 0.25, # minimum log-fold-change (across cell types) for genes to be included in the platform effect normalization step (default = 0.5)
+                       UMI_min = 10) # minimum UMI per pixel included in the analysis (default = 100)
+
+# run RCTD
+rctd_out <- 
+  spacexr::run.RCTD(RCTD = rctd_obj, 
+                    doublet_mode = "full") # default is "doublet" which fits at most two cell types per pixel, full is any number
+
+# normalize the cell type proportions to sum to 1
+norm_weights <- 
+  spacexr::normalize_weights(weights = rctd_out@results$weights)
+
+head(norm_weights)
+
+# add the deconvolution weights to the visium meta data 
+spatial <- 
+  AddMetaData(object = spatial, 
+              metadata = norm_weights)
+
+head(spatial@meta.data)
+```
+
+# Activity 2:
+
+Use some of the spatial plotting functions to look at the deconvolution weight of some of the reference cell types in the brain. Are any of them spatially-conserved?
+
+Does the old mouse brain have more of any of the cell types compared to the young brain?
+
+```{r deconvolution_visualization}
+SpatialFeaturePlot(object = spatial,
+                   features = "Oligo")
+```
+
+```{r cell_type_comparison}
+spatial@meta.data %>%
+  dplyr::select(age, unique(ref$cell_type)) %>%
+  pivot_longer(cols = !age,
+               values_to = "deconvolution_weight",
+               names_to = "cell_type") %>% 
+  ggplot(aes(y = deconvolution_weight,
+             x = age,
+             color = age)) +
+  geom_point(alpha = 0.2,
+             position = position_jitter(width = 0.1)) +
+  geom_boxplot(alpha = 0) +
+  facet_wrap(~cell_type) +
+  scale_y_continuous(expand = c(0,NA)) +
+  scale_color_manual(values = c("young" = "#4deeea",
+                                "old" = "#fb2076")) +
+  theme_bw()
+```
+
+--------------------------------------------------------------------------------
+
+# Section 9: Visualize spot deconvolution with SPOTlight
+
+```{r spotlight}
+split <- 
+  SplitObject(spatial, 
+              split.by = "age")
+
+celltype_colors <-
+  colorset[1:length(unique(ref$cell_type))]
+names(celltype_colors) <- 
+  levels(ref$cell_type)
+
+scatterpies <- list()
+for (age in names(split)){
+  spe <- split[[age]]
+  mat <- 
+    spe@meta.data[,unique(ref$cell_type)]
+  # reduce anything less than 10% to 0
+  mat[mat < 0.1] <- 0
+  Idents(spe) <- 
+    rownames(spe@meta.data)
+  DefaultAssay(spe) <- "Spatial"
+  spe <- 
+    GetTissueCoordinates(spe)[,c("x","y")]
+  dim <-
+    spe %>%
+    as.data.frame()
+  scatterpies[[age]] <-
+    plotSpatialScatterpie(
+      x = spe,
+      y = mat,
+      cell_types = colnames(mat),
+      img = FALSE,
+      scatterpie_alpha = 0.8,
+      pie_scale = 0.3) +
+      scale_y_reverse() +
+      scale_fill_manual(values = celltype_colors,
+                        breaks = names(celltype_colors)) +
+      theme(text = element_text(size = 14)) +
+      ggtitle(age) +
+      theme(plot.title = element_text(hjust = 0.5)) +
+      coord_fixed(ratio = 0.75)
+}
+
+wrap_plots(scatterpies)
+```
+
+--------------------------------------------------------------------------------
+
+# Section 10: Are specific clusters made up of specific cell types?
+
+```{r cluster_celltypes}
+deconv_mat <-
+  spatial@meta.data %>%
+  dplyr::select(seurat_clusters, unique(ref$cell_type)) %>%
+  pivot_longer(cols = !c(seurat_clusters),
+               values_to = "deconvolution_weight",
+               names_to = "cell_type") %>%
+  group_by(seurat_clusters, cell_type) %>%
+  summarize(mean = mean(deconvolution_weight, na.rm = T)) %>%
+  pivot_wider(names_from = cell_type,
+              values_from = mean) %>%
+  column_to_rownames(var = "seurat_clusters") %>%
+  t()
+
+pheatmap::pheatmap(mat = deconv_mat,
+                   color = colorRampPalette(c("navy", "white","red"))(100),
+                   main = "Deconvolution\nWeight",
+                   scale = "row")
+```
+
+--------------------------------------------------------------------------------
+
+# Section 11: Subset regions of interest
+
+Let's look at the distribution of cells within the isocortex.
+
+```{r subsetting_regions}
+# which clusters roughly make up the isocortex?
+SpatialDimPlot(object = spatial,
+               group.by = "seurat_clusters",
+               cols = cluster_colors,
+               pt.size.factor = 2,
+               label = T,
+               label.box = T,
+               repel = T)
+
+# subset to those clusters
+Idents(spatial) <- "seurat_clusters"
+isocortex <-
+  subset(spatial, 
+         seurat_clusters %in% c("1","5"))
+
+# look at distribution of cell types within this region
+isocortex@meta.data %>%
+  dplyr::select(age, unique(ref$cell_type)) %>%
+  pivot_longer(cols = !age,
+               values_to = "deconvolution_weight",
+               names_to = "cell_type") %>% 
+  ggplot(aes(x = deconvolution_weight,
+             y = cell_type)) +
+  geom_point(color = "grey",
+             position = position_jitter(height = 0.2),
+             alpha = 0.5) +
+  geom_boxplot(alpha = 0) +
+  scale_x_continuous(expand = c(0,NA)) +
+  theme_bw()
+
+# is it different between old and young mice?
+isocortex@meta.data %>%
+  dplyr::select(age, unique(ref$cell_type)) %>%
+  pivot_longer(cols = !age,
+               values_to = "deconvolution_weight",
+               names_to = "cell_type") %>% 
+  ggplot(aes(y = deconvolution_weight,
+             x = age,
+             color = age)) +
+  geom_point(alpha = 0.5) +
+  geom_boxplot(alpha = 0) +
+  facet_wrap(~cell_type) +
+  scale_y_continuous(expand = c(0,NA)) +
+  scale_color_manual(values = c("young" = "#4deeea",
+                                "old" = "#fb2076")) +
+  theme_bw()
+
+# other ways to pick spots:
+
+# interactive spatial plotting to pick coordinates
+SpatialDimPlot(object = spatial,
+               pt.size.factor = 2,
+               interactive = T,
+               images = "Young_B1")
+SpatialDimPlot(object = spatial,
+               pt.size.factor = 2,
+               interactive = T,
+               images = "Old_B1")
+spatial <-
+  AddMetaData(object = spatial,
+              metadata = coords)
+spots_to_keep <- 
+  WhichCells(isocortex, 
+             expression = seurat_clusters == 3 & y < 11000 & x > 4000)
+  
+
+# loupe browser
+
+```
+
+--------------------------------------------------------------------------------
+
+# Section 12: Perform Differential Expression (DE) Analysis
+
+Let's look at genes that are differentially expressed in the isocortex of the young and old mouse brain 
+
+```{r de}
+isocortex_degs <-
+  FindMarkers(object = isocortex,
+              ident.1 = "old",
+              ident.2 = "young",
+              group.by = "age",
+              min.pct = 0.1,
+              logfc.threshold = 0.25,
+              assay = "Spatial",
+              features = genes_we_like) %>%
+  rownames_to_column(var = "gene")
+
+View(isocortex_degs)
+
+SpatialFeaturePlot(object = isocortex,
+                   features = "Ttr")
+```
+
+--------------------------------------------------------------------------------
+
+# Section 13: Perform Gene Set Enrichment Analysis (GSEA)
+
+Let's look at pathways that are differentially regulated in the young vs. old isocortex 
+
+```{r gsea}
+# set up genesets
+go_bp <- 
+  msigdbr(species = "Mus musculus",
+          category = "C5",
+          subcategory = "GO:BP") %>% 
+  split(x = .$gene_symbol,
+        f = .$gs_name)
+hallmark <- 
+  msigdbr(species = "Mus musculus",
+          category = "H") %>% 
+  split(x = .$gene_symbol,
+        f = .$gs_name)
+genesets <- 
+  c(go_bp, hallmark)
+
+# subset to significant degs only
+isocortex_degs_sig <- 
+  isocortex_degs %>%
+  filter(p_val_adj <= 0.05)
+
+# perform gsea
+gsea_ranks <- 
+  isocortex_degs_sig %>%
+  arrange(desc(avg_log2FC)) %>%
+  dplyr::select(gene, avg_log2FC) %>%
+  deframe()
+gsea_res <- 
+  fgseaMultilevel(genesets,
+                  gsea_ranks,
+                  minSize = 15,
+                  maxSize = 500) %>%
+      arrange(padj) # save with fwrite
+
+# make GSEA dotplot
+gsea_res_small <- 
+  gsea_res %>%
+  filter(padj <= 0.2) %>%
+  slice_min(order_by = padj,
+            n = 20,
+            with_ties = F) %>%
+  mutate(type = ifelse(test = NES < 0,
+                       yes = "downregulated",
+                       no = "upregulated"),
+         NES = abs(NES),
+         pathway = gsub(pattern = "_",
+                        replacement = " ",
+                        x = pathway)) %>%
+  filter(!is.na(pathway),
+         !is.na(padj)) 
+
+ggplot(gsea_res_small,
+       aes(x = NES,
+           y = fct_reorder(pathway, NES))) + 
+  geom_point(aes(size = size,
+                 color = padj)) +
+  scale_color_gradient2(high = "#762A83",
+                        mid = "#f7f7f7",
+                        low = "#1B7837",
+                        midpoint = 0.05) +
+  ylab(NULL) +
+  xlab("Absolute Value NES") +
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 50)) +
+  ggtitle("Isocortex GSEA") +
+  theme_bw(base_size = 11) +
+  facet_grid(.~type) +
+  theme(plot.title = element_text(hjust=0.5, 
+                                  face="bold"),
+        strip.background = element_rect(fill = "white")) 
+```
+
+--------------------------------------------------------------------------------
+
+# Section 14: Experimental Design Considerations (advanced_tuesday.pptx)
+
+--------------------------------------------------------------------------------
+
+# Section 15: Adapting to Other Technologies
+
+There are new spatial technologies and analytical tools coming out all the time! We've successfully implemented workflows similar to that presented above for Bruker (Nanostring) GeoMx data, Takara (Curio) Trekker data, and 10X Visium HD data. Some modifications are necessary for GeoMx and HD data.
+
+1. For GeoMx data, you can make use of GeomxTools and this vignette as a starting point: https://www.bioconductor.org/packages/release/bioc/vignettes/GeomxTools/inst/doc/GeomxSet_coercions.html
+2. For Trekker data, the output of their nextflow pipeline is a Seurat object, so no coercion necessary.
+3. For Visium HD data, you need to specify bin size and likely need to use Sketch-based approaches. This vignette is a good starting point: https://satijalab.org/seurat/articles/visiumhd_analysis_vignette
+
+# Session Challege: 
+
+Load in slice D from both the young and old mouse. Look at cell type distribution in the hippocampal formation. Perform differential expression analysis between old and young mice.
