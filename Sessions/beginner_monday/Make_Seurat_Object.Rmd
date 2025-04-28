@@ -1,0 +1,81 @@
+---
+title: "Make Seurat Object"
+author: Elizabeth Garfinkle
+output: html_document
+date: "2025-05-05"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Load libraries
+We need to load the Seurat library and the tidyverse library which contains ggplot2 for plotting and dplyr for data frame manipulation
+```{r}
+library(Seurat)
+library(tidyverse)  # This package contains ggplot2 and dplyr
+```
+
+#Set working directory
+```{r}
+setd("")
+```
+
+#Read 10X data
+First, read in the filtered feature matrix output files via the Read10X Seurat function
+We will start with reading in just one sample, OX1X, and call it ox1x_raw
+```{r}
+ox1x_raw <- 
+  Read10X("input/scRNA/GSM6925133_OX1X")
+```
+
+#Make Seurat object
+Now we will make a Seurat object via the CreateSeuratObject Seurat function from the data we just read in that we named ox1x_raw and call it ox1x_sobj
+We also set two standard filters:
+min.cells = 3 
+  Here, we are filtering out any genes that are detected in fewer than 3 cells to   remove genes that are likely not expressed in a meaningful way
+min.features = 200 
+  Here, we are filtering out any cells that have less than 200 features (genes)    detected, which could indicate poor quality or dying cells
+Both of these filters minimize noise/poor quality data for downstream analyses
+```{r}
+ox1x_sobj <-
+    CreateSeuratObject(
+        counts = ox1x_raw,
+        min.cells = 3,
+        min.features = 200
+    )
+```
+
+#Rename sample 
+By default, the orig.ident (original ident, aka original sample name) is the name that is assigned when making the Seurat object. Often, this name is short/easy to type but we may want a more meaningful/longer name when making plots for figures or publications. Here, we can reassign the orig.ident to have a more descriptive name. 
+The use of the $ sign means you are accessing a metadata slot. 
+```{r}
+ox1x_sobj$orig.ident <- "GSM6925133_OX1X"
+```
+
+#Save Seurat object
+We will now save our newly made Seurat object usign the qsave function. The object name you want to save is listed first and then the output file path and name you want to save the object as is listed in quotes. By default, the object will save in your current working directory (important to know what that is at all times!). If you want to save it in a subfolder within your current working directory, you can add the file path before the final name of the saved object. Use .qs to save the final object. 
+```{r}
+qsave(ox1x_sobj, "output/rdata_premade/OX1X_sobj.qs")
+```
+
+#Remove data and Seurat object
+Now that we have saved our object, we can remove the data and object in our Environment using rm.
+```{r}
+rm(ox1x_raw, ox1x_sobj)
+```
+
+#We can read in our saved object any time for additional analyses using the qread function. 
+```{r}
+ox1x_sobj <-
+    qread("output/rdata_premade/OX1X_sobj.qs")
+```
+
+#Challenge: 
+Make a Seurat object from an additional sample in our data set, GSM6925134_OX2X, and call it ox2x_sobj. After you make the Seurat object, remove both ox1x_sobj and ox2x_sobj from your Environment. 
+
+Write and run your code here:
+```{r}
+
+```
+
