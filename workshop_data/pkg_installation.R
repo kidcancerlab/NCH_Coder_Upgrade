@@ -5,7 +5,7 @@
 # We needed to put LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib in environment
 # We also increased /tmp to around 30G
 
-# install with: dzdo Rscript test_install.R
+# install with: dzdo Rscript pkg_installation.R
 
 # Need to add /usr/local/lib to LD_LIBRARY_PATH so RCurl can find libiconv
 # When running this script with dzdo the LD_LIBRARY_PATH isn't the same as my version
@@ -42,7 +42,9 @@ bioc_dependencies <-
         "BiocGenerics",
         "limma",
         "ComplexHeatmap",
-        "ensembldb"
+        "ensembldb",
+        "SPOTlight",
+        "biomaRt"
     )
 
 needed_packages_cran <-
@@ -72,7 +74,8 @@ needed_packages_cran <-
         "Signac",
         "testthat",
         "tidyverse",
-        "terra"
+        "terra",
+        "anndata"
     )
 
 pak::pkg_install(
@@ -92,7 +95,8 @@ github_packages <-
         "drieslab/Giotto",
         "10xGenomics/loupeR",
         "jinworks/CellChat",
-        "immunogenomics/crescendo"
+        "immunogenomics/crescendo",
+        "dmcable/spacexr"
     )
 
 pak::pkg_install(
