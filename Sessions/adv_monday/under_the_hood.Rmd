@@ -20,12 +20,9 @@ knitr::opts_chunk$set(
 )
 ```
 
+# Preparation
 Run this first! (Start the download so that it's done by the time we start)
-Download an example dataset and extract to data/example
-```{r download}
-# Download the raw data that we will work with in the demo
-system("workshop_data/download_scrna.sh")
-```
+
 Load libraries
 ```{r libraries, cache=FALSE, warning=FALSE, error=FALSE, message=FALSE}
 library(rrrSingleCellUtils)
@@ -33,11 +30,29 @@ library(tidyverse)
 library(Seurat)
 ```
 
+Download an example dataset and create a Seurat object for the demo
+```{r download}
+# Download the raw data that we will work with in the demo
+if (!dir.exists("input/scRNA/GSM6925133_OX1X")) {
+  system("bash workshop_data/download_scrna.sh")
+}
+
+sobj <- Read10X("input/scRNA/GSM6925133_OX1X") %>%
+  CreateSeuratObject(min.cells = 3, min.features = 200)
+```
+
 Run a system check to make sure that you are ready to go
 ```{r system_check}
-if(
-  file.exists()
-)
+if (dir.exists("input/scRNA/GSM6925133_OX1X")) {
+  message("The raw data has been downloaded and unpacked...")
+  if (class(sobj) == "Seurat") {
+    message("and the Seurat object was created successfully. You're good to go!")
+  } else {
+    warning("The raw data was found, but the object could not be created. Check the raw data.")
+  }
+} else {
+  warning("The raw data was not successfully downloaded. Please try again")
+}
 ```
 --------------------------------------------------------------------------------
 
@@ -77,8 +92,8 @@ Three main types of objects in R
 
 ## Seurat objects are S4 objects
 ```{r}
-isS4(pbmc_small)
-class(pbmc_small)
+isS4(sobj)
+class(sobj)
 ```
 
 This is the code that defines a Seurat object
@@ -147,7 +162,7 @@ merge.Seurat <- function(
 - Can extend base R functions to work with objects of a certain type
 
 ```{r}
-str(pbmc_small)
+str(sobj)
 ```
 
 > Show ppt slide with Seurat object structure
@@ -159,7 +174,7 @@ There are only a handful of slots in a Seurat object
 But, each slot can contain objects, which then have their own slots
 
 ```{r}
-glimpse(pbmc_small)
+glimpse(sobj)
 ```
 
 Ends up looking really complex if you don't break it down by level
@@ -191,14 +206,14 @@ Ends up looking really complex if you don't break it down by level
 --------------------------------------------------------------------------------
 
 # Activity 1:
-Explore the pbmc_small Seurat object
+Explore the sobj Seurat object
 
-Type "pbmc_small@" in the console/terminal, then hit tab a few times to see the available slots
+Type "sobj@" in the console/terminal, then hit tab a few times to see the available slots
 ```{r}
 
 ```
 
-Type "pbmc_small$" in the console/terminal, then hit tab a few times to see the metadata column names
+Type "sobj$" in the console/terminal, then hit tab a few times to see the metadata column names
 ```{r}
 
 ```
@@ -249,7 +264,7 @@ Each element of the list is an assay object
 - misc = 'list'
 
 ```{r}
-class(pbmc_small@assays[[1]])
+class(sobj@assays[[1]])
 ```
 
 ## Navigating a Seurat object
@@ -266,11 +281,11 @@ Key concepts:
 
 ```{verbatim}
 obj            slot            list element     slot of "DimReduc" object
-pbmc_small     @reductions     $pca             @cell.embeddings
+sobj     @reductions     $pca             @cell.embeddings
 ```
 
 ```{r}
-pca_stuff <- pbmc_small@reductions$pca@cell.embeddings
+pca_stuff <- sobj@reductions$pca@cell.embeddings
 pca_stuff[1:10, 1:3]
 ```
 
@@ -336,22 +351,22 @@ This list is structured to make pulling out specific commands easier
 -  This in turn is a named list of arguments
 
 ```{r}
-pbmc_small@commands$FindVariableFeatures.RNA$nfeatures
+sobj@commands$FindVariableFeatures.RNA$nfeatures
 ```
 
 ```{verbatim}
 obj          slot       command                     argument
-pbmc_small   @commands  $FindVariableFeatures.RNA   $nfeatures
+sobj   @commands  $FindVariableFeatures.RNA   $nfeatures
 ```
 
 ## Other random manual bits
 Getting cell names and gene names
 
 ```{r}
-genes <- rownames(pbmc_small)
+genes <- rownames(sobj)
 head(genes)
 
-cells <- colnames(pbmc_small)
+cells <- colnames(sobj)
 head(cells)
 ```
 
@@ -360,7 +375,7 @@ Subsetting a Seurat object by row/column numbers
             genes        cells
 object_name[row_numbers, column_numbers]
 ```{r}
-subset_data <- pbmc_small[1:50, 1:20]
+subset_data <- sobj[1:50, 1:20]
 subset_data
 ```
 
@@ -408,21 +423,21 @@ The active idents is essentially the default metadata defining groups of cells
 
 Can specify either a metadata column name, or provide your own vector of values
 ```{r}
-Idents(pbmc_small) <- "letter.idents"
-table(Idents(pbmc_small))
+Idents(sobj) <- "letter.idents"
+table(Idents(sobj))
 
-Idents(pbmc_small) <- "this_is_not_a_real_column_in_the_data"
-table(Idents(pbmc_small))
+Idents(sobj) <- "this_is_not_a_real_column_in_the_data"
+table(Idents(sobj))
 
-Idents(pbmc_small) <- pbmc_small$letter.idents
-table(Idents(pbmc_small))
+Idents(sobj) <- sobj$letter.idents
+table(Idents(sobj))
 
-DimPlot(pbmc_small)
+DimPlot(sobj)
 ```
 
 ## Get list of cells
 ```{r}
-cells <- Cells(pbmc_small)
+cells <- Cells(sobj)
 head(cells)
 ```
 
@@ -437,30 +452,30 @@ Can convert to a matrix with `as.matrix()`
 Rownames are the gene names
 ```{r}
 my_data <-
-  LayerData(pbmc_small,
+  LayerData(sobj,
     assay = "RNA",
     layer = "counts"
   )
 
-LayerData(pbmc_small, layer = "counts")[1:5, 1:5] %>%
+LayerData(sobj, layer = "counts")[1:5, 1:5] %>%
   as.matrix()
 
-LayerData(pbmc_small, layer = "data")[1:5, 1:5] %>%
+LayerData(sobj, layer = "data")[1:5, 1:5] %>%
   as.matrix()
 
-LayerData(pbmc_small, layer = "scale.data")[1:5, 1:5] %>%
+LayerData(sobj, layer = "scale.data")[1:5, 1:5] %>%
   as.matrix()
 ```
 
 ## Drop new data into an object
 ```{r}
 raw_counts <-
-  LayerData(pbmc_small, layer = "counts") %>%
+  LayerData(sobj, layer = "counts") %>%
   as.matrix()
 
 bad_normalization <- raw_counts / colSums(raw_counts)
-pbmc_small_borked <-
-  SetAssayData(pbmc_small,
+sobj_borked <-
+  SetAssayData(sobj,
     layer = "data",
     new.data = bad_normalization
   )
@@ -470,21 +485,21 @@ pbmc_small_borked <-
 Can subset by cells, idents, features, gene expression, etc...
 ```{r}
 # Note that there is only one equal sign here
-just_a <- subset(pbmc_small, idents = "A")
+just_a <- subset(sobj, idents = "A")
 
 # But two equal signs here
-just_a <- subset(pbmc_small, letter.idents == "A")
+just_a <- subset(sobj, letter.idents == "A")
 
-a_cells <- WhichCells(pbmc_small, idents = "A")
+a_cells <- WhichCells(sobj, idents = "A")
 
-just_a <- subset(pbmc_small, cells = a_cells)
+just_a <- subset(sobj, cells = a_cells)
 
-high_cd19 <- subset(pbmc_small, subset = CD19 > 1)
+high_cd19 <- subset(sobj, subset = CD19 > 1)
 ```
 
 ## Calculate average expression per group
 ```{r}
-ave_expr <- AverageExpression(pbmc_small,
+ave_expr <- AverageExpression(sobj,
   assays = "RNA",
   group.by = "letter.idents"
 )$RNA
@@ -495,63 +510,63 @@ ave_expr[1:5, ]
 If adding a dataframe of metadata, need rownames of cell names
 When adding with "$", or passing a vector to `AddMetaData`, it doesn't check if cells match
 ```{r}
-pbmc_small$nonsense <-
+sobj$nonsense <-
   sample(LETTERS[1:5],
-    ncol(pbmc_small),
+    ncol(sobj),
     replace = TRUE
   )
 
 metadata_table <-
   data.frame(
     totally_true = sample(c("alive", "dead", "undead"),
-      ncol(pbmc_small),
+      ncol(sobj),
       replace = TRUE
     ),
     also_useful = sample(1:1000000,
-      ncol(pbmc_small),
+      ncol(sobj),
       replace = FALSE
     ),
-    row.names = colnames(pbmc_small)
+    row.names = colnames(sobj)
   )
 
-pbmc_small_plus <- AddMetaData(pbmc_small, metadata_table)
-head(pbmc_small_plus@meta.data)
+sobj_plus <- AddMetaData(sobj, metadata_table)
+head(sobj_plus@meta.data)
 
-pbmc_small_plus <- AddMetaData(pbmc_small_plus,
-  colnames(pbmc_small_plus),
+sobj_plus <- AddMetaData(sobj_plus,
+  colnames(sobj_plus),
   col.name = "cell_ids"
 )
-head(pbmc_small_plus@meta.data)
+head(sobj_plus@meta.data)
 ```
 
 ## Get PCA/UMAP/TSNE values
 ```{r}
-tsne_data <- Embeddings(pbmc_small, reduction = "tsne")
+tsne_data <- Embeddings(sobj, reduction = "tsne")
 
-pca_data <- Embeddings(pbmc_small, reduction = "pca")
+pca_data <- Embeddings(sobj, reduction = "pca")
 ```
 
 ## Get cell names for specific cells
 ```{r}
-high_cd79b <- WhichCells(pbmc_small, expression = CD79B > 2)
+high_cd79b <- WhichCells(sobj, expression = CD79B > 2)
 head(high_cd79b)
 
-group_b <- WhichCells(pbmc_small, idents = "B")
+group_b <- WhichCells(sobj, idents = "B")
 length(group_b)
 ```
 
 ## Get data for specific cells
 ```{r}
 high_cd79b_data <-
-  FetchData(pbmc_small,
-    vars = rownames(pbmc_small),
+  FetchData(sobj,
+    vars = rownames(sobj),
     cells = high_cd79b
   )
 
 high_cd79b_data[1:5, 1:5]
 
 high_cd79b_data <-
-  FetchData(pbmc_small,
+  FetchData(sobj,
     vars = c("groups", "letter.idents", "nonsense"),
     cells = high_cd79b
   )
@@ -561,8 +576,8 @@ head(high_cd79b_data)
 
 ## Save your Idents
 ```{r}
-pbmc_small <- StashIdent(pbmc_small, "my_idents")
-head(pbmc_small$my_idents)
+sobj <- StashIdent(sobj, "my_idents")
+head(sobj$my_idents)
 ```
 
 ## A quick note about on-disk processing
@@ -640,7 +655,7 @@ But, if you need to, you can!
 
 This should make a lot more sense now!
 ```{r}
-str(pbmc_small)
+str(sobj)
 ```
 
 --------------------------------------------------------------------------------
@@ -664,7 +679,7 @@ What is the length of this vector? How many cells are in the object?
 
 ```
 
-Use the `subset()` function to sub-sample the pbmc_small object down to those cells where letter.idents == "A"
+Use the `subset()` function to sub-sample the sobj object down to those cells where letter.idents == "A"
 ```{r}
 
 ```
