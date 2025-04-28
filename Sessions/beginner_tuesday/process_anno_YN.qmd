@@ -110,6 +110,10 @@ sobj <-
            subset = nCount_RNA < 15000 &
                     percent.mt < 20)
 
+sobj1 <-
+    process_seurat(sobj)
+DimPlot(sobj1) 
+
 # check the substetting
 hist(sobj$nCount_RNA,
      breaks = 100)
@@ -145,20 +149,10 @@ begins with "Rp" and is followed by either "s" or "l". The pattern for the hemog
 is "^Hb[ab]", which means that the gene name begins with "Hb" and is followed by either "a" or "b".
 
 ```{r activity1}
-sobj[["percent.ribo"]] <- 
-        PercentageFeatureSet(sobj, pattern = "^Rp[sl]")
 
-#check the metadata
-colnames(sobj@meta.data)
 
-sobj[["percent.hb"]] <- 
-        PercentageFeatureSet(sobj, pattern = "^Hb[ab]")
 
-# visualize the composition or distribution
-VlnPlot(sobj,
-        features = c("percent.mt",
-                     "percent.ribo",
-                     "percent.hb"))
+
 
 ```
 
@@ -252,29 +246,9 @@ Noisy genes may dominate
 
 ```{r activity2}
 # perform normalization using different method and check and comapre how the numbers change
-new_sobj <- 
-    NormalizeData(sobj,
-                  normalization.method = "CLR",
-                  scale.factor = 10000)
+
 
 # increase the variable features to 5000 and check the variable features, do the top 10 change?
-new_sobj <- 
-    FindVariableFeatures(new_sobj,
-                         selection.method = "vst",
-                         nfeatures = 5000)
-
-top10 <-
-        head(VariableFeatures(new_sobj),
-                10)
-
-Seurat::LabelPoints(plot = VariableFeaturePlot(new_sobj),
-                    points = top10,
-                    repel = TRUE)
-
-# perform scaling using all the genes
-new_sobj <- 
-        ScaleData(new_sobj,
-                  features = rownames(new_sobj))
 
 ```
 
@@ -288,11 +262,11 @@ Other visualization methods include `JackStraw` (slow) and `DimHeatmap`. Note th
 
 #### Run PCA ####
 sobj <-
-  RunPCA(sobj,
-         features = VariableFeatures(object = sobj))
+    RunPCA(sobj,
+          features = VariableFeatures(object = sobj))
 
 #### Elbow Plot ####
-# Note the elbow around PC ______________________________________
+# Note the elbow around PC 20
 # (more specifically, the PCs from above PC 20 show nearly no difference in y-axis 
 # value to that of PC 20). Thus, we will proceed with dims = 1:20.
 ElbowPlot(sobj,
@@ -300,26 +274,27 @@ ElbowPlot(sobj,
 
 ```
 
-# Cluster Single Cells.
-This portion includes two steps. The first, `FindNeighbors`, takes the principle components selected above and constructs a graph based on the euclidean distance from the PCA and finds the similarities between two cells based on overlap of their local neighborhoods. The selected PCs are defined in the `dims` parameter. 
+## Cluster Single Cells.
+This portion includes two steps. The first, `FindNeighbors`, takes the principle components selected above and constructs a graph based on the euclidean distance from the PCA and finds the similarities between two cells based on overlap of their local neighborhoods. The selected PCs are defined in the `dims` parameter.
+
 The second step, `FindClusters`, iteratively groups cells together with the ability to set the resolution, or granularity, of the clustering. The higher the resolution, the greater the number of clusters in the output.
 
 ```{r cluster}
 
 #### Find Neighbors ####
 sobj <-
-  FindNeighbors(sobj,
-                dims = 1:20)
+    FindNeighbors(sobj,
+                  dims = 1:20)
 
 #### Find Clusters ####
 # Low resolution (low number of clusters)
 sobj <-
-  FindClusters(sobj,
-               resolution = 0.2)
+    FindClusters(sobj,
+                resolution = 0.2)
 ```
 
-# Run Non-linear Dimensional Reduction (UMAP/tSNE)
-Using the same PCs and resolution as defined above, this step places similar cells together in a low-dimension (2D) space. Those cells calculated as co-localized in the clusters generated above should co-localize in the UMAP or tSNE space. Cells are colored by their cluster or identity class. As for differences between tSNE and UMAP, UMAP lowers the dimensions of the high dimensional graph from above using compression, whereas t-SNE moves the high  dimensional graph to a lower dimensional space points by points. Their parameters, thus, differ, but both can be used as graph-based methods for non-linear dimensional reduction. Neither is perfect, but UMAP tends to provide better balance between local versus global structure and is more time-effective. For more information, please see [Comparing UMAP vs t-SNE in Single-cell RNA-Seq Data Visualization, Simply Explained](https://blog.bioturing.com/2022/01/14/umap-vs-t-sne-single-cell-rna-seq-data-visualization/)and [Understanding UMAP](https://pair-code.github.io/understanding-umap/).
+## Run Non-linear Dimensional Reduction (UMAP/tSNE)
+Using the same PCs and resolution as defined above, this step places similar cells together in a low-dimension (2D) space. Those cells calculated as co-localized in the clusters generated above should co-localize in the UMAP or tSNE space. Cells are colored by their cluster or identity class. As for differences between tSNE and UMAP, UMAP lowers the dimensions of the high dimensional graph from above using compression, whereas t-SNE moves the high  dimensional graph to a lower dimensional space points by points. Their parameters, thus, differ, but both can be used as graph-based methods for non-linear dimensional reduction. Neither is perfect, but UMAP tends to provide better balance between local versus global structure and is more time-effective. For more information, please see [Understanding UMAP](https://pair-code.github.io/understanding-umap/).
 
 `RunTSNE()` is used, similarly to below, to acheive a TSNE plot.
 
@@ -328,13 +303,11 @@ Using the same PCs and resolution as defined above, this step places similar cel
 #### Run UMAP ####
 # Use the same dimensions as those in FindNeighbors()
 sobj <-
-  RunUMAP(sobj,
-          dims = 1:20)
-
-#### Plot UMAP ####
+    RunUMAP(sobj,
+            dims = 1:20,
+            metric = "euclidean")
 DimPlot(sobj,
         reduction = "umap")
-
 # Visualize cluster labels on UMAP
 ## Note: reduction parameter, if not specified, first searches for umap, then tsne, then pca
 ## By default, then, it will select whichever dimensional reduction method is used above,
@@ -343,142 +316,84 @@ DimPlot(sobj,
         label = TRUE,
         repel = TRUE)
 
+
+#run tSNE, a different method of dimensional reduction
+sobj <-
+    RunTSNE(sobj,
+            dims = 1:20,
+            metric = "euclidean")
+
+#### Plot UMAP and tSNE together ####
+DimPlot(sobj,
+        reduction = "umap") +
+    DimPlot(sobj,
+        reduction = "tsne")
+
+
+
 ```
 
-## Practice
+## Practice Activity 3
 
 Generate a tSNE plot with a higher clustering resolution of 1.0. (You do not need to rerun anything prior to FindClusters).
 
-```{r practice}
+```{r activity3}
 
-sobj <-
-  FindClusters(sobj,
-               resolution = 1.0)
 
-sobj <-
-  RunTSNE(sobj,
-          dims = 1:20)
 
-DimPlot(sobj,
-        reduction = "tsne")
+
 
 ```
-
-## Load in reference data 
-
-Load in the PBMC reference Seurat object to serve as the reference for cell typing. 
-
-
-This object has several different levels of granularity. For the examples, we will use `cell_type`.
-
-```{r ref_data}
-
-# Read in the reference Seurat object
-ref <-
-  qread("/Users/rcnxs010/Downloads/OneDrive_1_4-16-2025/mouse_brain_ref_data.qs")
-
-# Set the idents to cell_type so that we can examine which cell types are present in the dataset
-Idents(ref) <- "cell_type"
-
-# Visualize the reference dataset
-DimPlot(ref)
-
-DimPlot(ref,
-        group.by = "cell_type")
-
-```
-
-```{r annotate}
-
-# Find anchors between reference and query datasets
-anchors <-
-  FindTransferAnchors(reference = ref,
-                      query = sobj,
-                      dims = 1:30,
-                      reference.reduction = "pca")
-
-# Transfer anchors from reference dataset
-predictions <-
-  TransferData(anchorset = anchors,
-               refdata = ref$cell_type,
-               dims = 1:30)
-
-# Add query to metadata of Seurat object
-sobj <- AddMetaData(sobj,
-                    metadata = predictions) 
-
-# Rename "predicted.id" to "cell_types"
-sobj$cell_types <- sobj$predicted.id
-
-# Set active identity to new cell type labels and visualize typed clusters via DimPlot
-Idents(sobj) <- sobj$cell_types
-DimPlot(sobj,
-        reduction = "umap")
-
-# Tally number of cells in each cell type 
-table(sobj$cell_types)
-
-```
-
-## Practice 2
-
-Now annotate the dataset using `neighborhood_label` instead of `cell_type`.
-
-```{r annotate}
-
-# Transfer anchors 
-predictions2 <- TransferData(anchorset = anchors,
-                             refdata = ref$neighborhood_label,
-                             dims = 1:30)
-
-# Add query to metadata of Seurat object 
-sobj <- AddMetaData(sobj,
-                    metadata = predictions2) 
-
-# Rename "predicted.id" to "cell_types"
-sobj$cell_types2 <- sobj$predicted.id
-
-# Set active identity to new cell type labels and visualize typed clusters via DimPlot
-DimPlot(sobj,
-        reduction = "umap",
-        group.by = "cell_types2")
-
-# Tally number of cells in each cell type 
-table(sobj$cell_types2)
-
-```
-
-
-
 
 
 # Yogesh's part2
 ## Celltype Annotation
+Marker based annotation is a common method for annotating cell types.
+This method uses known marker genes for each cell type to identify the cell types in the dataset.
+
+here we will use dotplot to visualize the expression of the markers in the clusters.
+We can also use feature plot to visualize the expression of the markers in the clusters.
+We can also use Violin plot to visualize the expression of the markers in the clusters.
 ```{r using markers}
 # Load the reference data
-sobj <-
-    process_seurat(sobj,
-                 resolution = 1)
 DimPlot(sobj,
         group.by = "seurat_clusters",
         label = TRUE,
-        repel = TRUE) +
-  NoLegend()
+        repel = TRUE)
+
+# we will use resolution 1.0 for the clustering for this part
+sobj <-
+    FindClusters(sobj,
+               resolution = 1)
+
+# example plot of DotPlot, feature plot and violin plot
+DotPlot(sobj,
+        features = "Rbfox3",
+        cols = c("blue", "red"))
+
+FeaturePlot(sobj,
+            features = "Rbfox3")
+
+VlnPlot(sobj,
+        features = "Rbfox3",
+        group.by = "seurat_clusters") +
+    theme(axis.text.x = element_text(angle = 90)) # makes the gene names 90 degrees
+
 
 # Load the reference data
 markers <- list(
-  Excitatory_Neurons = c("Slc17a7", "Camk2a", "Neurod6", "Satb2"),  
-  Inhibitory_Neurons = c("Gad1", "Gad2", "Meis2", "Sst"),  
-  Hippocampal_Neurons = c("Prox1", "Grik4", "Wfs1", "Dcn"),  
-  Astrocytes = c("Aldh1l1", "Gfap", "Aqp4", "Slc1a3"),  
-  Oligodendrocytes = c("Mog", "Plp1", "Cnp", "Olig1", "Olig2"),  
-  Endothelial_Cells = c("Cldn5", "Pecam1", "Flt1"),  
-  Leptomeningeal_Cells = c("Lum", "Col1a1", "Dcn"),  
-  Pericytes_SMC = c("Acta2", "Myh11", "Pdgfrb"), 
-  Microglia = c("Cx3cr1", "P2ry12", "Tmem119", "Aif1"),
-  Other_Neurons = c("Car3", "Nxph1", "Reln") 
+    Neurons = c("Rbfox3", "Eno2", "Map2"),
+    Hippocampal_Neurons = c("Prox1", "Grik4", "Wfs1", "Dcn"),  
+    Astrocytes = c("Aldh1l1", "Gfap", "Aqp4", "Slc1a3"),  
+    Oligodendrocytes = c("Mog", "Plp1", "Cnp", "Olig1", "Olig2"),
+    Oligodendrocytes_progenitors = c("Pdgfra", "Cspg4"),
+    Endothelial_Cells = c("Cldn5", "Pecam1", "Flt1"),  
+    Leptomeningeal_Cells = c("Lum", "Col1a1", "Dcn"),  
+    Pericytes_SMC = c("Acta2", "Myh11", "Pdgfrb"), 
+    Microglia = c("Cx3cr1", "P2ry12", "Tmem119", "Aif1"),
+    other_immune_cells = c("Cd3e", "Cd74", "Cd8a", "Cd19", "H2-Ab1"),
+    Other_Neurons = c("Car3", "Nxph1", "Reln") 
 )
-
 # plot and test one by one
 DotPlot(sobj,
         features = markers$Microglia,
@@ -492,15 +407,16 @@ markers_all <-
     as.character() %>%
     unique()
 
-
-DotPlot(sobj,
-        features = markers_all,
-        cols = c("blue", "red"),
-        dot.scale = 8) +
-    theme(axis.text.x = element_text(angle = 90)) # makes the gene names 90 degrees
+marker_dotplot <-
+    DotPlot(sobj,
+            features = markers_all,
+            cols = c("blue", "red"),
+            dot.scale = 8) +
+        theme(axis.text.x = element_text(angle = 90)) # makes the gene names 90 degrees
 
 # save the plot
 ggsave("output/figures/markers_dotplot.png",
+        plot = marker_dotplot,
        width = 12,
        height = 7,
        bg = "white")
@@ -509,16 +425,19 @@ ggsave("output/figures/markers_dotplot.png",
 sobj$cell_type <-
     str_replace_all(sobj$seurat_clusters, 
                 c("^0$" = "Oligodendrocytes",
-                    "^1$" = "Microglia",
-                    "^2$" = "Astrocytes",
-                    "^3$" = "Inhibitory_Neurons",
-                    "^4$" = "Endothelial_Cells",
-                    "^5$" = "Oligodendrocytes",
+                    "^1$" = "Astrocytes",
+                    "^2$" = "Endothelial_Cells",
+                    "^3$" = "Micrtoglia",
+                    "^4$" = "Oligodendrocytes",
+                    "^5$" = "Neurons",
                     "^6$" = "Astrocytes",
-                    "^7$" = "Astrocytes",
+                    "^7$" = "Oligodendrocytes",
                     "^8$" = "Pericytes_SMC",
-                    "^9$" = "Oligodendrocytes",
-                    "^10$" = "Excitatory_Neurons"))
+                    "^9$" = "other_immune_cells",
+                    "^10$" = "Oligodendrocytes_progenitors",
+                    "^11$" = "Neurons",
+                    "^12$" = "Neurons",
+                    "^13$" = "low_quality_cells"))
 
 # check the object
 dimplot_annotated <- 
@@ -539,7 +458,7 @@ ggsave("output/figures/annotated_celltypes.png",
 ```
 
 
-## Activity
+## Activity4
 The dotplot allows us to visualize the expression of the markers in the clusters.
 We can see that the clusters are not well separated. This is because the clusters
 are not well defined. The clusters are not well defined because the cells are
@@ -552,55 +471,16 @@ into microglia using feature plot. We can do this by using marker based feature 
 The marekrs for each celltypes are given below.
 We will find that there are B and T cells that are lumped together with microglia. 
 
-```{r activity3}
+```{r activity4}
 # Subset the microglia and reprocess
-immune_markers <- list(
-  B_Cells = c("Cd79a", "Cd79b", "Ms4a1", "Cd19", "Ighm"),
-  T_Cells = c("Cd3e", "Cd3d", "Cd3g", "Cd4", "Cd8a", "Cd8b1"),
-  Nk_Cells = c("Nkg7", "Gzmb", "Klrc1", "Klrd1"),
-  Dendritic_Cells = c("Itgax", "H2-Ab1", "Flt3", "Cd74", "Clec9a"),
-#   Monocytes = c("Ly6c2", "Ccr2", "Cd14", "Csf1r"),
-#   Macrophages = c("Cd68", "Adgre1", "Csf1r", "Fcgr1"),
-  Microglia = c("Cx3cr1", "P2ry12", "Tmem119", "Aif1")
-)
+neuron_types <- 
+    list(Excitatory_Neurons = c("Slc17a7", "Camk2a", "Neurod6", "Satb2"),  
+        Inhibitory_Neurons = c("Gad1", "Gad2", "Meis2", "Sst"))
 
-immune_cells <-
-    sobj %>%
-    subset(cell_type == "Microglia") %>%
-    NormalizeData() %>%
-    FindVariableFeatures() %>%
-    ScaleData() %>%
-    RunPCA() %>%
-    RunUMAP(dims = 1:20) %>%
-    FindNeighbors() %>%
-    FindClusters(resolution = 2)
 
-# check the object
-DimPlot(immune_cells,
-        group.by = "seurat_clusters",
-        label = TRUE,
-        repel = TRUE) +
-    NoLegend()
 
-DotPlot(immune_cells,
-        features = immune_markers %>% unlist() %>% as.character() %>% unique(),
-        cols = c("blue", "red"),
-        #scale = F,
-        dot.scale = 8) +
-    theme(axis.text.x = element_text(angle = 90)) # makes the gene names 90 degrees
 
-# plot and test one by one
-FeaturePlot(immune_cells,
-        features = immune_markers$B_Cells,
-        cols = c("blue", "red"),
-        pt.size = 0.5) +
-    theme(axis.text.x = element_text(angle = 90)) # makes the gene names 90 degrees
 
-DimPlot(sobj1, 
-        group.by = "cell_type",
-        label = TRUE,
-        repel = TRUE) +
-    NoLegend()
 ```
 
 
@@ -646,3 +526,62 @@ DimPlot(sobj,
 ```
 
 
+
+## Load in reference data
+Load in the PBMC reference Seurat object to serve as the reference for cell typing.
+
+This object has several different levels of granularity. For the examples, we will use `cell_type`.
+```{r annotate_seurat}
+# Read in the reference Seurat object
+brain_ref_data <- 
+    qs::qread("output/rdata_premade/mouse_brain_ref_data.qs")
+
+# Set the idents to cell_type so that we can examine which cell types are present in the dataset
+Idents(brain_ref_data) <- "cell_type"
+
+# Visualize the reference dataset
+DimPlot(brain_ref_data)
+
+# Find anchors between reference and query datasets
+anchors <-
+    FindTransferAnchors(reference = brain_ref_data,
+                      query = sobj,
+                      dims = 1:30,
+                      reference.reduction = "pca")
+
+# Transfer anchors from reference dataset
+predictions <-
+    TransferData(anchorset = anchors,
+               refdata = brain_ref_data$cell_type,
+               dims = 1:30)
+
+# Add query to metadata of Seurat object
+sobj <- AddMetaData(sobj,
+                    metadata = predictions) 
+
+# Rename "predicted.id" to "cell_types"
+sobj$cell_types <- sobj$predicted.id
+
+# Set active identity to new cell type labels and visualize typed clusters via DimPlot
+Idents(sobj) <- sobj$cell_types
+DimPlot(sobj,
+        reduction = "umap")
+
+# Tally number of cells in each cell type 
+table(sobj$cell_types)
+
+```
+
+## Practice Exercise5
+
+Now annotate the dataset using `neighborhood_label` instead of `cell_type`.
+
+```{r annotate}
+
+
+
+
+
+
+
+```

@@ -1,0 +1,233 @@
+# activity1 
+**Ribosomal and hemoglobin gene subsetting:**
+These are other options for identifying low quality samples based on the percent
+of these genes in each cell. Ribosomal genes begin with either "RPS" or "RPL". 
+Hemoglobin genes begin with either "HBA" or "HBB".
+
+make a new column in the metadata for the percent of ribosomal genes and hemoglobin genes. 
+Then visualize the distribution of these genes using a violin plot and histogram.
+
+Tips: the pattern for the ribosomal genes is "^Rp[sl]", which means that the gene name 
+begins with "Rp" and is followed by either "s" or "l". The pattern for the hemoglobin genes
+is "^Hb[ab]", which means that the gene name begins with "Hb" and is followed by either "a" or "b".
+
+```{r activity1}
+sobj[["percent.ribo"]] <- 
+        PercentageFeatureSet(sobj, pattern = "^Rp[sl]")
+
+#check the metadata
+colnames(sobj@meta.data)
+
+sobj[["percent.hb"]] <- 
+        PercentageFeatureSet(sobj, pattern = "^Hb[ab]")
+
+# visualize the composition or distribution
+VlnPlot(sobj,
+        features = c("percent.mt",
+                     "percent.ribo",
+                     "percent.hb"))
+
+```
+
+
+# activity2
+perform normalization using different method and check and comapre how the numbers change
+normalization.method	
+Method for normalization.
+LogNormalize: Feature counts for each cell are divided by the total counts for that cell and multiplied by the scale.factor. This is then natural-log transformed using log1p.
+CLR: Applies a centered log ratio transformation
+RC: Relative counts. Feature counts for each cell are divided by the total counts for that cell and multiplied by the scale.factor. No log-transformation is applied. For counts per million (CPM) set scale.factor = 1e6
+
+perform scaling using using all the genes
+Pros of using highly variable features to scale:
+Focuses on informative genes: HVFs are the genes that show the most meaningful variation across cells, likely reflecting true biological differences.
+Faster & less memory-intensive: You're only scaling a subset of the data.
+Reduces noise: Non-variable genes often contribute mostly technical noise.
+cons:
+You exclude potentially important genes that didn't meet the variance threshold.
+
+pros of using all genes to scale:
+Retains all genes: Useful when you need scaled values for genes outside the HVF set (e.g., for scoring gene sets or marker genes not in HVFs).
+No bias toward only highly variable genes: For analyses like differential expression or custom scoring, this is sometimes better.
+Cons:
+Computationally heavier
+Noisy genes may dominate
+
+```{r activity2}
+# perform normalization using different method and check and comapre how the numbers change
+new_sobj <- 
+    NormalizeData(sobj,
+                  normalization.method = "CLR",
+                  scale.factor = 10000)
+
+# increase the variable features to 5000 and check the variable features, do the top 10 change?
+new_sobj <- 
+    FindVariableFeatures(new_sobj,
+                         selection.method = "vst",
+                         nfeatures = 5000)
+
+top10 <-
+    head(VariableFeatures(new_sobj),
+            10)
+
+Seurat::LabelPoints(plot = VariableFeaturePlot(new_sobj),
+                    points = top10,
+                    repel = TRUE)
+
+# perform scaling using all the genes
+new_sobj <- 
+    ScaleData(new_sobj,
+                features = rownames(new_sobj))
+
+# check the scaling, a new layer is added called scale.data
+new_sobj
+new_sobj@assays$RNA$counts[1:10,1:10]
+new_sobj@assays$RNA$data[1:10,1:10]
+new_sobj@assays$RNA$scale.data[1:10,1:10]
+```
+
+## Practice
+
+Generate a tSNE plot with a higher clustering resolution of 1.0. (You do not need to rerun anything prior to FindClusters).
+
+```{r practice}
+
+#### Find Clusters ####
+# Higher resolution (higher number of clusters)
+sobj <-
+  FindClusters(sobj,
+               resolution = 1.0)
+
+#### Run tSNE ####
+# Use the same dimensions as those in FindNeighbors()
+sobj <-
+  RunTSNE(sobj,
+          dims = 1:20)
+
+#### Plot tSNE ####
+DimPlot(sobj,
+        reduction = "tsne",
+        label = TRUE,
+        repel = TRUE)
+
+
+# Challenge: plot them side by side using the `group.by` parameter
+#
+# Hint: `group.by` "RNA_snn_res.0.2" for the low resolution and
+#                  "RNA_snn_res.1" for the high resolution
+
+#### Challenge UMAP ####
+DimPlot(sobj,
+        group.by = "RNA_snn_res.0.2",
+        reduction = "umap",
+        label = TRUE,
+        repel = TRUE) + 
+DimPlot(sobj,
+        group.by = "RNA_snn_res.1",
+        reduction = "umap",
+        label = TRUE,
+        repel = TRUE)
+
+
+#### Challenge tSNE ####
+DimPlot(sobj,
+        group.by = "RNA_snn_res.0.2",
+        reduction = "tsne",
+        label = TRUE,
+        repel = TRUE) + 
+DimPlot(sobj,
+        group.by = "RNA_snn_res.1",
+        reduction = "tsne",
+        label = TRUE,
+        repel = TRUE)
+
+```
+
+## Activity4
+The dotplot allows us to visualize the expression of the markers in the clusters.
+We can see that the clusters are not well separated. This is because the clusters
+are not well defined. The clusters are not well defined because the cells are
+not well separated. In this case we can visualize the markers in individual cells
+using the feature plot. 
+As a part of this exercise we will look at the immune cell types. We will subset the 
+microglia and reprocess and annoate in the deeper level using the markers given below.
+In this analysis we can test if there are other immune cells that are lumped together
+into microglia using feature plot. We can do this by using marker based feature plots. 
+The marekrs for each celltypes are given below.
+We will find that there are B and T cells that are lumped together with microglia. 
+
+```{r activity4}
+# Subset the microglia and reprocess
+neuron_types <- 
+    list(Excitatory_Neurons = c("Slc17a7", "Camk2a", "Neurod6", "Satb2"),  
+        Inhibitory_Neurons = c("Gad1", "Gad2", "Meis2", "Sst"))
+
+# you can subset and pipe all the processing steps together
+Neurons <-
+    sobj %>%
+    subset(cell_type == "Neurons") %>%
+    NormalizeData() %>%
+    FindVariableFeatures() %>%
+    ScaleData() %>%
+    RunPCA() %>%
+    RunUMAP(dims = 1:20) %>%
+    FindNeighbors() %>%
+    FindClusters(resolution = 1)
+
+# check the object
+DimPlot(Neurons,
+        group.by = "seurat_clusters",
+        label = TRUE,
+        repel = TRUE) +
+    NoLegend()
+
+DotPlot(Neurons,
+        features = neuron_types %>% unlist() %>% as.character() %>% unique(),
+        cols = c("blue", "red"),
+        #scale = F,
+        dot.scale = 8) +
+    theme(axis.text.x = element_text(angle = 90)) # makes the gene names 90 degrees
+
+DimPlot(Neurons, 
+        group.by = "cell_type",
+        label = TRUE,
+        repel = TRUE) +
+    NoLegend()
+```
+
+## Practice Exercise5
+
+Now annotate the dataset using `neighborhood_label` instead of `cell_type`.
+
+```{r annotate}
+
+# Transfer anchors 
+predictions2 <- TransferData(anchorset = anchors,
+                             refdata = ref$neighborhood_label,
+                             dims = 1:30)
+
+# Add query to metadata of Seurat object 
+sobj <- AddMetaData(sobj,
+                    metadata = predictions2) 
+
+# Rename "predicted.id" to "cell_types"
+sobj$cell_types2 <- sobj$predicted.id
+
+# Set active identity to new cell type labels and visualize typed clusters via DimPlot
+DimPlot(sobj,
+        reduction = "umap",
+        group.by = "cell_types2")
+
+# Tally number of cells in each cell type 
+table(sobj$cell_types2)
+
+# Challenge: plot them side by side using the `group.by` parameter
+
+DimPlot(sobj,
+        reduction = "umap",
+        group.by = "cell_types") +
+DimPlot(sobj,
+        reduction = "umap",
+        group.by = "cell_types2")
+
+```
