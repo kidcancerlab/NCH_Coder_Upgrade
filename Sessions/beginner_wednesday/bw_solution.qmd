@@ -1,0 +1,92 @@
+
+## Activity1
+We just found out that there is minimal to no batch effect in the merged object. This could 
+be because the samples are from the same tissue and the same experiment and source.
+Now, we will load another object from a different experiment and source but still the
+same tissue. The actvity is to merge the two objects and check for batch effect.
+1. Load the second object
+```{r activity1}
+# read in the second object
+object1 <-
+    qs::qread("input/scRNA/downloaded_source1.qs")
+
+#save the batch information
+object1$batch <- "batch1"
+
+# save the batch information in the merged_sobj as well
+object2 <-
+    qs::qread("input/scRNA/downloaded_source2.qs")
+object2$batch <- "batch2"
+object2$cell_type <- object2$SingleR_annotation
+
+#merge the two objects and process it together unto plotting dimplot
+
+
+
+# assess the batch effect presence
+
+
+
+
+```
+
+
+## Activity2
+In this activity, we will run harmony integration with different parameters/batch.
+Use orig.ident as batch variable and see how the integration works.
+```{r activity2}
+
+#simply use the same code as above but change the batch variable to orig.ident
+harm_obj2 <-
+    merge_all %>%
+    RunHarmony(group.by.vars = "orig.ident") %>%
+    RunUMAP(reduction = "harmony", dims = 1:30) %>%
+    FindNeighbors(reduction = "harmony", dims = 1:30) %>%
+    FindClusters()
+
+
+# check the integration
+DimPlot(harm_obj2,
+        group.by = "orig.ident",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+
+
+DimPlot(harm_obj2,
+        group.by = "cell_type",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+
+
+
+# run Harmony integration with orig.ident as batch variable and theta value of your preference
+harm_obj3 <-
+    merge_all %>%
+    RunHarmony(group.by.vars = "orig.ident",
+               theta = 4) %>%
+    RunUMAP(reduction = "harmony", dims = 1:30) %>%
+    FindNeighbors(reduction = "harmony", dims = 1:30) %>%
+    FindClusters()
+
+# check the integration
+DimPlot(harm_obj3,
+        group.by = "orig.ident",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+
+DimPlot(harm_obj3,
+        group.by = "cell_type",
+        label = T,
+        repel = T,
+        label.box = T) +
+
+
+
+
+```
