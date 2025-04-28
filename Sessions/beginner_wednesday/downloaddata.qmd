@@ -17,26 +17,39 @@ library(qs) # For reading and writing .qs files
 library(SingleR) # For cell type annotation
 library(biomaRt) # For gene annotation
 library(harmony) # For harmony
+library(anndata)
 # Set the random generator seed so that results are reproducible.
 set.seed(132)
 
 ```
 
-
 # 4 h5ad datasets were downloaded from 
 https://allen-brain-cell-atlas.s3.us-west-2.amazonaws.com/index.html#expression_matrices/WMB-10Xv2/20230630/. 
 #TH - thalamus, MB - midbrain, CTXsp - cortical subplate, HY - hypothalamus. 
 
-## Create Seurat objects from the h5ad data. Preprocess each of the objects and downsample them. Each of the object is filtered using diferent filtering cutoffs. 
+```{bash}
+link_base=https://allen-brain-cell-atlas.s3-us-west-2.amazonaws.com/expression_matrices/WMB-10Xv2/20230630/
+
+for get_file in WMB-10Xv2-CTXsp-raw.h5ad \
+                WMB-10Xv2-MB-raw.h5ad \
+                WMB-10Xv2-HY-raw.h5ad \
+                WMB-10Xv2-TH-raw.h5ad
+do
+    echo ${get_file}
+    wget \
+        -O input/scRNA/${get_file} \
+        "${link_base}${get_file}"
+done
+```
+
+
+## Create Seurat objects from the h5ad data. Preprocess each of the objects and downsample them. Each of the object is filtered using different filtering cutoffs. 
 
 # Process CTXsp object
 ```{r}
-ctx <- 
-    read_h5ad("~/Projects/2025_workshop/WMB-10Xv2-CTXsp-raw.h5ad")
-
-ctx_obj <- 
+ctx_obj <-
     CreateSeuratObject(
-    counts = t(as.matrix(ctx$X)),
+    counts = t(as.matrix(read_h5ad("input/scRNA/WMB-10Xv2-CTXsp-raw.h5ad"))),
     meta.data = ctx$obs,
     min.features = 200,
     min.cells = 3,
@@ -82,7 +95,7 @@ saveRDS(ctx_obj_subset, "ctx_obj_downsampled.rds")
 # Process CTXsp object
 ```{r}
 # Process MB object
-mb <- read_h5ad("~/Projects/2025_workshop/WMB-10Xv2-MB-raw.h5ad")
+mb <- read_h5ad("input/scRNA/WMB-10Xv2-MB-raw.h5ad")
 
 mb_obj <- CreateSeuratObject(
     counts = t(as.matrix(mb$X)),
@@ -131,7 +144,7 @@ saveRDS(mb_obj_subset, "mb_obj_downsampled.rds")
 ```
 
 ```{r}
-hy <- read_h5ad("~/Projects/2025_workshop/WMB-10Xv2-HY-raw.h5ad")
+hy <- read_h5ad("input/scRNA/WMB-10Xv2-HY-raw.h5ad")
 
 hy_obj <- 
     CreateSeuratObject(
@@ -180,7 +193,7 @@ saveRDS(hy_obj_subset, "hy_obj_downsampled.rds")
 ## Repeat with the TH specimen. 
 
 ```{r}
-th <- read_h5ad("~/Projects/2025_workshop/WMB-10Xv2-TH-raw.h5ad")
+th <- read_h5ad("input/scRNA/WMB-10Xv2-TH-raw.h5ad")
 
 th_obj <- CreateSeuratObject(
     counts = t(as.matrix(th$X)),

@@ -1,7 +1,7 @@
 #!/bin/bash
 my_loc=$(pwd)
 
-# set -e
+set -e
 
 if [ ! -d input/multiomics ]
 then
@@ -57,7 +57,7 @@ cd ${my_loc}
 cd input/multiomics/activity_data
 
 echo randomly sampling 2000 barcodes
-ml R/4.3.0
+
 Rscript ${my_loc}/workshop_data/downsample_multiome_activity.r
 
 gunzip atac_fragments.tsv.gz
