@@ -9,6 +9,8 @@ library(ggplot2) # For plotting
 library(rrrSingleCellUtils) # For plotting an processing
 library(qs) # For reading and writing .qs files
 library(harmony) # For Harmony integration
+library(crescendo)
+
 # Set the random generator seed so that results are reproducible.
 set.seed(132)
 ```
@@ -28,24 +30,19 @@ downstream analysis, such as dimensionality reduction, clustering, and
 differential expression analysis.
 
 ```{r test}
-# read in the pre-made Seurat objects to be merge
-sobj1 <- 
+
+# read in one object
+sobj1 <-
     qs::qread("output/rdata_premade/OX1X_sobj_annotated.qs")
-
-#check the object
 sobj1
-
-# read in the pre-made Seurat objects to be merge 
-# this is a list of Seurat objects
+#list of Seurat objects
 sobj_list <-
     qs::qread("output/rdata_premade/scRNA_objs_list.qs")
-
-#check the list
 sobj_list
 
 # merge the Seurat objects
 merged_sobj <-
-    merge(x= sobj1, 
+    merge(x= sobj1,
           y = sobj_list[1:length(sobj_list)])
 
 # check the merged Seurat object, you will see layers for each seurat object
@@ -80,7 +77,8 @@ merged_sobj <-
 merged_sobj <- 
     merged_sobj %>%
     FindNeighbors(dims = 1:30) %>%
-    FindClusters(resolution = 0.5)
+    FindClusters()
+
 # all opf the above steps can be done in one go using pipe function
 merged_sobj <-
     merged_sobj %>%
@@ -95,31 +93,400 @@ merged_sobj <-
 # check the object
 merged_sobj
 
-# check the metadata
+# visualize the clusters
 DimPlot(merged_sobj,
-              group.by = "cell_type",
-              #split.by = "orig.ident",
-              #ncol = 6,
-              label = T) +
+        group.by = "seurat_clusters",
+        label = T,
+        repel = T,
+        label.box = T) +
     NoLegend()
 
-harm <-
-    RunHarmony(merged_sobj,
-              group.by.vars = "orig.ident")
+# assessing the batch effect
+DimPlot(merged_sobj,
+        group.by = "orig.ident",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+
+DimPlot(merged_sobj,
+        group.by = "seurat_clusters",
+        split.by = "orig.ident",
+        ncol = 6,
+        label = T,
+        repel = T) +
+    NoLegend()
+
+# looks like there is no batch effect
+
+
+# we also realized that there is no mitochondrial gene in the second object we are loading today
+# so we will remove the mitochondrial genes from the merged_sobj for consistency
+mito_genes <- 
+    grep("^mt-", rownames(merged_sobj), value = TRUE)
+
+merged_sobj <- 
+    subset(merged_sobj,
+          features = setdiff(rownames(merged_sobj), mito_genes))
+
+#save the object
+qs::qsave(merged_sobj,
+        "input/scRNA/downloaded_source1.qs")
+
+```
+
+## Activity
+We just found out that there is minimal to no batch effect in the merged object. This could 
+be because the samples are from the same tissue and the same experiment and source.
+Now, we will load another object from a different experiment and source but still the
+same tissue. The actvity is to merge the two objects and check for batch effect.
+1. Load the second object
+```{r activity1}
+# read in the second object
+object1 <-
+    qs::qread("input/scRNA/downloaded_source1.qs")
+
+#save the batch information
+object1$batch <- "batch1"
+
+# save the batch information in the merged_sobj as well
+object2 <-
+    qs::qread("input/scRNA/downloaded_source2.qs")
+object2$batch <- "batch2"
+object2$cell_type <- object2$SingleR_annotation
+
+#merge the two objects and process it together unto plotting dimplot
+
+
+
+# assess the batch effect presence
+
+
+
+
+```
+
+
+
+## Harmony integration
+It is great to see that there is no batch effect in the previous data. But that is 
+not always the case. Most of the time, we will see a batch effect in the data because 
+of the different samples or experiments. In this case, we can use the Harmony integration
+method to remove the batch effect. Harmony is a method for integrating single-cell RNA-seq
+data from multiple samples or experiments. It uses a graph-based approach to identify and
+remove batch effects while preserving biological variation. Harmony can be used to integrate
+data from different sources, such as different tissues, time points, or experimental conditions.
+Harmony only corrects batch effect for plotting and visualization purposes. It does not
+change the underlying data. So, we will still need to do batch correction in actual data using
+other method like deseq2 or limma.
+
+Here we will load another object from a different expertiment and source but still the 
+same tissue. We will first merge and assess the presence of batch effect and then run
+Harmony integration to remove the batch effect.
+
+```{r harmony_integration}
+# read in the second object
+object1 <-
+    qs::qread("input/scRNA/downloaded_source1.qs")
+
+#save the batch information
+object1$batch <- "batch1"
+
+# save the batch information in the merged_sobj as well
+object2 <-
+    qs::qread("input/scRNA/downloaded_source2.qs")
+object2$batch <- "batch2"
+
+# merge the two objects and process it together unto plotting dimplot
+merge_all <-
+    merge(x = object1,
+          y = object2) %>%
+    JoinLayers() %>%
+    NormalizeData() %>%
+    FindVariableFeatures() %>%
+    ScaleData() %>%
+    RunPCA() %>%
+    RunUMAP(dims = 1:30) %>%
+    FindNeighbors(dims = 1:30) %>%
+    FindClusters()
+
+# assess the batch effect
+DimPlot(merge_all,
+        group.by = "batch",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+
+DimPlot(merge_all,
+        group.by = "orig.ident",
+        label = T,
+        #repel = T,
+        label.box = T) +
+    NoLegend()
+
+
+# run Harmony integration
+merge_all_harmony1 <-
+    merge_all %>%
+    RunHarmony(group.by.vars = "batch") %>%
+    RunUMAP(reduction = "harmony", dims = 1:30) %>%
+    FindNeighbors(reduction = "harmony", dims = 1:30) %>%
+    FindClusters() 
+
+# check the integration
+DimPlot(merge_all_harmony1,
+        group.by = "batch",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+
+# run Harmony integration with different parameters
+merge_all_harmony2 <-
+    merge_all %>%
+    RunHarmony(group.by.vars = "batch",
+               theta = 4) %>%
+    RunUMAP(reduction = "harmony", dims = 1:30) %>%
+    FindNeighbors(reduction = "harmony", dims = 1:30) %>%
+    FindClusters()
+
+# check the integration
+DimPlot(merge_all_harmony2,
+        group.by = "orig.ident",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+DimPlot(merge_all_harmony2,
+        group.by = "batch",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+```
+
+
+
+## Activity2
+In this activity, we will run harmony integration with different parameters/batch.
+Use orig.ident as batch variable and see how the integration works.
+```{r activity2}
+
+#simply use the same code as above but change the batch variable to orig.ident
+
+
+
+
+
+
+# check the integration
+
+
+
+
+
+
+# run Harmony integration with orig.ident as batch variable and theta value of your preference
+# you can also try using multiple theta each time, low and high and see how it works
+
+
+
+
+
+
+
+```
+
+
+
+# run harmony integration with different parameters like multiple batches
+Harmony intergration can also be done with multiple batches. Most of the other integration methods
+like Seurat and Scanpy can only do one batch at a time. But Harmony can do multiple batches at once.
+
+```{r two_batch_variables}
+# run Harmony integration with multiple batch variables
+merge_all_harmony3 <-
+    merge_all %>%
+    RunHarmony(group.by.vars = c("batch", "orig.ident")) %>%
+    RunUMAP(reduction = "harmony", dims = 1:30) %>%
+    FindNeighbors(reduction = "harmony", dims = 1:30) %>%
+    FindClusters()
+
+# check the integration
+DimPlot(merge_all_harmony3,
+        group.by = "orig.ident",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+
+# change theta
+merge_all_harmony4 <-
+    merge_all %>%
+    RunHarmony(group.by.vars = c("batch", "orig.ident"),
+                theta = c(5, 5)) %>%
+    RunUMAP(reduction = "harmony", dims = 1:30) %>%
+    FindNeighbors(reduction = "harmony", dims = 1:30) %>%
+    FindClusters()
+
+# check the integration
+DimPlot(merge_all_harmony4,
+        group.by = "orig.ident",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+
+DimPlot(merge_all_harmony4,
+        group.by = "batch",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+
+# there are opportunities to explore more of the harmony parameters such as lambda and tau.
+# you can also try using multiple theta each time, low and high and see how it works.
+# you can also try using multiple lambda each time, low and high and see how it works.
+```
+
+## Crescendo
+Crescendo is a new method for integrating single-cell RNA-seq data, developed by the 
+same lab as Harmony. While harmony does not correct the expression data, Crescendo does.
+Crescendo can only take one batch variable at a time.
+It takes long time to run so we will subset one sample from each batch and try to 
+do the integration.
+
+```{r crescendo}
+# subset the data
+merge_all_sub <-
+    merge_all %>%
+    subset(orig.ident == "GSM6925136_OX4X" | orig.ident == "HY" | orig.ident == "MB")
 
 # check the object
-harm <-
-    RunUMAP(harm,
-            reduction = "harmony",
-            dims = 1:30) %>%
-    FindNeighbors(reduction = "harmony",
-                  dims = 1:30) %>%
-    FindClusters(resolution = 0.5)
+merge_all_sub
 
-DimPlot(harm,
-              group.by = "cell_type",
-              #split.by = "orig.ident",
-              #ncol = 6,
-              label = T) +
+# reprocess the data
+merge_all_sub <-
+    merge_all_sub %>%
+    NormalizeData() %>%
+    FindVariableFeatures() %>%
+    ScaleData() %>%
+    RunPCA() %>%
+    RunHarmony(group.by.vars = "orig.ident") %>%
+    RunUMAP(dims = 1:30,
+            reduction = "harmony") %>%
+    FindNeighbors(dims = 1:30,
+                  reduction = "harmony") %>%
+    FindClusters()
+
+# check the batch effect
+DimPlot(merge_all_sub,
+        group.by = "orig.ident",
+        label = T,
+        repel = T,
+        label.box = T) +
     NoLegend()
+
+DimPlot(merge_all_sub,
+        group.by = "batch",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+
+# run crescendo integration
+merge_all_sub$nUMI <- merge_all_sub$nCount_RNA
+
+corr_counts <-
+    crescendo(Ycounts = GetAssayData(merge_all_sub, layer = 'counts'), # genes by cells
+              meta_data = merge_all_sub@meta.data,
+              R = t(Embeddings(merge_all_sub, reduction = "harmony")), # dims by cells
+              batch_var = "batch",
+              alpha = 0,
+              mc.cores = 10,
+              return_obj = TRUE,
+              verbose = TRUE)
+
+# create sobj
+cres_obj <-
+    CreateSeuratObject(counts = t(corr_counts$corrected_matching),
+                       meta.data = merge_all_sub@meta.data) %>%
+    NormalizeData() %>%
+    FindVariableFeatures() %>%
+    ScaleData() %>%
+    RunPCA() %>%
+    RunUMAP(dims = 1:30) %>%
+    FindNeighbors(dims = 1:30) %>%
+    FindClusters()
+
+# if this takes too long just have an object fort visualization
+
+stuff2 <-
+    CreateSeuratObject(
+        counts = t(corr_counts$corrected_matching),
+        meta.data = mm_mets@meta.data
+    ) %>%
+    process_seurat()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+mm_mets <- qs::qread("/gpfs0/home2/gdrobertslab/lab/Analysis/Yogesh/CellTypeAnnRefs/output/seurat_objects/final_tumor_vs_stroma/mm_prim_normal_cells.qs")
+mm_mets$nUMI <- mm_mets$nCount_RNA
+mm_mets$batch <- mm_mets$model
+
+uncor_mm_mets <-
+    mm_mets %>%
+    process_seurat()
+
+DimPlot(
+    uncor_mm_mets,
+    group.by = c("model", "Ann_Level3"),
+    label = TRUE,
+    repel = TRUE,
+    ncol = 1
+) +
+    NoLegend()
+
+corr_counts <-
+    crescendo(
+        Ycounts = GetAssayData(mm_mets, layer = 'counts'), # genes by cells
+        meta_data = mm_mets@meta.data,                     # Cells by metadata
+        R = t(Embeddings(mm_mets, reduction = "harmony")), # dims by cells
+        batch_var = "batch",
+        #genes_use = genes_use,
+        #prop = 0.25,
+        #min_cells = min_cells,
+        #lambda = lambda,
+        alpha = 0,
+        mc.cores = 15,
+        return_obj = TRUE,
+        verbose = TRUE
+    )
+
+dim(corr_counts)
+
+dim(mm_mets)
+
+stuff2 <-
+    CreateSeuratObject(
+        counts = t(corr_counts$corrected_matching),
+        meta.data = mm_mets@meta.data
+    ) %>%
+    process_seurat()
+
+mm_mets_uncorr <-
+    mm_mets %>%
+    process_seurat()
 ```
