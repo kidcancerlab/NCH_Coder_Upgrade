@@ -96,7 +96,8 @@ github_packages <-
         "10xGenomics/loupeR",
         "jinworks/CellChat",
         "immunogenomics/crescendo",
-        "dmcable/spacexr"
+        "dmcable/spacexr",
+        "bnprks/BPCells/r"
     )
 
 pak::pkg_install(
