@@ -280,7 +280,7 @@ Key concepts:
 > Show ppt of navigating Seurat object
 
 ```{verbatim}
-obj            slot            list element     slot of "DimReduc" object
+obj      slot            list element     slot of "DimReduc" object
 sobj     @reductions     $pca             @cell.embeddings
 ```
 
