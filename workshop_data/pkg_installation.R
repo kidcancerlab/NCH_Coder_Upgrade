@@ -44,7 +44,8 @@ bioc_dependencies <-
         "ComplexHeatmap",
         "ensembldb",
         "SPOTlight",
-        "biomaRt"
+        "biomaRt",
+        "DropletUtils"
     )
 
 needed_packages_cran <-
