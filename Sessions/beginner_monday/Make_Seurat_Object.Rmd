@@ -9,16 +9,29 @@ date: "2025-05-05"
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+#Set up a Project
+Go to File, then New Project
+Choose: Version Control
+Select: Git
+Paste link to NCH_Coder_Upgrade GitHub: https://github.com/kidcancerlab/NCH_Coder_Upgrade
+Name project: CoderUpgrade
+Click: Create Project
+You should now see a data folder and a CoderUpgrade folder in your Home directory
+
 #Load libraries
-We need to load the Seurat library and the tidyverse library which contains ggplot2 for plotting and dplyr for data frame manipulation
+We need to load the Seurat library and the tidyverse library which contains ggplot2 for plotting and dplyr for data frame manipulation and qs library for reading/saving objects
 ```{r}
 library(Seurat)
 library(tidyverse)  # This package contains ggplot2 and dplyr
+library(qs) # For reading/saving objects
 ```
 
-#Set working directory
+#Check and set working directory
+getwd() # This will show you your current working directory
+setd("") # You can set your working directory by putting your desired file path in the quotes or click Session, Set Working Directory, Choose Directory, then navigate to your file
 ```{r}
-setd("")
+#check what your current working directory is
+getwd() #should look like "/rstudio-workshop/home/username/CoderUpgrade" 
 ```
 
 #Read 10X data
@@ -26,7 +39,7 @@ First, read in the filtered feature matrix output files via the Read10X Seurat f
 We will start with reading in just one sample, OX1X, and call it ox1x_raw
 ```{r}
 ox1x_raw <- 
-  Read10X("input/scRNA/GSM6925133_OX1X")
+  Read10X("~/data/input/scRNA/GSM6925133_OX1X")
 ```
 
 #Make Seurat object
@@ -50,13 +63,26 @@ ox1x_sobj <-
 By default, the orig.ident (original ident, aka original sample name) is the name that is assigned when making the Seurat object. Often, this name is short/easy to type but we may want a more meaningful/longer name when making plots for figures or publications. Here, we can reassign the orig.ident to have a more descriptive name. 
 The use of the $ sign means you are accessing a metadata slot. 
 ```{r}
+#Look at the orig.ident name 
+View(ox1x_sobj)
+
+#Reassign name
 ox1x_sobj$orig.ident <- "GSM6925133_OX1X"
+
+#Look at the orig.ident name now 
+View(ox1x_sobj)
+
+#Set orig.ident to be the active ident
+Idents(ox1x_sobj) <- "orig.ident"
+
+#Check
+View(ox1x_sobj)
 ```
 
 #Save Seurat object
 We will now save our newly made Seurat object usign the qsave function. The object name you want to save is listed first and then the output file path and name you want to save the object as is listed in quotes. By default, the object will save in your current working directory (important to know what that is at all times!). If you want to save it in a subfolder within your current working directory, you can add the file path before the final name of the saved object. Use .qs to save the final object. 
 ```{r}
-qsave(ox1x_sobj, "output/rdata_premade/OX1X_sobj.qs")
+qsave(ox1x_sobj, "~/OX1X_sobj.qs") #save to your home directory 
 ```
 
 #Remove data and Seurat object
@@ -65,10 +91,13 @@ Now that we have saved our object, we can remove the data and object in our Envi
 rm(ox1x_raw, ox1x_sobj)
 ```
 
-#We can read in our saved object any time for additional analyses using the qread function. 
+#We can read in a saved object any time for additional analyses using the qread function. 
 ```{r}
 ox1x_sobj <-
-    qread("output/rdata_premade/OX1X_sobj.qs")
+    qread("~/data/output/rdata_premade/OX1X_sobj.qs") #read in premade object 
+
+#challenge - read in your own made object from your home directory (hint: give it a unique name so you don't overwrite the premade object that's already loaded):
+
 ```
 
 #Challenge: 
