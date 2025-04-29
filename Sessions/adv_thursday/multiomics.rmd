@@ -94,7 +94,7 @@ RNA and ATAC have different sequencing requirements
 
 ## Data
 
-Depending on what data type you recieve you may need to do different things
+Depending on what data type you receive you may need to do different things
 
 - BCLs
     - Run cellranger-arc mkfastq
@@ -132,11 +132,6 @@ I'm not going to walk through the GEX analysis as that's been covered in previou
 ```{r}
 data_path <- "input/multiomics/lesson_data/"
 session_path <- "Sessions/adv_thursday/"
-
-##  If you're running the code on the IGM AWS instance, you can use this path: ##
-# data_path = "/igm/projects/scrgot_coder_upgrade/2023/adv_thursday/"
-# dyn.load("/igm/apps/hdf5/hdf5-1.12.1/lib/libhdf5_hl.so.200")
-# library("hdf5r")
 
 h5_data <-
     Read10X_h5(paste0(
@@ -232,6 +227,10 @@ annotations <-
 seqlevels(annotations) <- paste0("chr", seqlevels(annotations))
 genome(annotations) <- "hg38"
 
+
+# This takes ~45 minutes, so I'll just read in a pre-processed object
+annotations <- qs::qread("~/data/input/multiomics/lesson_data/annotations.qs")
+
 Annotation(seurat_obj) <- annotations
 ```
 
@@ -239,11 +238,11 @@ Annotation(seurat_obj) <- annotations
 
 We have another dataset for cultured neurons treated with KCl, measured 1 hour post stimulation. They were aligned to the same genome as the lesson dataset.
 
-The dataset is in input/multiomics/downsampled_data
+The dataset is in ~/data/input/multiomics/downsampled_data
 
 ### 1.1
 
-Read in the gene expression and chromatin accessibility matrices*.
+Read in the gene expression and chromatin accessibility matrices using qs::qread()*.
 
 *instead of the matrices being given as an h5 file, they are given as the qs object named `gene_exp_peaks_list.qs`
 
@@ -262,7 +261,7 @@ Create a Seurat object with an RNA and ATAC assay
 ### 1.3
 
 Add gene annotations to your Seurat object
-
+You can read in pre-made annotations from ~/data/input/multiomics/lesson_data/annotations.qs
 ```{r activity-1-3}
 
 ```
