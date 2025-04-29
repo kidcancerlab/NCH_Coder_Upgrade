@@ -45,7 +45,9 @@ bioc_dependencies <-
         "ensembldb",
         "SPOTlight",
         "biomaRt",
-        "DropletUtils"
+        "DropletUtils",
+        "multtest",
+        "metap"
     )
 
 needed_packages_cran <-
@@ -76,7 +78,9 @@ needed_packages_cran <-
         "testthat",
         "tidyverse",
         "terra",
-        "anndata"
+        "anndata",
+        "msigdbdf",
+        "scatterpie"
     )
 
 pak::pkg_install(
