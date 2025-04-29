@@ -8,9 +8,10 @@ activity_input_path <- "input/multiomics/downsampled_data/"
 
 data_list <- qs::qread(paste0(activity_input_path, "gene_exp_peaks_list.qs"))
 
-activity_ob <- CreateSeuratObject(counts = data_list[["Gene Expression"]],
-                                  assay = "RNA",
-                                  project = "10x_multiomics") %>%
+activity_ob <-
+    CreateSeuratObject(counts = data_list[["Gene Expression"]],
+                       assay = "RNA",
+                       project = "10x_multiomics") %>%
     PercentageFeatureSet(pattern = "^MT",
                          col.name = "percent.mt_rna",
                          assay = "RNA")
@@ -30,7 +31,8 @@ activity_small <- subset(activity_ob, bc %in% rownames(metadata))
 
 activity_small@meta.data <- metadata
 DefaultAssay(activity_small) <- "ATAC"
-activity_small <- activity_small %>%
+activity_small <-
+    activity_small %>%
     RunTFIDF() %>%
     FindTopFeatures(min.cutoff = "q0") %>%
     RunSVD() %>%
@@ -41,7 +43,8 @@ activity_small <- activity_small %>%
             reduction.name = "umap_atac")
 
 DefaultAssay(activity_small) <- "RNA"
-activity_small <- NormalizeData(activity_small) %>%
+activity_small <-
+    NormalizeData(activity_small) %>%
     FindVariableFeatures() %>%
     ScaleData() %>%
     RunPCA() %>%
@@ -57,5 +60,8 @@ annotations <-
 seqlevels(annotations) <- paste0("chr", seqlevels(annotations))
 genome(annotations) <- "hg38"
 
+qs::qsave(annotations, "input/multiomics/lesson_data/annotations.qs")
+
 Annotation(activity_small) <- annotations
-qs::qsave(activity_small, "input/multiomics/activity_data/activity_small.qs")
+
+qs::qsave(activity_small, "input/multiomics/downsampled_data/activity_small.qs")

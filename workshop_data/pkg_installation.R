@@ -47,7 +47,8 @@ bioc_dependencies <-
         "biomaRt",
         "DropletUtils",
         "multtest",
-        "metap"
+        "metap",
+        "biovizBase"
     )
 
 needed_packages_cran <-

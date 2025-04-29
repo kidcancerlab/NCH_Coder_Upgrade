@@ -78,3 +78,5 @@ tabix -p bed new_fragments.tsv.gz
 cd ${my_loc}
 
 Rscript workshop_data/make_activity_small.r
+
+rm -r input/multiomics/activity_data
