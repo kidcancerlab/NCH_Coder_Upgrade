@@ -567,43 +567,43 @@ high_gfap_data <-
 
 high_gfap_data[1:5, 1:5]
 
-# Percentage of astrocytes in each sample
-high_gfap_data <-
-  FetchData(pre_sobj,
+# Plot the percentage of astrocytes in each sample
+FetchData(pre_sobj,
     vars = c("orig.ident", "cell_type"),
     cells = Cells(gfap_pos)
   ) %>%
-  group_by(orig.ident, cell_type) %>%
-  summarize(count = n()) %>%
   group_by(orig.ident) %>%
-  mutate(astro_pct = sum(count))
+  summarize(pct_astros = sum(cell_type == "Astro") / n() * 100) %>%
+  ggplot(aes(orig.ident, pct_astros)) +
+    geom_col() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ```
 
 ## Save your Idents
 ```{r}
-pre_sobj <- StashIdent(pre_sobj, "my_idents")
+pre_sobj$my_idents <- Idents(pre_sobj)
 head(pre_sobj$my_idents)
 ```
 
 ## A quick note about on-disk processing
 
-The newest version of Seurat implements the BPCells procedure for on-disk processing
+Newer versions of Seurat implements the BPCells procedure for on-disk processing
 
 This procedure can convert your large matrix objects to data streaming objects. When streaming, rather than loading your data into memory to facilitate processing and manipulation, processing can be completed by pulling the data a little at a time and then storing all of the intermediate steps back to disk. On-disk processing frees you from the limitations of system memory (somewhat), letting you work on datasets much larger using systems much simpler than you could using conventional processing.
 
-To activate on-disk processing, you first need to convert your ***
+To activate on-disk processing, you first need to convert your count matrices to be streaming objects, then use those to create your object.
 ```{r}
-raw_matrix <- Read10X("./data/example")
+raw_matrix <- Read10X("~/data/input/scRNA/GSM6925133_OX1X")
 
 # Write the matrix to a directory
 BPCells::write_matrix_dir(
   mat = raw_matrix,
-  dir = "./matrices/example"
+  dir = "~/matrices/example"
 )
 
 # Now that we have the matrix on disk, we can load it
 example.mat <- BPCells::open_matrix_dir(
-  dir = "./matrices/example"
+  dir = "~/matrices/example"
 )
 
 # Create Seurat Objects
