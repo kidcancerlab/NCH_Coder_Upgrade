@@ -48,7 +48,8 @@ bioc_dependencies <-
         "DropletUtils",
         "multtest",
         "metap",
-        "biovizBase"
+        "biovizBase",
+        "motifmatchr"
     )
 
 needed_packages_cran <-
