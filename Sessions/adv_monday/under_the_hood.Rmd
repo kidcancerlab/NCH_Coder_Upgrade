@@ -1,6 +1,6 @@
 ---
 title: "Coder Upgrade 2025: Seurat Under the Hood"
-subtitle: "Adapted from 2023 code by Ryan Roberts and Matt Cannon"
+subtitle: "Adapted from 2023 code written largely by Matt Cannon"
 author: "Ryan Roberts"
 date: "`r format(Sys.time(), '%m/%d/%Y')`"
 output:
@@ -30,23 +30,21 @@ library(tidyverse)
 library(Seurat)
 ```
 
-Download an example dataset and create a Seurat object for the demo
-```{r download}
-# Download the raw data that we will work with in the demo
-if (!dir.exists("input/scRNA/GSM6925133_OX1X")) {
-  system("bash workshop_data/download_scrna.sh")
-}
-
-sobj <- Read10X("input/scRNA/GSM6925133_OX1X") %>%
-  CreateSeuratObject(min.cells = 3, min.features = 200)
-```
-
-Run a system check to make sure that you are ready to go
-```{r system_check}
-if (dir.exists("input/scRNA/GSM6925133_OX1X")) {
-  message("The raw data has been downloaded and unpacked...")
+Run a data check to make sure that you are ready to go and load the pre-processed Seurat object
+```{r data_check}
+if (dir.exists("~/data/input/scRNA/GSM6925133_OX1X")) {
+  message("The raw data has been downloaded and is available...")
+  sobj <- Read10X("~/data/input/scRNA/GSM6925133_OX1X") %>%
+    CreateSeuratObject(min.cells = 3, min.features = 200)
   if (class(sobj) == "Seurat") {
-    message("and the Seurat object was created successfully. You're good to go!")
+    message("and the Seurat object was created successfully.")
+    rm(sobj)
+    if(file.exists("~/data/output/rdata_premade/brain_scRNA_combined.qs")) {
+      pre_sobj <- qs::qread("~/data/output/rdata_premade/brain_scRNA_combined.qs")
+      message("The pre-processed Seurat object was found and loaded successfully. You're good to go!")
+    } else {
+      warning("Couldn't find the premade Seurat object for the demo. Please check paths.")
+    }
   } else {
     warning("The raw data was found, but the object could not be created. Check the raw data.")
   }
@@ -92,12 +90,12 @@ Three main types of objects in R
 
 ## Seurat objects are S4 objects
 ```{r}
-isS4(sobj)
-class(sobj)
+isS4(pre_sobj)
+class(pre_sobj)
 ```
 
 This is the code that defines a Seurat object
-```{r}
+```{r eval=FALSE}
 Seurat <- setClass(
   Class = "Seurat",
   slots = c(
@@ -123,7 +121,7 @@ Then methods/functions are created to work with Seurat objects
 Note that the function has a function name (merge), then ".", then the object type (Seurat)
 
 This tells R how to use the merge function on a Seurat object
-```{r}
+```{r eval=FALSE}
 merge.Seurat <- function(
     x = NULL,
     y = NULL,
@@ -162,7 +160,7 @@ merge.Seurat <- function(
 - Can extend base R functions to work with objects of a certain type
 
 ```{r}
-str(sobj)
+str(pre_sobj)
 ```
 
 > Show ppt slide with Seurat object structure
@@ -174,7 +172,7 @@ There are only a handful of slots in a Seurat object
 But, each slot can contain objects, which then have their own slots
 
 ```{r}
-glimpse(sobj)
+glimpse(pre_sobj)
 ```
 
 Ends up looking really complex if you don't break it down by level
@@ -206,14 +204,14 @@ Ends up looking really complex if you don't break it down by level
 --------------------------------------------------------------------------------
 
 # Activity 1:
-Explore the sobj Seurat object
+Explore the pre_sobj Seurat object
 
-Type "sobj@" in the console/terminal, then hit tab a few times to see the available slots
+Type "pre_sobj@" in the console/terminal to see what slots are available in the pre-processed object
 ```{r}
 
 ```
 
-Type "sobj$" in the console/terminal, then hit tab a few times to see the metadata column names
+Type "pre_sobj$" in the console/terminal, then hit tab a few times to see the metadata column names
 ```{r}
 
 ```
@@ -264,7 +262,7 @@ Each element of the list is an assay object
 - misc = 'list'
 
 ```{r}
-class(sobj@assays[[1]])
+class(pre_sobj@assays[[1]])
 ```
 
 ## Navigating a Seurat object
@@ -280,12 +278,12 @@ Key concepts:
 > Show ppt of navigating Seurat object
 
 ```{verbatim}
-obj      slot            list element     slot of "DimReduc" object
-sobj     @reductions     $pca             @cell.embeddings
+obj          slot            list element     slot of "DimReduc" object
+pre_sobj     @reductions     $pca             @cell.embeddings
 ```
 
 ```{r}
-pca_stuff <- sobj@reductions$pca@cell.embeddings
+pca_stuff <- pre_sobj@reductions$pca@cell.embeddings
 pca_stuff[1:10, 1:3]
 ```
 
@@ -297,8 +295,8 @@ Let's watch the sausage being made
 
 Create the Seurat object from the three matrices
 ```{r}
-example <- Read10X("./data/example") %>%
-  CreateSeuratObject(min.cells = 5, min.features = 300)
+example <- Read10X("~/data/input/scRNA/GSM6925133_OX1X") %>%
+  CreateSeuratObject(min.cells = 3, min.features = 200)
 ```
 
 How many layers are present?
@@ -351,22 +349,22 @@ This list is structured to make pulling out specific commands easier
 -  This in turn is a named list of arguments
 
 ```{r}
-sobj@commands$FindVariableFeatures.RNA$nfeatures
+pre_sobj@commands$FindVariableFeatures.RNA$nfeatures
 ```
 
 ```{verbatim}
-obj          slot       command                     argument
-sobj   @commands  $FindVariableFeatures.RNA   $nfeatures
+obj         slot       command                     argument
+pre_sobj    @commands  $FindVariableFeatures.RNA   $nfeatures
 ```
 
 ## Other random manual bits
 Getting cell names and gene names
 
 ```{r}
-genes <- rownames(sobj)
+genes <- rownames(pre_sobj)
 head(genes)
 
-cells <- colnames(sobj)
+cells <- colnames(pre_sobj)
 head(cells)
 ```
 
@@ -375,7 +373,7 @@ Subsetting a Seurat object by row/column numbers
             genes        cells
 object_name[row_numbers, column_numbers]
 ```{r}
-subset_data <- sobj[1:50, 1:20]
+subset_data <- pre_sobj[1:50, 1:20]
 subset_data
 ```
 
@@ -423,21 +421,21 @@ The active idents is essentially the default metadata defining groups of cells
 
 Can specify either a metadata column name, or provide your own vector of values
 ```{r}
-Idents(sobj) <- "letter.idents"
-table(Idents(sobj))
+Idents(pre_sobj) <- "cell_type"
+table(Idents(pre_sobj))
 
-Idents(sobj) <- "this_is_not_a_real_column_in_the_data"
-table(Idents(sobj))
+Idents(pre_sobj) <- "this_is_not_a_real_column_in_the_data"
+table(Idents(pre_sobj))
 
-Idents(sobj) <- sobj$letter.idents
-table(Idents(sobj))
+Idents(pre_sobj) <- pre_sobj$cell_type
+table(Idents(pre_sobj))
 
-DimPlot(sobj)
+DimPlot(pre_sobj)
 ```
 
 ## Get list of cells
 ```{r}
-cells <- Cells(sobj)
+cells <- Cells(pre_sobj)
 head(cells)
 ```
 
@@ -452,132 +450,139 @@ Can convert to a matrix with `as.matrix()`
 Rownames are the gene names
 ```{r}
 my_data <-
-  LayerData(sobj,
+  LayerData(pre_sobj,
     assay = "RNA",
     layer = "counts"
   )
 
-LayerData(sobj, layer = "counts")[1:5, 1:5] %>%
+LayerData(pre_sobj, layer = "counts")[1:5, 1:5] %>%
   as.matrix()
 
-LayerData(sobj, layer = "data")[1:5, 1:5] %>%
+LayerData(pre_sobj, layer = "data")[1:5, 1:5] %>%
   as.matrix()
 
-LayerData(sobj, layer = "scale.data")[1:5, 1:5] %>%
+LayerData(pre_sobj, layer = "scale.data")[1:5, 1:5] %>%
   as.matrix()
 ```
 
 ## Drop new data into an object
 ```{r}
 raw_counts <-
-  LayerData(sobj, layer = "counts") %>%
+  LayerData(pre_sobj, layer = "counts") %>%
   as.matrix()
 
 bad_normalization <- raw_counts / colSums(raw_counts)
-sobj_borked <-
-  SetAssayData(sobj,
+pre_sobj_borked <-
+  SetAssayData(pre_sobj,
     layer = "data",
     new.data = bad_normalization
   )
+pre_sobj_borked
+
 ```
 
 ## Subset a Seurat object
 Can subset by cells, idents, features, gene expression, etc...
 ```{r}
 # Note that there is only one equal sign here
-just_a <- subset(sobj, idents = "A")
+just_0 <- subset(pre_sobj, idents = "0")
 
 # But two equal signs here
-just_a <- subset(sobj, letter.idents == "A")
+just_0 <- subset(pre_sobj, seurat_clusters == "0")
 
-a_cells <- WhichCells(sobj, idents = "A")
+cells_0 <- WhichCells(pre_sobj, idents = "0")
 
-just_a <- subset(sobj, cells = a_cells)
+just_0 <- subset(pre_sobj, cells = cells_0)
 
-high_cd19 <- subset(sobj, subset = CD19 > 1)
+gfap_pos <- subset(pre_sobj, subset = Gfap > 1)
 ```
 
 ## Calculate average expression per group
 ```{r}
-ave_expr <- AverageExpression(sobj,
+ave_expr <- AverageExpression(pre_sobj,
   assays = "RNA",
-  group.by = "letter.idents"
+  group.by = "seurat_clusters"
 )$RNA
-ave_expr[1:5, ]
+as_tibble(ave_expr)
 ```
 
 ## Add metadata
 If adding a dataframe of metadata, need rownames of cell names
 When adding with "$", or passing a vector to `AddMetaData`, it doesn't check if cells match
 ```{r}
-sobj$nonsense <-
+pre_sobj$nonsense <-
   sample(LETTERS[1:5],
-    ncol(sobj),
+    ncol(pre_sobj),
     replace = TRUE
   )
 
 metadata_table <-
   data.frame(
     totally_true = sample(c("alive", "dead", "undead"),
-      ncol(sobj),
+      ncol(pre_sobj),
       replace = TRUE
     ),
     also_useful = sample(1:1000000,
-      ncol(sobj),
+      ncol(pre_sobj),
       replace = FALSE
     ),
-    row.names = colnames(sobj)
+    row.names = colnames(pre_sobj)
   )
 
-sobj_plus <- AddMetaData(sobj, metadata_table)
-head(sobj_plus@meta.data)
+pre_sobj_plus <- AddMetaData(pre_sobj, metadata_table)
+head(pre_sobj_plus@meta.data)
 
-sobj_plus <- AddMetaData(sobj_plus,
-  colnames(sobj_plus),
+pre_sobj_plus <- AddMetaData(pre_sobj_plus,
+  colnames(pre_sobj_plus),
   col.name = "cell_ids"
 )
-head(sobj_plus@meta.data)
+head(pre_sobj_plus@meta.data)
 ```
 
 ## Get PCA/UMAP/TSNE values
 ```{r}
-tsne_data <- Embeddings(sobj, reduction = "tsne")
+umap_data <- Embeddings(pre_sobj, reduction = "umap")
+head(umap_data)
 
-pca_data <- Embeddings(sobj, reduction = "pca")
+pca_data <- Embeddings(pre_sobj, reduction = "pca")
+as_tibble(pca_data)
 ```
 
 ## Get cell names for specific cells
 ```{r}
-high_cd79b <- WhichCells(sobj, expression = CD79B > 2)
-head(high_cd79b)
+high_nse <- WhichCells(pre_sobj, expression = Eno2 > 2)
+head(high_nse)
 
-group_b <- WhichCells(sobj, idents = "B")
-length(group_b)
+microglia <- Cells(subset(pre_sobj, subset = cell_type == "Microglia"))
+length(microglia)
 ```
 
 ## Get data for specific cells
 ```{r}
-high_cd79b_data <-
-  FetchData(sobj,
-    vars = rownames(sobj),
-    cells = high_cd79b
+high_gfap_data <-
+  FetchData(pre_sobj,
+    vars = rownames(pre_sobj),
+    cells = Cells(gfap_pos)
   )
 
-high_cd79b_data[1:5, 1:5]
+high_gfap_data[1:5, 1:5]
 
-high_cd79b_data <-
-  FetchData(sobj,
-    vars = c("groups", "letter.idents", "nonsense"),
-    cells = high_cd79b
-  )
-
-head(high_cd79b_data)
+# Percentage of astrocytes in each sample
+high_gfap_data <-
+  FetchData(pre_sobj,
+    vars = c("orig.ident", "cell_type"),
+    cells = Cells(gfap_pos)
+  ) %>%
+  group_by(orig.ident, cell_type) %>%
+  summarize(count = n()) %>%
+  group_by(orig.ident) %>%
+  mutate(astro_pct = sum(count))
 ```
 
 ## Save your Idents
 ```{r}
-sobj <- StashIdent(sobj, "my_idents")
-head(sobj$my_idents)
+pre_sobj <- StashIdent(pre_sobj, "my_idents")
+head(pre_sobj$my_idents)
 ```
 
 ## A quick note about on-disk processing
@@ -655,7 +660,7 @@ But, if you need to, you can!
 
 This should make a lot more sense now!
 ```{r}
-str(sobj)
+str(pre_sobj)
 ```
 
 --------------------------------------------------------------------------------
