@@ -92,8 +92,8 @@ library(qs)
 set.seed(888)
 
 # set directories
-session_path <- "/igm/home/cnh008/projects/scrgot/scrgot_2025/NCH_Coder_Upgrade/Sessions/beginner_thursday/"
-data_path <- "/igm/home/cnh008/projects/scrgot/scrgot_2025/workshop_data"
+session_path <- "Sessions/beginner_thursday/"
+data_path <- "~/data/output"
 setwd(session_path)
 ```
 

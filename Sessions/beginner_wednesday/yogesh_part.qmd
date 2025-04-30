@@ -33,11 +33,11 @@ differential expression analysis.
 
 # read in one object
 sobj1 <-
-    qs::qread("output/rdata_premade/OX1X_sobj_annotated.qs")
+    qs::qread("~/data/output/rdata_premade/OX1X_sobj_annotated.qs")
 sobj1
 #list of Seurat objects
 sobj_list <-
-    qs::qread("output/rdata_premade/scRNA_objs_list.qs")
+    qs::qread("~/data/output/rdata_premade/scRNA_objs_list.qs")
 sobj_list
 
 # merge the Seurat objects
