@@ -44,7 +44,12 @@ bioc_dependencies <-
         "ComplexHeatmap",
         "ensembldb",
         "SPOTlight",
-        "biomaRt"
+        "biomaRt",
+        "DropletUtils",
+        "multtest",
+        "metap",
+        "biovizBase",
+        "motifmatchr"
     )
 
 needed_packages_cran <-
@@ -75,7 +80,9 @@ needed_packages_cran <-
         "testthat",
         "tidyverse",
         "terra",
-        "anndata"
+        "anndata",
+        "msigdbdf",
+        "scatterpie"
     )
 
 pak::pkg_install(
@@ -96,7 +103,8 @@ github_packages <-
         "10xGenomics/loupeR",
         "jinworks/CellChat",
         "immunogenomics/crescendo",
-        "dmcable/spacexr"
+        "dmcable/spacexr",
+        "bnprks/BPCells/r"
     )
 
 pak::pkg_install(

@@ -49,6 +49,8 @@ annotations <-
 seqlevels(annotations) <- paste0("chr", seqlevels(annotations))
 genome(annotations) <- "hg38"
 
+annotations <-
+    qs::qread
 Annotation(activity_ob) <- annotations
 ```
 

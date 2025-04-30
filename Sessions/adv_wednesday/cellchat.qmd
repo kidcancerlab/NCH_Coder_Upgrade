@@ -41,7 +41,7 @@ https://htmlpreview.github.io/?https://github.com/jinworks/CellChat/blob/master/
 
 ```{r}
 brain_data <-
-    qs::qread("output/rdata_premade/brain_scRNA_combined.qs")
+    qs::qread("~/data/output/rdata_premade/brain_scRNA_combined.qs")
 
 brain_data$age <-
     if_else(
@@ -81,9 +81,11 @@ Idents(brain_data) <-
 ```
 
 ## Downsample to reduce memory usage and speed things up
+This keeps 50 cells per cell type per sample because our Idents() are cell_sample
 ```{r}
 brain_data <-
     subset(brain_data, downsample = 50)
+gc() # reduce ram usage from old object
 ```
 
 ## Make CellChat object
@@ -101,6 +103,7 @@ groupSize
 ```
 
 ## Load in ligand-receptor interactions
+We keep only interactions within the "Secreted Signaling" group
 ```{r}
 cellchat_db <- CellChatDB.mouse
 
@@ -129,16 +132,20 @@ cellchat_obj <-
 
 ## Compute the communication network
 Populates the cellchat_obj@net slot with interaction probability and pvalues.
+
+This takes about two minutes
 ```{r}
 cellchat_obj <- computeCommunProb(cellchat_obj, type = "triMean")
 ```
 
 ## Lets look at the interaction probability
-```{r}
-cellchat_obj@net$LRs
 
-dimnames(cellchat_obj@net$prob)[[3]] %>% head(n = 20)
+This is a 3d array, where the third dimension is each ligand-receptor pair
+```{r}
 cellchat_obj@net$prob[, , 1:2]
+
+dimnames(cellchat_obj@net$prob)[[3]] %>%
+    head(n = 20)
 
 third_d_names <- dimnames(cellchat_obj@net$prob)[[3]]
 third_d_names
@@ -164,7 +171,7 @@ cellchat_obj@netP$pathways
 
 third_d_names <- dimnames(cellchat_obj@netP$prob)[[3]]
 
-cellchat_obj@netP$prob[, , 1:2]
+cellchat_obj@netP$prob[, , 1:4]
 
 # Look at "MK" pathway
 cellchat_obj@netP$prob[, , 4] %>%
@@ -172,7 +179,7 @@ cellchat_obj@netP$prob[, , 4] %>%
 ```
 
 ## Calculate aggregated communication network
-Populates "weight" and "count" inside the cellchat_obj@net slot. This is the aggregated communication network. The weight is the sum of the probabilities of interaction between the cell types for each pathway. The count is the number of interactions between the cell types for each pathway.
+Populates "weight" and "count" inside the cellchat_obj@net slot. This is the aggregated communication network. The weight is the sum of the probabilities of interaction between the cell types for each ligand-receptor interaction The count is the number of interactions between the cell types for each pathway.
 ```{r}
 cellchat_obj <- aggregateNet(cellchat_obj)
 
@@ -197,10 +204,12 @@ This gets the data in a more friendly format (long format)
 cc_results <-
     subsetCommunication(cellchat_obj) %>%
     as_tibble()
+cc_results
 
 cc_results_pathway <-
     subsetCommunication(cellchat_obj, slot.name = "netP") %>%
     as_tibble()
+cc_results_pathway
 
 cc_results_pathway %>%
     filter(prob >= 0.1) %>%
@@ -241,7 +250,10 @@ netVisual_circle(
 dev.off()
 
 netVisual_aggregate(cellchat_obj, signaling = "MK", layout = "chord")
+```
 
+## Look at the composition of pathways
+```{r}
 cellchat_db$interaction %>%
     filter(pathway_name == "MK") %>%
     head()
@@ -258,3 +270,4 @@ cellchat_db$interaction %>%
     filter(pathway_name == "MK") %>%
     select(ligand.symbol, receptor.symbol)
 ```
+

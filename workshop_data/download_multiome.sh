@@ -68,14 +68,15 @@ cd ${my_loc}/input/multiomics/downsampled_data
 grep "#" atac_fragments.tsv > new_fragments.tsv
 #now cat all lines containing the selected barcodes
 grep -f downsampled_bcs.tsv atac_fragments.tsv >> new_fragments.tsv
-ml SAMtools
 bgzip new_fragments.tsv
 
 #delete old fragment file
-# rm atac_fragments.tsv
+rm atac_fragments.tsv
 
 tabix -p bed new_fragments.tsv.gz
 
 cd ${my_loc}
 
 Rscript workshop_data/make_activity_small.r
+
+rm -r input/multiomics/activity_data
