@@ -76,7 +76,7 @@ gene names begin. "^mt-" for mice gene pattern.
 ```{r load}
 # read in the object
 sobj <-
-    qs::qread("output/rdata_premade/OX1X_sobj.qs")
+    qs::qread("~/data/output/rdata_premade/OX1X_sobj.qs")
 
 # check the object
 sobj
@@ -415,7 +415,7 @@ marker_dotplot <-
         theme(axis.text.x = element_text(angle = 90)) # makes the gene names 90 degrees
 
 # save the plot
-ggsave("output/figures/markers_dotplot.png",
+ggsave("~/data/output/figures/markers_dotplot.png",
         plot = marker_dotplot,
        width = 12,
        height = 7,
@@ -449,7 +449,7 @@ dimplot_annotated <-
     NoLegend()
 
 # save the plot
-ggsave("output/figures/annotated_celltypes.png",
+ggsave("~/data/output/figures/annotated_celltypes.png",
        plot = dimplot_annotated,
        width = 12,
        height = 7,
@@ -490,7 +490,7 @@ SingleR or Mapquery. These methods use the reference data to annotate the cells.
 ```{r singleR}
 # reference data
 brain_ref_data <- 
-    qs::qread("output/rdata_premade/mouse_brain_ref_data.qs")
+    qs::qread("~/data/output/rdata_premade/mouse_brain_ref_data.qs")
 
 # check the object labels that will be used for annotation
 DimPlot(brain_ref_data,
@@ -515,7 +515,7 @@ sobj$SingleR_scores <-
           MARGIN = 1,
           function(x) max(x, na.rm = TRUE))
 
-# check thee annoation
+# check thee annotation
 DimPlot(sobj,
         group.by = "SingleR_annotation",
         label = TRUE,
@@ -534,7 +534,7 @@ This object has several different levels of granularity. For the examples, we wi
 ```{r annotate_seurat}
 # Read in the reference Seurat object
 brain_ref_data <- 
-    qs::qread("output/rdata_premade/mouse_brain_ref_data.qs")
+    qs::qread("~/data/output/rdata_premade/mouse_brain_ref_data.qs")
 
 # Set the idents to cell_type so that we can examine which cell types are present in the dataset
 Idents(brain_ref_data) <- "cell_type"

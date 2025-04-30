@@ -17,10 +17,8 @@ knitr::opts_chunk$set(echo = TRUE,
                       cache.lazy = FALSE)
 
 # load libraries
-library(Seurat,
-        lib.loc = "/igm/apps/R/R-4.3.3_install/lib64/R/library/")
+library(Seurat)
 library(tidyverse)
-dyn.load("/igm/apps/hdf5/hdf5-1.12.1/lib/libhdf5_hl.so.200")
 library("hdf5r")
 library(patchwork)
 library(qs)
@@ -46,8 +44,8 @@ colorset <-
     "#8bd0eb")
 
 # set directories
-session_path <- "/igm/home/cnh008/projects/scrgot/scrgot_2025/NCH_Coder_Upgrade/Sessions/adv_tuesday/"
-data_path <- "/igm/home/cnh008/projects/scrgot/scrgot_2025/workshop_data"
+session_path <- "Sessions/adv_tuesday/"
+data_path <- "~/data/input"
 setwd(session_path)
 ```
 
@@ -383,7 +381,7 @@ DimPlot(object = spatial,
 ```{r deconvolution}
 # load in reference data
 ref <-
-  qread(file = paste0(data_path, "/mouse_brain_ref_data.qs"))
+  qread(file = "~/data/output/rdata_premade/mouse_brain_ref_data.qs")
 
 # take a look at the data
 head(ref@meta.data)
