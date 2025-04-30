@@ -48,7 +48,7 @@ Lets use the mouse brain data
 
 ```{r}
 brain_data <-
-    qs::qread("output/rdata_premade/brain_scRNA_combined.qs")
+    qs::qread("~/data/output/rdata_premade/brain_scRNA_combined.qs")
 
 brain_data$age <-
     if_else(
@@ -69,6 +69,7 @@ DimPlot(
 DimPlot(
     brain_data,
     group.by = "age",
+    shuffle = TRUE,
     label = TRUE,
     label.box = TRUE,
     repel = TRUE
@@ -77,6 +78,9 @@ DimPlot(
 ```
 
 ## Find which cells change
+Lets only keep cell types with more than 200 cells total
+
+Then we'll do pseudobulked DE analysis to find DE genes for each cell type between old/young mice
 ```{r}
 min_cells <- 200
 
@@ -87,6 +91,7 @@ cell_type_counts <-
 keep_cell_types <-
     cell_type_counts[cell_type_counts > min_cells] %>%
     names()
+keep_cell_types
 
 de_list <-
     parallel::mclapply(
@@ -129,6 +134,7 @@ de_list <-
         }
     )
 names(de_list) <- keep_cell_types
+de_list
 ```
 
 ## Look at cell type counts and which ones change most
@@ -145,18 +151,17 @@ table(brain_data$cell_type, brain_data$age) %>%
     arrange(Young)
 
 # Lets look at how many DE genes we had per cell type
-lapply(de_list, function(x) {
-    filter(x, padj <= 0.05) %>%
-        nrow()
-}) %>%
-    unlist() %>%
-    sort()
-
-most_diff_cell_type <-
+de_genes_by_celltype <-
     lapply(de_list, function(x) {
         filter(x, padj <= 0.05) %>%
             nrow()
     }) %>%
+    unlist() %>%
+    sort()
+de_genes_by_celltype
+
+most_diff_cell_type <-
+    de_genes_by_celltype %>%
     unlist() %>%
     sort() %>%
     tail(n = 1) %>%
@@ -166,10 +171,7 @@ most_diff_cell_type
 
 # We'll use this for activities
 second_diff_cell_type <-
-    lapply(de_list, function(x) {
-        filter(x, padj <= 0.05) %>%
-            nrow()
-    }) %>%
+    de_genes_by_celltype %>%
     unlist() %>%
     sort() %>%
     tail(n = 2) %>%
@@ -216,13 +218,14 @@ if you have mouse data get:
 - "https://zenodo.org/record/7074291/files/ligand_target_matrix_nsga2r_final_mouse.rds"
 - "https://zenodo.org/record/7074291/files/weighted_networks_nsga2r_final_mouse.rds"
 
-I already downloaded these for us
+I already downloaded these for us and it is in ~/data/input/nichenetr
 ```{r}
 ligand_target_matrix <-
-    readRDS("input/nichenetr/ligand_target_matrix_mouse.rds")
+    readRDS("~/data/input/nichenetr/ligand_target_matrix_mouse.rds")
+ligand_target_matrix[1:10, 1:10]
 
 lr_network <-
-    readRDS("input/nichenetr/lr_network_mouse.rds")
+    readRDS("~/data/input/nichenetr/lr_network_mouse.rds")
 
 lr_network_strict <-
     lr_network %>%
@@ -230,15 +233,17 @@ lr_network_strict <-
         database != "ppi_prediction_go" &
             database != "ppi_prediction"
     )
+lr_network_strict[1:10, ]
 
 weighted_networks <-
-    readRDS("input/nichenetr/weighted_networks_mouse.rds")
+    readRDS("~/data/input/nichenetr/weighted_networks_mouse.rds")
 
 weighted_networks_lr <-
     weighted_networks$lr_sig %>%
     inner_join(lr_network_strict %>% distinct(from, to),
         by = c("from", "to")
     )
+weighted_networks_lr[1:10, ]
 ```
 
 ## Define sender and reciever cells
@@ -255,12 +260,12 @@ expressed_genes_receiver <-
     )
 
 background_expressed_genes <-
-    expressed_genes_receiver %>%
-    .[. %in% rownames(ligand_target_matrix)]
+    expressed_genes_receiver[expressed_genes_receiver %in% rownames(ligand_target_matrix)]
 
 ## sender
 sender_celltypes <-
     discard(keep_cell_types, keep_cell_types %in% most_diff_cell_type)
+sender_celltypes
 ```
 
 ## Make sure to keep only genes present in our model
@@ -319,7 +324,7 @@ potential_ligands <-
 We provide:
 
 - geneset_oi                    - List of downstream targets of potentially activated receptors
-- background_expressed_genes    - List of genes expressed in the reciever cells
+- background_expressed_genes    - List of genes expressed in the receiver cells
 - ligand_target_matrix          - Matrix of ligand-receptor interactions
 - potential_ligands             - List of ligands that are expressed in the sender cells
 
@@ -336,9 +341,10 @@ nichenet_stepwise_output <-
     arrange(-aupr_corrected) %>%
     mutate(rank = rank(-aupr_corrected))
 
+print(nichenet_stepwise_output, n = 20)
+
 hist(nichenet_stepwise_output$aupr_corrected, n = 100)
 
-print(nichenet_stepwise_output, n = 20)
 # let's keep the top 10
 
 qs::qsave(
@@ -611,20 +617,22 @@ You have little control over what's happening in the analysis
 ```{r}
 nichenet_easy_output <-
     nichenet_seuratobj_aggregate(
-        seurat_obj = brain_data, # Your Seurat object
-        receiver = most_diff_cell_type, # String of one cell type
-        condition_colname = "age", # Column name to split data by
-        condition_oi = "Old", # One group
-        condition_reference = "Young", # Your other group
-        sender = sender_celltypes, # Vector of strings for cell types
-        ligand_target_matrix = ligand_target_matrix, # From above
-        lr_network = lr_network, # From above
-        weighted_networks = weighted_networks # From above
+        seurat_obj = brain_data,                      # Your Seurat object
+        receiver = most_diff_cell_type,               # String of one cell type
+        condition_colname = "age",                    # Column name to split data by
+        condition_oi = "Old",                         # One group
+        condition_reference = "Young",                # Your other group
+        sender = sender_celltypes,                    # Vector of strings for cell types
+        ligand_target_matrix = ligand_target_matrix,  # From above
+        lr_network = lr_network,                      # From above
+        weighted_networks = weighted_networks         # From above
     )
 
 qs::qsave(nichenet_easy_output,
-    file = paste0(data_path, "nichenet_easy_output.qs")
+    file = "output/rdata_premade/nichenet_easy_output.qs")
 )
+
+nichenet_easy_output$ligand_receptor_heatmap
 ```
 
 ## Easy mode output:
