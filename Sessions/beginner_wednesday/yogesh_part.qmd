@@ -11,6 +11,8 @@ library(qs) # For reading and writing .qs files
 library(harmony) # For Harmony integration
 library(crescendo)
 
+options(future.globals.maxSize = 10 * 1e9)
+
 # Set the random generator seed so that results are reproducible.
 set.seed(132)
 ```
@@ -79,7 +81,7 @@ merged_sobj <-
     FindNeighbors(dims = 1:30) %>%    #use PC1 through PC30
     FindClusters()
 
-# all opf the above steps can be done in one go using pipe function
+# all of the above steps can be done in one go using pipe function
 merged_sobj <-
     merged_sobj %>%
     NormalizeData() %>%
@@ -119,19 +121,9 @@ DimPlot(merged_sobj,
 
 # looks like there is no batch effect
 
-
-# we also realized that there is no mitochondrial gene in the second object we are loading today
-# so we will remove the mitochondrial genes from the merged_sobj for consistency
-mito_genes <- 
-    grep("^mt-", rownames(merged_sobj), value = TRUE)
-
-merged_sobj <- 
-    subset(merged_sobj,
-          features = setdiff(rownames(merged_sobj), mito_genes))
-
 #save the object
 qs::qsave(merged_sobj,
-        "input/scRNA/downloaded_source1.qs")
+          "~/data/output/rdata/downloaded_source1.qs")
 
 ```
 
@@ -144,19 +136,19 @@ same tissue. The actvity is to merge the two objects and check for batch effect.
 ```{r activity1}
 # read in the second object
 object1 <-
-    qs::qread("input/scRNA/downloaded_source1.qs")
+    qs::qread("~/data/output/rdata/downloaded_source1.qs")
 
 #save the batch information
 object1$batch <- "batch1"
 
 # save the batch information in the merged_sobj as well
 object2 <-
-    qs::qread("input/scRNA/downloaded_source2.qs")
+    qs::qread("~/data/input/scRNA/allen_brain_data.qs")
 object2$batch <- "batch2"
-# the cell annotaiton is in singleR_annotation column so that it matches the first object
+# the cell annotation is in singleR_annotation column so that it matches the first object
 object2$cell_type <- object2$SingleR_annotation
 
-#merge the two objects and process it together unto plotting dimplot
+#merge the two objects and process it together through plotting dimplot
 
 
 
@@ -186,14 +178,14 @@ Harmony integration to remove the batch effect.
 ```{r harmony_integration}
 # read in the second object
 object1 <-
-    qs::qread("input/scRNA/downloaded_source1.qs")
+    qs::qread("~/data/output/rdata/downloaded_source1.qs")
 
 #save the batch information
 object1$batch <- "batch1"
 
 # save the batch information in the merged_sobj as well
 object2 <-
-    qs::qread("input/scRNA/downloaded_source2.qs")
+    qs::qread("~/data/input/scRNA/allen_brain_data.qs")
 object2$batch <- "batch2"
 
 # merge the two objects and process it together unto plotting dimplot
@@ -208,6 +200,11 @@ merge_all <-
     RunUMAP(dims = 1:30) %>%
     FindNeighbors(dims = 1:30) %>%
     FindClusters()
+
+qs::qsave(
+    merge_all,
+    "~/data/output/rdata/before_harmony_combined.qs"
+)
 
 # assess the batch effect
 DimPlot(merge_all,
@@ -226,7 +223,7 @@ DimPlot(merge_all,
 
 
 # run Harmony integration
-merge_all_harmony1 <-
+merge_all_harmony <-
     merge_all %>%
     RunHarmony(group.by.vars = "batch") %>%
     RunUMAP(reduction = "harmony", dims = 1:30) %>%
@@ -234,7 +231,7 @@ merge_all_harmony1 <-
     FindClusters() 
 
 # check the integration
-DimPlot(merge_all_harmony1,
+DimPlot(merge_all_harmony,
         group.by = "batch",
         label = T,
         repel = T,
@@ -242,7 +239,7 @@ DimPlot(merge_all_harmony1,
     NoLegend()
 
 # run Harmony integration with different parameters
-merge_all_harmony2 <-
+merge_all_harmony <-
     merge_all %>%
     RunHarmony(group.by.vars = "batch",
                theta = 4) %>%
@@ -251,13 +248,13 @@ merge_all_harmony2 <-
     FindClusters()
 
 # check the integration
-DimPlot(merge_all_harmony2,
+DimPlot(merge_all_harmony,
         group.by = "orig.ident",
         label = T,
         repel = T,
         label.box = T) +
     NoLegend()
-DimPlot(merge_all_harmony2,
+DimPlot(merge_all_harmony,
         group.by = "batch",
         label = T,
         repel = T,
@@ -295,7 +292,7 @@ like Seurat and Scanpy can only do one batch at a time. But Harmony can do multi
 
 ```{r two_batch_variables}
 # run Harmony integration with multiple batch variables
-merge_all_harmony3 <-
+merge_all_harmony <-
     merge_all %>%
     RunHarmony(group.by.vars = c("batch", "orig.ident")) %>%
     RunUMAP(reduction = "harmony", dims = 1:30) %>%
@@ -303,7 +300,7 @@ merge_all_harmony3 <-
     FindClusters()
 
 # check the integration
-DimPlot(merge_all_harmony3,
+DimPlot(merge_all_harmony,
         group.by = "orig.ident",
         label = T,
         repel = T,
@@ -311,23 +308,23 @@ DimPlot(merge_all_harmony3,
     NoLegend()
 
 # change theta
-merge_all_harmony4 <-
+merge_all_harmony <-
     merge_all %>%
     RunHarmony(group.by.vars = c("batch", "orig.ident"),
-                theta = c(5, 5)) %>%
+               theta = c(10, 10)) %>%
     RunUMAP(reduction = "harmony", dims = 1:30) %>%
     FindNeighbors(reduction = "harmony", dims = 1:30) %>%
     FindClusters()
 
 # check the integration
-DimPlot(merge_all_harmony4,
+DimPlot(merge_all_harmony,
         group.by = "orig.ident",
         label = T,
         repel = T,
         label.box = T) +
     NoLegend()
 
-DimPlot(merge_all_harmony4,
+DimPlot(merge_all_harmony,
         group.by = "batch",
         label = T,
         repel = T,
@@ -337,6 +334,10 @@ DimPlot(merge_all_harmony4,
 # there are opportunities to explore more of the harmony parameters such as lambda and tau.
 # you can also try using multiple theta each time, low and high and see how it works.
 # you can also try using multiple lambda each time, low and high and see how it works.
+
+# Clean up a bit to save ram
+rm(merge_all, merge_all_harmony, merged_sobj, object1, object2, sobj_list)
+gc()
 ```
 
 
@@ -347,7 +348,7 @@ To use these methods, we will need to go back to the merged object that contains
 
 ```{r}
 # Read in the merged object
-merged = qread("~/Projects/2025_workshop/before_harmony_combined.qs")
+merged <- qread("~/data/output/rdata/before_harmony_combined.qs")
 ```
 
 # Let's remind ourselves what that object looks like. We will make a DimPlot. 
@@ -371,6 +372,13 @@ DimPlot(merged,
 Out of the two methods, RPCA is faster and more conservative, meaning that in results in smaller batch effect correction. It also runs faster than CCA. 
 
 ```{r}
+# Lets downsample a bit so it runs quicker
+Idents(merged) <- merged$seurat_clusters
+merged <- subset(merged, downsample = 500)
+
+DimPlot(merged,
+        group.by = "orig.ident")
+
 # First, we need to split the layers of the merged object to allow for integration to happen. 
 
 merged[["RNA"]] <- split(merged[["RNA"]], f = merged$orig.ident)

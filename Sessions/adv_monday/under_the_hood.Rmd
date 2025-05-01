@@ -75,7 +75,7 @@ But it also has some "object oriented" features
     - Variables are meant to be directly manipulated
     - Objects are meant to be interacted with through methods
 
-Three main types of objects in R
+Four main types of objects in R
 
 - S3
     - The original object type in R
@@ -84,6 +84,10 @@ Three main types of objects in R
     - More strictly defined
     - More complicated to create
     - Less prone to errors
+- S7
+    - Even more strictly defined
+    - Data type validation
+    - Very new
 - R6
     - More traditional OO behavior
     - Not super common
