@@ -181,6 +181,7 @@ merged_sobj <-
         sobj_list,
         add.cell.ids = c("GSM6925133_OX1X", names(sobj_list))
     ) %>%
+    JoinLayers() %>%
     NormalizeData(verbose = FALSE) %>%
     FindVariableFeatures(verbose = FALSE) %>%
     ScaleData(verbose = FALSE) %>%
@@ -191,8 +192,7 @@ merged_sobj <-
     ) %>%
     FindNeighbors(reduction = "harmony", verbose = FALSE) %>%
     FindClusters(resolution = 0.5, verbose = FALSE) %>%
-    RunUMAP(reduction = "harmony", dims = 1:30, verbose = FALSE) %>%
-    JoinLayers()
+    RunUMAP(reduction = "harmony", dims = 1:30, verbose = FALSE)
 
 merged_dimplot <-
     DimPlot(
