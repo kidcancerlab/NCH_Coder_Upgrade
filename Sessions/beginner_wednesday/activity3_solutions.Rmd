@@ -1,0 +1,44 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+## Answers to activity 3
+
+# Running the CCA integration
+
+```{r}
+cca <- IntegrateLayers(
+  object = merged, 
+  method = CCAIntegration,
+  orig.reduction = "pca", 
+  new.reduction = "integrated.cca",
+  verbose = FALSE)
+```
+
+# Now the integrated object needs to be processed via running PCA, UMAP, FindNeighbors() and FindClusters(). 
+
+```{r}
+cca <- cca%>%
+  RunPCA(verbose = FALSE)%>%
+  RunUMAP(reduction = "integrated.cca", dims = 1:30)%>%
+  FindNeighbors(dims = 1:30, reduction = "integrated.cca")%>%
+  FindClusters(resolution = 0.1)
+```
+
+# Visualize the results. 
+
+```{r}
+DimPlot(cca, 
+        group.by = "seurat_clusters",
+        label = T,
+        repel = T,
+        label.box = T) +
+  NoLegend() 
+
+# We can also group the DimPlot based on the sample. 
+
+DimPlot(cca, 
+        group.by = "orig.ident")
+```
+
