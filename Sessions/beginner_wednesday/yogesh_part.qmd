@@ -340,3 +340,113 @@ DimPlot(merge_all_harmony4,
 ```
 
 
+## RPCA and CCA integration. 
+
+We are going to go back to the merged object with batch effects and test two other integration methods, RPCA, and CCA, which are supported by Seurat v5, i.e. you don't need a separate package to run them. RPCA stands for reciprocal PCA (principal component analysis). CCA strands for canonical correlation analysis. You can read more about these methods here. https://satijalab.org/seurat/articles/seurat5_integration. 
+To use these methods, we will need to go back to the merged object that contains 20 samples (with a batch effect). 
+
+```{r}
+# Read in the merged object
+merged = qread("~/Projects/2025_workshop/before_harmony_combined.qs")
+```
+
+# Let's remind ourselves what that object looks like. We will make a DimPlot. 
+
+```{r}
+# We can group the DimPlot by clusters. 
+DimPlot(merged, 
+        group.by = "seurat_clusters",
+        label = T,
+        repel = T,
+        label.box = T) +
+  NoLegend() 
+
+# We can also group the DimPlot based on the sample. 
+DimPlot(merged, 
+        group.by = "orig.ident")
+```
+
+# We are going to start by using the RPCA integration. 
+
+Out of the two methods, RPCA is faster and more conservative, meaning that in results in smaller batch effect correction. It also runs faster than CCA. 
+
+```{r}
+# First, we need to split the layers of the merged object to allow for integration to happen. 
+
+merged[["RNA"]] <- split(merged[["RNA"]], f = merged$orig.ident)
+
+# Then, we can perform the actual integration. 
+
+rpca <- IntegrateLayers(
+  object = merged, 
+  method = RPCAIntegration,
+  orig.reduction = "pca", 
+  new.reduction = "integrated.rpca",
+  verbose = FALSE)
+```
+
+# After performing the actual integration, we need to run PCA, UMAP, FindNeighbors() and FindClusters(). 
+
+```{r}
+rpca <- rpca%>%
+  RunPCA(verbose = FALSE)%>%
+  RunUMAP(reduction = "integrated.rpca", dims = 1:30)%>%
+  FindNeighbors(dims = 1:30, reduction = "integrated.rpca")%>%
+  FindClusters(resolution = 0.1)
+```
+
+# Visualize the integrated dataset and compare it to the merged object.
+
+```{r}
+# We can group the DimPlot by clusters. 
+
+DimPlot(merged, 
+        group.by = "seurat_clusters",
+        label = T,
+        repel = T,
+        label.box = T) +
+  NoLegend() 
+
+DimPlot(rpca, 
+        group.by = "seurat_clusters",
+        label = T,
+        repel = T,
+        label.box = T) +
+  NoLegend() 
+
+# We can also group the DimPlot based on the sample. 
+
+DimPlot(merged, 
+        group.by = "orig.ident")
+
+DimPlot(rpca, 
+        group.by = "orig.ident")
+```
+
+# Activity 3. CCA integration. 
+
+Comparing to the RPCA integration, CCA is less conservative, i.e. it results in a greater level of batch correction. It also takes a longer time to run. 
+
+```{r}
+# Using the code above, run CCA integration. Hint: you only need to change the method's name in the code for running rpca. If needed, use https://satijalab.org/seurat/articles/seurat5_integration, run CCA integration. 
+
+
+# Make dimplots to check the integration
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
