@@ -82,7 +82,7 @@ View(ox1x_sobj)
 #Save Seurat object
 We will now save our newly made Seurat object usign the qsave function. The object name you want to save is listed first and then the output file path and name you want to save the object as is listed in quotes. By default, the object will save in your current working directory (important to know what that is at all times!). If you want to save it in a subfolder within your current working directory, you can add the file path before the final name of the saved object. Use .qs to save the final object. 
 ```{r}
-qsave(ox1x_sobj, "~/OX1X_sobj.qs") #save to your home directory 
+qsave(ox1x_sobj, "~/data/output/rdata/OX1X_sobj.qs") #save to data/output/rdata directory
 ```
 
 #Remove data and Seurat object
@@ -96,7 +96,7 @@ rm(ox1x_raw, ox1x_sobj)
 ox1x_sobj <-
     qread("~/data/output/rdata_premade/OX1X_sobj.qs") #read in premade object 
 
-#challenge - read in your own made object from your home directory (hint: give it a unique name so you don't overwrite the premade object that's already loaded):
+#challenge - read in your own made object (hint: give it a unique name so you don't overwrite the premade object that's already loaded):
 
 ```
 
