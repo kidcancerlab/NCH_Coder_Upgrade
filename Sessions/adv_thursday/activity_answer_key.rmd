@@ -4,7 +4,7 @@
 
 ```{r activity-1-answers}
 activity_input_path <-
-    "input/multiomics/downsampled_data/"
+    "~/data/input/multiomics/downsampled_data/"
 
 h5_list <- qs::qread(paste0(
     activity_input_path,
@@ -50,7 +50,8 @@ seqlevels(annotations) <- paste0("chr", seqlevels(annotations))
 genome(annotations) <- "hg38"
 
 annotations <-
-    qs::qread
+ qs::qread("~/data/input/multiomics/lesson_data/annotations.qs")
+DefaultAssay(activity_ob) <- "ATAC"
 Annotation(activity_ob) <- annotations
 ```
 
@@ -160,7 +161,7 @@ activity_ob$ATAC_cluster <- Idents(activity_ob)
 Subset ATAC clusters 0 and 1 from our object, re-process the object (for both assays), and find the top 5 differentially accessibile peaks between the two groups as determined by log-fold change
 
 ```{r}
-activity_small <- qs::qread("input/multiomics/activity_data/activity_small.qs")
+activity_small <- qs::qread("~/data/input/multiomics/activity_data/activity_small.qs")
 
 DefaultAssay(activity_small) <- "ATAC"
 Idents(activity_small) <- activity_small$ATAC_cluster

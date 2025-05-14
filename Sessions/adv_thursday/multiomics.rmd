@@ -1,6 +1,6 @@
 ---
 title: "Coder Upgrade 2024: Multiomics analysis"
-author: "Matt Cannon"
+author: "Matt Cannon and Matt Gust"
 date: "`r format(Sys.time(), '%m/%d/%Y')`"
 output:
     html_document:
@@ -118,7 +118,7 @@ Depending on what data type you receive you may need to do different things
 
 ## Using Seurat and Signac for 10x multiomics data individually
 
-You essentially get two independant datasets back (GEX and ATAC) that can be analyzed independently.
+You essentially get two independent datasets back (GEX and ATAC) that can be analyzed independently.
 
 The GEX data can be analyzed like normal
 
@@ -182,7 +182,7 @@ seurat_obj[["ATAC"]] <-
 
 ### Add in Metadata Output by cellranger
 
-Cellranger is nice neough to output a csv with cell-level metadata. We'll read this in and add relevant columns to our Seurat object.
+Cellranger is nice enough to output a csv with cell-level metadata. We'll read this in and add relevant columns to our Seurat object.
 
 There's 30 columns in the metadata file, so we're going to only add the columns that are of interest to our ATAC QC metrics.
 
@@ -900,8 +900,8 @@ small_obj <-
         object = small_obj,
         peak.assay = "ATAC",
         expression.assay = "RNA",
-        min.distance = 5000,
-        genes.use = rownames(de_genes)[1:100]
+        min.distance = 50000,
+        genes.use = rownames(de_genes)[1:10]
     )
 # Ignore the warnings about the junk contigs
 
