@@ -49,7 +49,8 @@ bioc_dependencies <-
         "multtest",
         "metap",
         "biovizBase",
-        "motifmatchr"
+        "motifmatchr",
+        "multtest"
     )
 
 needed_packages_cran <-
@@ -109,6 +110,13 @@ github_packages <-
 
 pak::pkg_install(
     github_packages,
+    lib = pkg_install_dir
+)
+
+
+install.packages(
+    "msigdbdf",
+    repos = 'https://igordot.r-universe.dev',
     lib = pkg_install_dir
 )
 
