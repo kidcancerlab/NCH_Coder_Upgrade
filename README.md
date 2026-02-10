@@ -9,7 +9,7 @@ This repo contains materials for the Nationwide Children's Hospital 2026 Coder U
 ## Registration
 Registration for the boot camp is now open! Please visit our [registration page](https://NationwideChildrens.cloud-cme.com/SCRGOT26).
 
-This will run from June 15th to June 18th, 2026. The boot camp will be held in person at Nationwide Children's Hospital in Columbus, Ohio.
+This will run from June 15th to June 18th, 2026 from 8AM to 4:30PM each day. The boot camp will be held in person at Nationwide Children's Hospital in Columbus, Ohio.
 
 Registration fee covers all computational resources as well as breakfast and lunch each day.
 
