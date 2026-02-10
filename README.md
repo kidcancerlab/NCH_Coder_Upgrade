@@ -1,4 +1,6 @@
-<h1 align="center">2026 Coder Upgrade</h1>
+<h1 align="center">2026 Coder Upgrade Single Cell Analysis Workshop</h1>
+
+<hr style="border:2px solid black">
 
 <p align="center">
   <img src="Logo.png" style="max-width: 600px; width: 100%; height: auto;"/>
