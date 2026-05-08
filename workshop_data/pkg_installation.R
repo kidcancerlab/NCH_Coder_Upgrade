@@ -16,7 +16,28 @@ Sys.setenv(
     )
 )
 
-pkg_install_dir <- "/rstudio-workshop/apps/R/R-4.4.2_install/lib64/R/library/"
+## Libraries needed to be installed:
+# libuv
+# xml2
+# libgsl
+# libgdal 
+# libgeos
+# libproj
+# libtbb
+# libnetcdf
+# hdf5
+# fftw3
+# freetype2
+# fontconfig
+# CMake
+# NLopt
+# fribidi
+
+### libjpg
+### libwebp  dzdo yum install libjpeg-devel libwebp-devel
+### cairo    dzdo yum install cairo-devel
+
+pkg_install_dir <- "/rstudio-workshop/apps/R/R-4.5.3/library/"
 
 cran_dependencies <-
     c(
@@ -49,17 +70,16 @@ bioc_dependencies <-
         "multtest",
         "metap",
         "biovizBase",
-        "motifmatchr",
         "multtest"
     )
 
 needed_packages_cran <-
     c(
+        "devtools",
         "rstudioapi",
         "data.table",
         "DESeq2",
         "batchelor",
-        "fgsea",
         "future",
         "ggrepel",
         "ggthemes",
@@ -67,8 +87,6 @@ needed_packages_cran <-
         "hdf5r",
         "knitr",
         "MAST",
-        "msigdbr",
-        "parallel",
         "patchwork",
         "pheatmap",
         "RColorBrewer",
@@ -77,22 +95,31 @@ needed_packages_cran <-
         "rmarkdown",
         "Seurat",
         "SeuratObject",
-        "Signac",
         "testthat",
         "tidyverse",
         "terra",
         "anndata",
-        "msigdbdf",
         "scatterpie"
     )
 
-pak::pkg_install(
-    c(bioc_dependencies, needed_packages_cran),
-    lib = pkg_install_dir
-)
+#Doing this one at a time so I can see which one fails
+for (this_pkg in c(bioc_dependencies, needed_packages_cran)) {
+  message("Now installing: ", this_pkg)
+  
+  pak::pkg_install(
+      this_pkg,
+      lib = pkg_install_dir
+  )
+}
+
+# I need to install a specific version of signac to get azimuth to install right
+remotes::install_github("stuart-lab/signac", ref = "1.16.0")
 
 github_packages <-
     c(
+        "igordot/msigdbr",
+        
+        "alserglab/fgsea",
         "saeyslab/nichenetr",
         "kidcancerlab/rrrSingleCellUtils",
         "NMikolajewicz/scMiko",
@@ -104,27 +131,49 @@ github_packages <-
         "10xGenomics/loupeR",
         "jinworks/CellChat",
         "immunogenomics/crescendo",
-        "dmcable/spacexr",
-        "bnprks/BPCells/r"
+        "dmcable/spacexr"
     )
 
-pak::pkg_install(
-    github_packages,
+for (this_pkg in github_packages) {
+  message("Now installing: ", this_pkg)
+  
+  pak::pkg_install(
+    this_pkg,
     lib = pkg_install_dir
-)
+  )
+}
+
+# This failed when installed with pak
+# Error was 
+# ! error in pak subprocess
+# Caused by error in `stop_task_package_uncompress(state, worker)`:
+#   ! Failed to uncompress BPCells from
+# /tmp/RtmpMXar8O/file659fc295acc10/src/contrib/BPCells_0.3.1_bde5737.tar.gz-t.
+# Similar issue: https://github.com/bnprks/BPCells/issues/326
+devtools::install_github("bnprks/BPCells/r", lib = pkg_install_dir)
 
 
-install.packages(
-    "msigdbdf",
-    repos = 'https://igordot.r-universe.dev',
-    lib = pkg_install_dir
+# motifmatcher was complaining about the default C++ compiler being C++11 instead
+# of C++14. I had to force R to use 14
+# I did this at the end so it doesn't mess up anything else
+tmp <- tempfile("Makevars")
+writeLines(
+  'CXX11 = g++
+CXX11STD = -std=gnu++14
+CXX14 = g++
+CXX14STD = -std=gnu++14',
+  con = tmp
 )
+Sys.setenv(R_MAKEVARS_USER = tmp)
+
+BiocManager::install("motifmatchr")
+
 
 # Need to chmod the library folders afterwards as default seems to be 500 for pak
-# ls -d /rstudio-workshop/apps/R/R-4.4.2_install/lib64/R/library/* | xargs dzdo chmod 555
+# ls -d /rstudio-workshop/apps/R/R-4.5.3/library/* | xargs dzdo chmod 555
 
 warning(
-    "Remember to run `ls -d /rstudio-workshop/apps/R/R-4.4.2_install/lib64/R/library/* | xargs dzdo chmod 555`"
+    "Remember to run `ls -d /rstudio-workshop/apps/R/R-4.5.3/library/* | xargs dzdo chmod 555`"
 )
 
 # For rstudio server, modify the server's global settings
