@@ -43,21 +43,21 @@ necessary folders in the path to the below folders.
 Be careful with forward slashes. Folders always have a forward slash in front of 
 them, and files do not.
 ```{r load}
-# Load COVID19 day 15 scRNAseq dataset
+# Load mouse kidney p0 male #5 scRNAseq dataset
 ## You will need to change the path below to use your NCH username 
 ## (or other path to desktop if not on an NCH computer)
-covid_data <- Read10X(data.dir = "data/matrices/10X/C19-CB-0013_d15")
+m5_data <- Read10X(data.dir = "/igm/projects/scrgot/2026_data/GSE232482/GSM7337034_mouse_scRNA-seq_P0_M5/filtered_feature_bc_matrix")
 ```
 
 # Create Seurat Object
 ```{r createobj}
-covid <- CreateSeuratObject(counts = covid_data,
-                            project = "covid15d",
-                            min.cells = 3,
-                            min.features = 200)
+m5 <- CreateSeuratObject(counts = m5_data,
+                         project = "GSM7337034_mouse_scRNA-seq_P0_M5",
+                         min.cells = 3,
+                         min.features = 200)
 
 # We can now remove the previous object
-rm(covid_data)
+rm(m5_data)
 ```
 
 # Perform Subsetting for Quality Control
@@ -94,16 +94,17 @@ of these genes in each cell. Ribosomal genes begin with either "RPS" or "RPL".
 Hemoglobin genes begin with either "HBA" or "HBB".
 ```{r qc}
 #### Visualize Outliers ####
-covid[["percent.mt"]] <- PercentageFeatureSet(covid, pattern = "^MT-")
-covid[["percent.ribo"]] <- PercentageFeatureSet(covid, pattern = "^RP[SL]")
-covid[["percent.hb"]] <- PercentageFeatureSet(covid, pattern = "^HB[AB]")
+m5[["percent.mt"]] <- PercentageFeatureSet(m5, pattern = "^mt-")
+m5[["percent.ribo"]] <- PercentageFeatureSet(m5, pattern = "^Rp[sl]")
+m5[["percent.hb"]] <- PercentageFeatureSet(m5, pattern = "^Hb[ab]")
 
 # Violin plot to visualize outliers
-VlnPlot(covid,
+VlnPlot(m5,
         features = c("nFeature_RNA",
                      "nCount_RNA",
                      "percent.mt"))
-VlnPlot(covid,
+
+VlnPlot(m5,
         features = c("percent.mt",
                      "percent.ribo",
                      "percent.hb"))
@@ -112,24 +113,26 @@ VlnPlot(covid,
 ## For instance, cells with both high nCount and nFeature are likely doublets.
 ## Low nCount and high mitochondrial percentage can indicate dead/dying cells 
 ## where membrane leakage has occured.
-plot1 <- FeatureScatter(covid,
+plot1 <- FeatureScatter(m5,
                         feature1 = "nCount_RNA",
                         feature2 = "percent.mt") + 
   theme(legend.position="none")
-plot2 <- FeatureScatter(covid,
+
+plot2 <- FeatureScatter(m5,
                         feature1 = "nCount_RNA",
                         feature2 = "nFeature_RNA") + 
   theme(legend.position="none")
+
 # Plots can be assigned to an object and then patchwork uses the below 
 # to plot these side by side
 plot1 + plot2
 
 #### Subset ####
-covid <- subset(covid,
-               subset = nFeature_RNA > 1000 &
-                 nFeature_RNA < 3500 &
-                 nCount_RNA < 30000 &
-                 percent.mt < 10 &
+m5 <- subset(m5,
+               subset = nFeature_RNA > 500 &
+                 nFeature_RNA < 7000 &
+                 nCount_RNA < 20000 &
+                 percent.mt < 20 &
                  percent.hb < 5)
 ```
 
@@ -137,9 +140,9 @@ covid <- subset(covid,
 Normalization is the process of adjusting gene expression values to eliminate/reduce 
 the influence of technical effects impacting all genes the same way.
 ```{r normalize}
-covid <- NormalizeData(covid,
-                      normalization.method = "LogNormalize",
-                      scale.factor = 10000)
+m5 <- NormalizeData(m5,
+                    normalization.method = "LogNormalize",
+                    scale.factor = 10000)
 ```
 
 # Identify Highly Variable Features
@@ -148,9 +151,9 @@ This function identifies the n most highly variable features. By default, n = 20
 up. Often, many biologically important features will be captured in this step, 
 however, you may lose important data, depending on your dataset. 
 ```{r varfeatures}
-covid <- FindVariableFeatures(covid,
-                             selection.method = "vst",
-                             nfeatures = 2000)
+m5 <- FindVariableFeatures(m5,
+                           selection.method = "vst",
+                           nfeatures = 2000)
 ```
 
 # Scale Features
@@ -167,8 +170,8 @@ scaling on only 2,000 of the most variable features by default (may lose data).
 ```{r scale}
 #### Scale data ####
 # The rownames of the covid object are ALL of the genes (features).
-covid <- ScaleData(covid,
-                  features = rownames(covid))
+m5 <- ScaleData(m5,
+                features = rownames(m5))
 ```
 
 # Perform Principle Component Analysis (PCA)
@@ -184,15 +187,15 @@ More information can be found at:
 [Seurat - Guided Clustering Tutorial: Perform linear dimensional reduction](https://satijalab.org/seurat/articles/pbmc3k_tutorial.html).
 ```{r pca}
 #### Run PCA ####
-covid <- RunPCA(covid,
-               features = VariableFeatures(object = covid))
+m5 <- RunPCA(m5,
+             features = VariableFeatures(object = m5))
 
 #### Elbow Plot ####
 # Note the elbow around PC 9 or 10
 # (more specifically, the PCs from above PC 10 show nearly no difference in y-axis 
 # value to that of PC 10). Thus, we will proceed with dims = 1:10.
-ElbowPlot(covid,
-          ndims = 25)
+ElbowPlot(m5,
+          ndims = 30)
 ```
 
 # Cluster Single Cells.
@@ -205,13 +208,13 @@ to set the resolution, or granularity, of the clustering. The higher the
 resolution, the greater the number of clusters in the output.
 ```{r cluster}
 #### Find Neighbors ####
-covid <- FindNeighbors(covid,
-                      dims = 1:10)
+m5 <- FindNeighbors(m5,
+                    dims = 1:20)
 
 #### Find Clusters ####
 # Low resolution (low number of clusters)
-covid <- FindClusters(covid,
-                     resolution = 0.2)
+m5 <- FindClusters(m5,
+                   resolution = 0.2)
 ```
 
 # Run Non-linear Dimensional Reduction (UMAP/tSNE)
@@ -233,18 +236,18 @@ and [Understanding UMAP](https://pair-code.github.io/understanding-umap/).
 ```{r umap}
 #### Run UMAP ####
 # Use the same dimensions as those in FindNeighbors()
-covid <- RunUMAP(covid,
-                dims = 1:10)
+m5 <- RunUMAP(m5,
+              dims = 1:20)
 
 #### Plot UMAP ####
-DimPlot(covid,
+DimPlot(m5,
         reduction = "umap")
 
 # Visualize cluster labels on UMAP
 ## Note: reduction parameter, if not specified, first searches for umap, then tsne, then pca
 ## By default, then, it will select whichever dimensional reduction method is used above,
 ## unless both umap and tsne have been generated. 
-DimPlot(covid,
+DimPlot(m5,
         label = TRUE,
         repel = TRUE)
 ```
@@ -261,75 +264,105 @@ to rerun anything prior to FindClusters).
 
 ```{r seuratsave}
 # Save
-save(covid,
-     file = "data/covid.RData")
+save(m5,
+     file = "/igm/home/cnh008/projects/scrgot/scrgot_2026/workshop_data/rdata/m5.RData")
 
 # saveRDS
-saveRDS(covid,
-     file = "data/covid.rds")
+saveRDS(m5,
+        file = "/igm/home/cnh008/projects/scrgot/scrgot_2026/workshop_data/rdata/m5.rds")
 ```
 
 # Loading Seurat Objects
 
 ```{r seuratload}
 # Load
-load("data/covid.RData")
+load("/igm/home/cnh008/projects/scrgot/scrgot_2026/workshop_data/rdata/m5.RData")
 
 # readRDS
-covid <- readRDS("data/covid.rds")
+m5 <- readRDS("/igm/home/cnh008/projects/scrgot/scrgot_2026/workshop_data/rdata/m5.rds")
 ```
 
 # Challenge:
-Perform single cell analysis of the COVID19 day 16 dataset (10x): 
+Perform single cell analysis of the GSM7337031_mouse_scRNA-seq_P0_F2 dataset (10x): 
 
-## Load in bone marrow dataset
+## Load in F2 dataset
 ```{r challenge} 
-dataset_d16 <- Read10X(data.dir = "data/matrices/10X/C19-CB-0016_d16") 
+f2_raw <- Read10X(data.dir = "/igm/projects/scrgot/2026_data/GSE232482/GSM7337031_mouse_scRNA-seq_P0_F2/filtered_feature_bc_matrix") 
 ```
 
 ## Create Seurat Object
 ```{r challenge-obj} 
+f2 <- CreateSeuratObject(counts = f2_raw,
+                         project = "GSM7337031_mouse_scRNA-seq_P0_F2",
+                         min.cells = 3,
+                         min.features = 200)
 
+# We can now remove the previous object
+rm(f2_raw)
 ```
 
 ## Perform Subsetting for Quality Control
 ```{r challenge-qc} 
-
+f2[["percent.mt"]] <- PercentageFeatureSet(f2, pattern = "^mt-")
+f2[["percent.ribo"]] <- PercentageFeatureSet(f2, pattern = "^Rp[sl]")
+f2[["percent.hb"]] <- PercentageFeatureSet(f2, pattern = "^Hb[ab]")
+f2 <- subset(f2,
+               subset = nFeature_RNA > 500 &
+                 nFeature_RNA < 7000 &
+                 nCount_RNA < 20000 &
+                 percent.mt < 20 &
+                 percent.hb < 5)
 ```
 
 ## Normalize
 ```{r challenge-normalize} 
-
+f2 <- NormalizeData(f2,
+                    normalization.method = "LogNormalize",
+                    scale.factor = 10000)
 ```
 
 ## Identify Highly Variable Features
 ```{r challenge-varfeatures} 
-
+f2 <- FindVariableFeatures(f2,
+                           selection.method = "vst",
+                           nfeatures = 2000)
 ```
 
 ## Scale Data
 ```{r challenge-scale} 
-
+f2 <- ScaleData(f2,
+                features = rownames(f2))
 ```
 
 ## Run PCA
 ```{r challenge-pca} 
-
+f2 <- RunPCA(f2,
+             features = VariableFeatures(object = f2))
 ```
 
 ## Find Neighbors and Find Clusters
 ```{r challenge-cluster} 
+#### Find Neighbors ####
+f2 <- FindNeighbors(f2,
+                    dims = 1:20)
 
+#### Find Clusters ####
+# Low resolution (low number of clusters)
+f2 <- FindClusters(f2,
+                   resolution = 0.2)
 ```
 
 ## Run UMAP
 ```{r challenge-umap} 
-
+f2 <- 
+  RunUMAP(f2, 
+          dims = 1:20)
 ```
 
 ## Save your dataset
 ```{r challenge-save} 
-
+saveRDS(f2,
+        file = "/igm/home/cnh008/projects/scrgot/scrgot_2026/workshop_data/rdata/f2.rds")
 ```
 
 
@@ -349,7 +382,7 @@ library(Nebulosa)
 #plot_density(seurat object, "GENE SYMBOL") 
 ##above is an example of how to use the density plot function from the Nebulosa package 
 ##Below, make your own density plot of LYZ
- 
+
 ```
 
 ```{r}

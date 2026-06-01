@@ -27,6 +27,8 @@ library(Seurat)
 library(Signac)
 library(patchwork)
 library(ensembldb)
+dyn.load("/igm/apps/hdf5/hdf5-1.12.1/lib/libhdf5_hl.so.200")
+library("hdf5r")
 ```
 
 --------------------------------------------------------------------------------
@@ -130,13 +132,13 @@ The GEX data can be analyzed like normal
 I'm not going to walk through the GEX analysis as that's been covered in previous sessions
 
 ```{r}
-data_path <- "~/data/input/multiomics/lesson_data/"
+data_path <- "workshop_data/raw/"
 session_path <- "Sessions/adv_thursday/"
 
 h5_data <-
     Read10X_h5(paste0(
         data_path,
-        "human_brain_3k_filtered_feature_bc_matrix.h5"
+        "mouse_multiome/5k_Mouse_Kidney_MO_gemx_filtered_feature_bc_matrix.h5"
     ))
 
 # mt_pattern <- "^MT-" because this is human data
@@ -168,7 +170,7 @@ The format is `chr:start-end`, so we'll pass `c(":", "-")` to the sep argument.
 frag_file <-
     paste0(
         data_path,
-        "human_brain_3k_atac_fragments.tsv.gz"
+        "mouse_multiome/5k_Mouse_Kidney_MO_gemx_atac_fragments.tsv.gz"
     )
 
 seurat_obj[["ATAC"]] <-
@@ -191,7 +193,7 @@ metadata <-
     read.table(
         file = paste0(
             data_path,
-            "human_brain_3k_per_barcode_metrics.csv"
+            "mouse_multiome/5k_Mouse_Kidney_MO_gemx_per_barcode_metrics.csv"
         ),
         sep = ",",
         header = TRUE,
@@ -224,30 +226,33 @@ We also change the seqlevels to be in the format "chr1", "chr2", etc. and set th
 DefaultAssay(seurat_obj) <- "ATAC"
 
 annotations <-
-    GetGRangesFromEnsDb(ensdb = EnsDb.Hsapiens.v86::EnsDb.Hsapiens.v86)
+    GetGRangesFromEnsDb(ensdb = EnsDb.Mmusculus.v79::EnsDb.Mmusculus.v79)
 seqlevels(annotations) <- paste0("chr", seqlevels(annotations))
-genome(annotations) <- "hg38"
+genome(annotations) <- "mm10"
 
 # This takes ~45 minutes, so I'll just read in a pre-processed object
-annotations <- qs::qread("~/data/input/multiomics/lesson_data/annotations.qs")
+annotations <- qs::qread("workshop_data/rdata/annotations.qs")
 
 Annotation(seurat_obj) <- annotations
 ```
 
 ## Activity 1
 
-We have another dataset for cultured neurons treated with KCl, measured 1 hour post stimulation. They were aligned to the same genome as the lesson dataset.
-
-The dataset is in ~/data/input/multiomics/downsampled_data
+We have another dataset for mouse kidney nuclei. They were aligned to the same genome as the lesson dataset.
 
 ### 1.1
 
-Read in the gene expression and chromatin accessibility matrices using qs::qread()*.
-
-*instead of the matrices being given as an h5 file, they are given as the qs object named `gene_exp_peaks_list.qs`
+Read in the gene expression and chromatin accessibility matrices using Read10X_h5()*.
 
 ```{r activity-1-1}
+data_path <- "workshop_data/raw/"
+session_path <- "Sessions/adv_thursday/"
 
+my_h5_data <-
+    Read10X_h5(paste0(
+        data_path,
+        "mouse_kidney_nuc_multi/M_Kidney_Chromium_Nuc_Isolation_vs_SaltyEZ_vs_ComplexTissueDP_filtered_feature_bc_matrix.h5"
+    ))
 ```
 
 ### 1.2
@@ -255,15 +260,41 @@ Read in the gene expression and chromatin accessibility matrices using qs::qread
 Create a Seurat object with an RNA and ATAC assay
 
 ```{r activity-1-2}
+my_seurat_obj <-
+    CreateSeuratObject(
+        counts = my_h5_data$`Gene Expression`,
+        assay = "RNA",
+        project = "10x_multiomics"
+    ) %>%
+    PercentageFeatureSet(
+        pattern = "^mt-",
+        col.name = "percent_mt_rna",
+        assay = "RNA"
+    )
 
+my_frag_file <-
+    paste0(
+        data_path,
+        "mouse_kidney_nuc_multi/M_Kidney_Chromium_Nuc_Isolation_vs_SaltyEZ_vs_ComplexTissueDP_atac_fragments.tsv.gz"
+    )
+
+my_seurat_obj[["ATAC"]] <-
+    CreateChromatinAssay(
+        counts = my_h5_data$Peaks,
+        sep = c(":", "-"),
+        fragments = my_frag_file,
+        min.cells = 5,
+        annotation = annotations
+    )
 ```
 
 ### 1.3
 
 Add gene annotations to your Seurat object
-You can read in pre-made annotations from ~/data/input/multiomics/lesson_data/annotations.qs
 ```{r activity-1-3}
+annotations <- qs::qread("workshop_data/rdata/annotations.qs")
 
+Annotation(my_seurat_obj) <- annotations
 ```
 
 # Filter out likely junk cells
@@ -278,7 +309,7 @@ ATAC seq does have a few similar QC metrics to RNA seq, as well as some addition
 This is analagous to nCount_RNA, and follows a similar-shaped distribution to nCount_RNA albeit with larger numbers.
 
 ```{r}
-feature_hist(seurat_obj, features = c("nCount_RNA", "nCount_ATAC"))
+feature_hist(seurat_obj, features = c("nCount_RNA", "nCount_ATAC")) 
 ```
 
 ### Nucleosome Signal

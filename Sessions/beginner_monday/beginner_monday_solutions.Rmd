@@ -2,7 +2,7 @@
 title: "Make Seurat Object"
 author: Elizabeth Garfinkle
 output: html_document
-date: "2025-05-05"
+date: "2026-05-28"
 ---
 
 ```{r setup, include=FALSE}
@@ -36,14 +36,14 @@ getwd() #should look like "/rstudio-workshop/home/username/CoderUpgrade"
 
 #Read 10X data
 First, read in the filtered feature matrix output files via the Read10X Seurat function
-We will start with reading in just one sample, OX1X, and call it ox1x_raw
+We will start with reading in just one sample, GSM7337030_mouse_scRNA-seq_P0_F1, and call it f1_raw
 ```{r}
-ox1x_raw <- 
-  Read10X("~/data/input/scRNA/GSM6925133_OX1X")
+f1_raw <- 
+  Read10X("workshop_data/raw/GSE232482/GSM7337030_mouse_scRNA-seq_P0_F1/filtered_feature_bc_matrix")
 ```
 
 #Make Seurat object
-Now we will make a Seurat object via the CreateSeuratObject Seurat function from the data we just read in that we named ox1x_raw and call it ox1x_sobj
+Now we will make a Seurat object via the CreateSeuratObject Seurat function from the data we just read in that we named f1_raw and call it f1_sobj
 We also set two standard filters:
 min.cells = 3 
   Here, we are filtering out any genes that are detected in fewer than 3 cells to   remove genes that are likely not expressed in a meaningful way
@@ -51,11 +51,11 @@ min.features = 200
   Here, we are filtering out any cells that have less than 200 features (genes)    detected, which could indicate poor quality or dying cells
 Both of these filters minimize noise/poor quality data for downstream analyses
 ```{r}
-ox1x_sobj <-
+f1_sobj <-
     CreateSeuratObject(
-        counts = ox1x_raw,
+        counts = f1_raw,
         min.cells = 3,
-        min.features = 200
+        min.features = 200,
     )
 ```
 
@@ -64,47 +64,59 @@ By default, the orig.ident (original ident, aka original sample name) is the nam
 The use of the $ sign means you are accessing a metadata slot. 
 ```{r}
 #Look at the orig.ident name 
-View(ox1x_sobj)
+View(f1_sobj)
 
 #Reassign name
-ox1x_sobj$orig.ident <- "GSM6925133_OX1X"
+f1_sobj$orig.ident <- "GSM7337030_mouse_scRNA-seq_P0_F1"
 
 #Look at the orig.ident name now 
-View(ox1x_sobj)
+View(f1_sobj)
 
 #Set orig.ident to be the active ident
-Idents(ox1x_sobj) <- "orig.ident"
+Idents(f1_sobj) <- "orig.ident"
 
 #Check
-View(ox1x_sobj)
+View(f1_sobj)
 ```
 
 #Save Seurat object
 We will now save our newly made Seurat object usign the qsave function. The object name you want to save is listed first and then the output file path and name you want to save the object as is listed in quotes. By default, the object will save in your current working directory (important to know what that is at all times!). If you want to save it in a subfolder within your current working directory, you can add the file path before the final name of the saved object. Use .qs to save the final object. 
 ```{r}
-qsave(ox1x_sobj, "~/data/output/rdata/OX1X_sobj.qs") #save to data/output/rdata directory
+qsave(f1_sobj, "workshop_data/rdata/f1_sobj.qs") #save to data/output/rdata directory
 ```
 
 #Remove data and Seurat object
 Now that we have saved our object, we can remove the data and object in our Environment using rm.
 ```{r}
-rm(ox1x_raw, ox1x_sobj)
+rm(f1_raw, f1_sobj)
 ```
 
 #We can read in a saved object any time for additional analyses using the qread function. 
 ```{r}
-ox1x_sobj <-
-    qread("~/data/output/rdata_premade/OX1X_sobj.qs") #read in premade object 
+f1_sobj <-
+    qread("workshop_data/rdata/f1_sobj.qs") #read in premade object 
 
 #challenge - read in your own made object (hint: give it a unique name so you don't overwrite the premade object that's already loaded):
 
 ```
 
 #Challenge: 
-Make a Seurat object from an additional sample in our data set, GSM6925134_OX2X, and call it ox2x_sobj. After you make the Seurat object, remove both ox1x_sobj and ox2x_sobj from your Environment. 
+Make a Seurat object from an additional sample in our data set, GSM7337034_mouse_scRNA-seq_P0_M5, and call it m5_sobj. After you make the Seurat object, remove both m5_sobj and f1_sobj from your environment. 
 
 Write and run your code here:
 ```{r}
+m5_raw <- 
+  Read10X("workshop_data/raw/GSE232482/GSM7337034_mouse_scRNA-seq_P0_M5/filtered_feature_bc_matrix")
 
+m5_sobj <-
+  CreateSeuratObject(
+        counts = m5_raw,
+        min.cells = 3,
+        min.features = 200,
+    )
+
+m5_sobj$orig.ident <- "GSM7337034_mouse_scRNA-seq_P0_M5"
+
+qsave(m5_sobj, "workshop_data/rdata/m5_sobj.qs")
 ```
 

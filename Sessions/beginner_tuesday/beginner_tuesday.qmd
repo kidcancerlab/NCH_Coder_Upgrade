@@ -1,6 +1,6 @@
 ---
 title: 'Seurat Lesson: Code'
-author: "Emily Franz and Jack Hedberg"
+author: "Yogesh Budhathoki and Matt Gust"
 date: "`r format(Sys.time(), '%m/%d/%Y')`"
 output: 
   html_document:
@@ -76,7 +76,7 @@ gene names begin. "^mt-" for mice gene pattern.
 ```{r load}
 # read in the object
 sobj <-
-    qs::qread("~/data/output/rdata_premade/OX1X_sobj.qs")
+    qs::qread("workshop_data/rdata/f1_sobj.qs")
 
 # check the object
 sobj
@@ -107,7 +107,7 @@ hist(sobj$percent.mt,
 # subset the dataset to remove the low quality cells
 sobj <- 
     subset(sobj,
-           subset = nCount_RNA < 15000 &
+           subset = nCount_RNA < 20000 &
                     percent.mt < 20)
 
 sobj1 <-
@@ -149,10 +149,6 @@ begins with "Rp" and is followed by either "s" or "l". The pattern for the hemog
 is "^Hb[ab]", which means that the gene name begins with "Hb" and is followed by either "a" or "b".
 
 ```{r activity1}
-
-
-
-
 
 ```
 
@@ -247,7 +243,6 @@ Noisy genes may dominate
 ```{r activity2}
 # perform normalization using different method and check and comapre how the numbers change
 
-
 # increase the variable features to 5000 and check the variable features, do the top 10 change?
 
 ```
@@ -329,8 +324,8 @@ DimPlot(sobj,
     DimPlot(sobj,
         reduction = "tsne")
 
-
-
+# save processed object
+qsave(sobj, "workshop_data/rdata/f1_sobj_processed.qs") 
 ```
 
 ## Practice Activity 3
@@ -361,42 +356,41 @@ DimPlot(sobj,
         label = TRUE,
         repel = TRUE)
 
-# we will use resolution 1.0 for the clustering for this part
+# we will use resolution 0.2 for the clustering for this part
 sobj <-
     FindClusters(sobj,
-               resolution = 1)
+               resolution = 0.2)
 
 # example plot of DotPlot, feature plot and violin plot
 DotPlot(sobj,
-        features = "Rbfox3",
+        features = "Dcn",
         cols = c("blue", "red"))
 
 FeaturePlot(sobj,
-            features = "Rbfox3")
+            features = "Dcn")
 
 VlnPlot(sobj,
-        features = "Rbfox3",
+        features = "Dcn",
         group.by = "seurat_clusters") +
     theme(axis.text.x = element_text(angle = 90)) # makes the gene names 90 degrees
 
 
 # Load the reference data
 markers <- list(
-    Neurons = c("Rbfox3", "Eno2", "Map2"),
-    Hippocampal_Neurons = c("Prox1", "Grik4", "Wfs1", "Dcn"),  
-    Astrocytes = c("Aldh1l1", "Gfap", "Aqp4", "Slc1a3"),  
-    Oligodendrocytes = c("Mog", "Plp1", "Cnp", "Olig1", "Olig2"),
-    Oligodendrocytes_progenitors = c("Pdgfra", "Cspg4"),
-    Endothelial_Cells = c("Cldn5", "Pecam1", "Flt1"),  
-    Leptomeningeal_Cells = c("Lum", "Col1a1", "Dcn"),  
-    Pericytes_SMC = c("Acta2", "Myh11", "Pdgfrb"), 
-    Microglia = c("Cx3cr1", "P2ry12", "Tmem119", "Aif1"),
-    other_immune_cells = c("Cd3e", "Cd74", "Cd8a", "Cd19", "H2-Ab1"),
-    Other_Neurons = c("Car3", "Nxph1", "Reln") 
+    fibroblast = c("Col1a2", "Dcn", "Pdgfra"),
+    T_cell = c("Cd2", "Cd3d", "Il7r"),  
+    myeloid = c("Cd68", "Fcgr3", "Cd14"),  
+    B_cell = c("Cd79a", "Cd79b", "Cd19"),
+    NK_cell = c("Nkg7", "Klrk1","Klrd1"),
+    endothelial_cell = c("Cldn5", "Pecam1", "Plvap"),  
+    plasma_cell = c("Sdc1", "Chst1", "Pou2af1"),  
+    brush_cell = c("Serpina1d", "Slc22a7", "Ceacam1"), 
+    kidney_epithelial_cell = c("Spp2", "Sox9", "Gpx6"),
+    kidney_cortex_artery_cell = c("Sox17", "Fbln5", "Tm4sf1")
 )
 # plot and test one by one
 DotPlot(sobj,
-        features = markers$Microglia,
+        features = markers$fibroblast,
         cols = c("blue", "red"),
         dot.scale = 8)
 
@@ -415,7 +409,7 @@ marker_dotplot <-
         theme(axis.text.x = element_text(angle = 90)) # makes the gene names 90 degrees
 
 # save the plot
-ggsave("~/data/output/figures/markers_dotplot.png",
+ggsave("Sessions/beginner_tuesday/markers_dotplot.png",
         plot = marker_dotplot,
        width = 12,
        height = 7,
@@ -424,20 +418,18 @@ ggsave("~/data/output/figures/markers_dotplot.png",
 # Add the cell type annotation 
 sobj$cell_type <-
     str_replace_all(sobj$seurat_clusters, 
-                c("^0$" = "Oligodendrocytes",
-                    "^1$" = "Astrocytes",
-                    "^2$" = "Endothelial_Cells",
-                    "^3$" = "Micrtoglia",
-                    "^4$" = "Oligodendrocytes",
-                    "^5$" = "Neurons",
-                    "^6$" = "Astrocytes",
-                    "^7$" = "Oligodendrocytes",
-                    "^8$" = "Pericytes_SMC",
-                    "^9$" = "other_immune_cells",
-                    "^10$" = "Oligodendrocytes_progenitors",
-                    "^11$" = "Neurons",
-                    "^12$" = "Neurons",
-                    "^13$" = "low_quality_cells"))
+                c("^0$" = "Fibroblast",
+                    "^1$" = "Plasma cell",
+                    "^2$" = "Plasmatocyte",
+                    "^3$" = "Endothelial cell",
+                    "^4$" = "Fibroblast",
+                    "^5$" = "Fibroblast",
+                    "^6$" = "Unknown",
+                    "^7$" = "Mesangial cell",
+                    "^8$" = "Plasmatocyte",
+                    "^9$" = "Macrophage",
+                    "^10$" = "Lymphocyte",
+                    "^11$" = "Epithelial cell"))
 
 # check the object
 dimplot_annotated <- 
@@ -449,7 +441,7 @@ dimplot_annotated <-
     NoLegend()
 
 # save the plot
-ggsave("~/data/output/figures/annotated_celltypes.png",
+ggsave("Sessions/beginner_tuesday/annotated_celltypes.png",
        plot = dimplot_annotated,
        width = 12,
        height = 7,
@@ -465,21 +457,23 @@ are not well defined. The clusters are not well defined because the cells are
 not well separated. In this case we can visualize the markers in individual cells
 using the feature plot. 
 As a part of this exercise we will look at the immune cell types. We will subset the 
-microglia and reprocess and annoate in the deeper level using the markers given below.
+macrophages and lymphocytes and reprocess and annoate at a deeper level using the markers given below.
 In this analysis we can test if there are other immune cells that are lumped together
-into microglia using feature plot. We can do this by using marker based feature plots. 
-The marekrs for each celltypes are given below.
-We will find that there are B and T cells that are lumped together with microglia. 
+into macrophages using feature plot. We can do this by using marker based feature plots. 
+The markers for each celltypes are given below.
+We will find that there are NK, B and T cells that are lumped together with microglia. 
 
 ```{r activity4}
-# Subset the microglia and reprocess
-neuron_types <- 
-    list(Excitatory_Neurons = c("Slc17a7", "Camk2a", "Neurod6", "Satb2"),  
-        Inhibitory_Neurons = c("Gad1", "Gad2", "Meis2", "Sst"))
-
-
-
-
+# Subset the macrophages and lymphocytes and reprocess
+markers <- list(
+    T_cell = c("Cd2", "Cd3d", "Il7r"),  
+    macrophage = c("Cd68","Cd163","Cd86"),  
+    monocytes = c("Cd14","Fcgr3"),
+    dendritic_cell = c("Itgax","Clec9a"),
+    B_cell = c("Cd79a", "Cd79b", "Cd19"),
+    NK_cell = c("Nkg7", "Klrk1","Klrd1"),
+    plasma_cell = c("Sdc1", "Chst1", "Pou2af1")
+)
 
 ```
 
@@ -489,62 +483,64 @@ An alternative approach would be to annotate cell by cell using other methods su
 SingleR or Mapquery. These methods use the reference data to annotate the cells.
 ```{r singleR}
 # reference data
-brain_ref_data <- 
-    qs::qread("~/data/output/rdata_premade/mouse_brain_ref_data.qs")
+kidney_ref_data <- 
+    readRDS("workshop_data/rdata/tabula_muris_senis_kidney.rds")
+DefaultAssay(kidney_ref_data) <- "RNA"
 
 # check the object labels that will be used for annotation
-DimPlot(brain_ref_data,
+DimPlot(kidney_ref_data,
         group.by = "cell_type",
         label = TRUE,
-        repel = TRUE) +
+        repel = TRUE,
+        reduction = "umap") +
     NoLegend()
 
 # singleR annotation
 annotation <-
     SingleR(test = as.SingleCellExperiment(sobj),
-            ref = GetAssayData(brain_ref_data),
-            labels = brain_ref_data$cell_type,
+            ref = GetAssayData(kidney_ref_data),
+            labels = kidney_ref_data$cell_type,
             aggr.ref = TRUE)
 
 # check the object
-sobj$SingleR_annotation <- annotation$labels
+sobj$singleR_annotation <- annotation$labels
 
 # cell scores
-sobj$SingleR_scores <- 
+sobj$singleR_scores <- 
     apply(X = annotation$scores,
           MARGIN = 1,
           function(x) max(x, na.rm = TRUE))
 
 # check thee annotation
 DimPlot(sobj,
-        group.by = "SingleR_annotation",
+        group.by = "singleR_annotation",
         label = TRUE,
-        label.box = T) +
+        label.box = T,
+        repel = T) +
     NoLegend()
-
-
 ```
 
 
 
 ## Load in reference data
-Load in the PBMC reference Seurat object to serve as the reference for cell typing.
+Load in the kidney reference Seurat object to serve as the reference for cell typing.
 
 This object has several different levels of granularity. For the examples, we will use `cell_type`.
 ```{r annotate_seurat}
 # Read in the reference Seurat object
-brain_ref_data <- 
-    qs::qread("~/data/output/rdata_premade/mouse_brain_ref_data.qs")
+kidney_ref_data <- 
+    readRDS("workshop_data/rdata/tabula_muris_senis_kidney.rds")
+DefaultAssay(kidney_ref_data) <- "RNA"
 
 # Set the idents to cell_type so that we can examine which cell types are present in the dataset
-Idents(brain_ref_data) <- "cell_type"
+Idents(kidney_ref_data) <- "cell_type"
 
 # Visualize the reference dataset
-DimPlot(brain_ref_data)
+DimPlot(kidney_ref_data)
 
 # Find anchors between reference and query datasets
 anchors <-
-    FindTransferAnchors(reference = brain_ref_data,
+    FindTransferAnchors(reference = kidney_ref_data,
                       query = sobj,
                       dims = 1:30,
                       reference.reduction = "pca")
@@ -552,7 +548,7 @@ anchors <-
 # Transfer anchors from reference dataset
 predictions <-
     TransferData(anchorset = anchors,
-               refdata = brain_ref_data$cell_type,
+               refdata = kidney_ref_data$cell_type,
                dims = 1:30)
 
 # Add query to metadata of Seurat object
@@ -560,21 +556,26 @@ sobj <- AddMetaData(sobj,
                     metadata = predictions) 
 
 # Rename "predicted.id" to "cell_types"
-sobj$cell_types <- sobj$predicted.id
+sobj$anchor_cell_types <- sobj$predicted.id
 
 # Set active identity to new cell type labels and visualize typed clusters via DimPlot
-Idents(sobj) <- sobj$cell_types
+Idents(sobj) <- sobj$anchor_cell_types
 DimPlot(sobj,
-        reduction = "umap")
-
+        reduction = "umap",
+        label = T,
+        label.box = T,
+        repel = T)
 # Tally number of cells in each cell type 
-table(sobj$cell_types)
+table(sobj$anchor_cell_types)
+
+# save
+qsave(sobj, "workshop_data/rdata/f1_sobj_processed_annotated.qs") 
 
 ```
 
 ## Practice Exercise5
 
-Now annotate the dataset using `neighborhood_label` instead of `cell_type`.
+Now annotate the dataset using `free_annotation` instead of `cell_type`.
 
 ```{r annotate}
 

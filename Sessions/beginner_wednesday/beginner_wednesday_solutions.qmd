@@ -1,0 +1,632 @@
+
+## Library
+```{r lib, cache = FALSE}
+# Load necessary packages
+library(Seurat)
+library(tidyverse) # This package contains ggplot2 and dplyr
+library(patchwork)
+library(ggplot2) # For plotting
+library(rrrSingleCellUtils) # For plotting an processing
+library(qs) # For reading and writing .qs files
+library(harmony) # For Harmony integration
+library(crescendo)
+
+options(future.globals.maxSize = 10 * 1e9)
+
+# Set the random generator seed so that results are reproducible.
+set.seed(132)
+```
+
+
+
+## load the objects to be merged
+In this tutorial, we will demonstrate how to merge two single cell RNA-seq
+datasets using the MergeSeurat function in Seurat. Merging single cell RNA-seq 
+datasets is a crucial step in the analysis of single cell data. 
+It allows researchers to combine data from different sources and 
+increase the sample size for more robust and comparative analysis.
+Let's say we have many different datasets from different samples or
+experiments. We can load the datasets individually and then merge them using
+the merge function in Seurat. The merged dataset can then be used for
+downstream analysis, such as dimensionality reduction, clustering, and
+differential expression analysis.
+
+```{r test}
+
+# read in one object
+f1_sobj <-
+    qs::qread("workshop_data/rdata/f1_sobj_processed_annotated.qs")
+f1_sobj
+#list of Seurat objects from the same experiment (GSE232482)
+GSE232482_sobj_list <-
+    qs::qread("workshop_data/rdata/GSE232482_object_list_processed_annotated.qs")
+GSE232482_sobj_list
+
+# merge the Seurat objects
+merged_GSE232482_sobj <-
+    merge(x= f1_sobj,
+          y = GSE232482_sobj_list[1:length(GSE232482_sobj_list)])
+
+# check the merged Seurat object, you will see layers for each seurat object
+merged_GSE232482_sobj
+
+# join the layers so that they are all in the same object
+merged_GSE232482_sobj <-
+    merged_GSE232482_sobj %>%
+    JoinLayers()
+
+# check the object now, the layers are now joined or merged
+merged_GSE232482_sobj
+
+# need to re-run the normalization and scaling
+merged_GSE232482_sobj <- 
+    merged_GSE232482_sobj %>%
+    NormalizeData() %>%
+    FindVariableFeatures() %>%
+    ScaleData()
+
+# run PCA
+merged_GSE232482_sobj <- 
+    merged_GSE232482_sobj %>%
+    RunPCA()
+
+# run UMAP
+merged_GSE232482_sobj <- 
+    merged_GSE232482_sobj %>%
+    RunUMAP(dims = 1:30)   #use PC1 through PC30
+
+# run clustering
+merged_GSE232482_sobj <- 
+    merged_GSE232482_sobj %>%
+    FindNeighbors(dims = 1:30) %>%    #use PC1 through PC30
+    FindClusters()
+
+# all of the above steps can be done in one go using pipe function
+merged_GSE232482_sobj <-
+    merged_GSE232482_sobj %>%
+    NormalizeData() %>%
+    FindVariableFeatures() %>%
+    ScaleData() %>%
+    RunPCA() %>%
+    RunUMAP(dims = 1:30) %>%  
+    FindNeighbors(dims = 1:30) %>%
+    FindClusters(resolution = 0.5)
+
+# check the object
+merged_GSE232482_sobj
+
+# visualize the clusters
+DimPlot(merged_GSE232482_sobj,
+        group.by = "seurat_clusters",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+
+# assessing the batch effect
+DimPlot(merged_GSE232482_sobj,
+        group.by = "orig.ident",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+
+DimPlot(merged_GSE232482_sobj,
+        group.by = "seurat_clusters",
+        split.by = "orig.ident",
+        ncol = 6,
+        label = T,
+        repel = T) +
+    NoLegend()
+
+# looks like there is no batch effect
+
+#save the object
+qs::qsave(merged_GSE232482_sobj,
+          "workshop_data/rdata/merged_GSE232482_sobj.qs")
+
+```
+
+## Activity1
+We just found out that there is minimal to no batch effect in the merged object. This could 
+be because the samples are from the same tissue and the same experiment and source.
+Now, we will load another object from a different experiment and source but still the
+same tissue. The actvity is to merge the two objects and check for batch effect.
+1. Load the second object
+```{r activity1}
+# read in the second object list
+
+GSE252772_sobj_list <-
+    qs::qread("workshop_data/rdata/GSE252772_object_list_processed_annotated_small.qs")
+
+# merge the second object list
+
+merged_GSE252772_sobj <-
+    merge(x= GSE252772_sobj_list[[1]],
+          y = GSE252772_sobj_list[[2]])
+
+#save the batch information
+
+merged_GSE252772_sobj$batch <- "GSE252772"
+
+# save the batch information in the merged_GSE232482_sobj as well
+
+merged_GSE232482_sobj <-
+    qs::qread("workshop_data/rdata/merged_GSE232482_sobj.qs")
+merged_GSE232482_sobj$batch <- "GSE232482"
+
+#merge the two objects and process it together through plotting dimplot
+
+merged_sobj <-
+    merge(x= merged_GSE232482_sobj,
+          y = merged_GSE252772_sobj)
+
+merged_sobj <-
+    merged_sobj %>%
+    JoinLayers()
+
+merged_sobj <-
+    merged_sobj %>%
+    NormalizeData() %>%
+    FindVariableFeatures() %>%
+    ScaleData() %>%
+    RunPCA() %>%
+    RunUMAP(dims = 1:30) %>%  
+    FindNeighbors(dims = 1:30) %>%
+    FindClusters(resolution = 0.5)
+
+# check the object
+
+merged_sobj
+head(merged_sobj@meta.data)
+
+# assess the batch effect presence
+
+DimPlot(merged_sobj,
+        group.by = "seurat_clusters",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+ggsave("plot4.jpeg",
+       width = 7,
+       height = 5)
+
+DimPlot(merged_sobj,
+        group.by = "orig.ident",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+ggsave("plot5.jpeg",
+       width = 7,
+       height = 5)
+
+DimPlot(merged_sobj,
+        group.by = "batch",
+        label = T,
+        repel = T) +
+    NoLegend()
+ggsave("plot6.jpeg",
+       width = 7,
+       height = 5)
+
+# save the object
+
+qs::qsave(merged_sobj,
+          "workshop_data/rdata/merged_sobj.qs")
+
+```
+
+## Harmony integration
+It is great to see that there is no batch effect in the previous data. But that is 
+not always the case. Most of the time, we will see a batch effect in the data because 
+of the different samples or experiments. In this case, we can use the Harmony integration
+method to remove the batch effect. Harmony is a method for integrating single-cell RNA-seq
+data from multiple samples or experiments. It uses a graph-based approach to identify and
+remove batch effects while preserving biological variation. Harmony can be used to integrate
+data from different sources, such as different tissues, time points, or experimental conditions.
+Harmony only corrects batch effect for plotting and visualization purposes. It does not
+change the underlying data. So, we will still need to do batch correction in actual data using
+other method like deseq2 or limma.
+
+Here we will load another object from a different expertiment and source but still the 
+same tissue. We will first merge and assess the presence of batch effect and then run
+Harmony integration to remove the batch effect.
+
+```{r harmony_integration}
+# read in the second object list
+GSE252772_sobj_list <-
+    qs::qread("workshop_data/rdata/GSE252772_object_list_processed_annotated_small.qs")
+
+# merge the second object list
+merged_GSE252772_sobj <-
+    merge(x= GSE252772_sobj_list[[1]],
+          y = GSE252772_sobj_list[[2]])
+
+#save the batch information
+merged_GSE252772_sobj$batch <- "GSE252772"
+
+# save the batch information in the merged_sobj as well
+merged_GSE232482_sobj <-
+    qs::qread("workshop_data/rdata/merged_GSE232482_sobj.qs")
+merged_GSE232482_sobj$batch <- "GSE232482"
+
+# merge the two objects and process it together unto plotting dimplot
+merged_sobj <-
+    merge(x= merged_GSE232482_sobj,
+          y = merged_GSE252772_sobj)
+
+merged_sobj <-
+    merged_sobj %>%
+    JoinLayers()
+
+merged_sobj <-
+    merged_sobj %>%
+    NormalizeData() %>%
+    FindVariableFeatures() %>%
+    ScaleData() %>%
+    RunPCA() %>%
+    RunUMAP(dims = 1:30) %>%  
+    FindNeighbors(dims = 1:30) %>%
+    FindClusters(resolution = 0.5)
+
+qs::qsave(merged_sobj,
+          "workshop_data/rdata/merged_sobj_before_harmony.qs")
+
+# assess the batch effect
+DimPlot(merged_sobj,
+        group.by = "batch",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+
+DimPlot(merged_sobj,
+        group.by = "orig.ident",
+        label = T,
+        #repel = T,
+        label.box = T) +
+    NoLegend()
+
+
+# run Harmony integration
+merged_sobj_harmony <-
+    merged_sobj %>%
+    RunHarmony(group.by.vars = "batch") %>%
+    RunUMAP(reduction = "harmony", dims = 1:30) %>%
+    FindNeighbors(reduction = "harmony", dims = 1:30) %>%
+    FindClusters(resolution = 0.5) 
+
+# check the integration
+DimPlot(merged_sobj_harmony,
+        group.by = "batch",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+
+# run Harmony integration with different parameters
+merged_sobj_harmony <-
+    merged_sobj %>%
+    RunHarmony(group.by.vars = "batch",
+               theta = 5) %>%
+    RunUMAP(reduction = "harmony", dims = 1:30) %>%
+    FindNeighbors(reduction = "harmony", dims = 1:30) %>%
+    FindClusters()
+qs::qsave(merged_sobj_harmony,
+    "workshop_data/rdata/merged_sobj_harmony_theta.qs")
+
+# check the integration
+DimPlot(merged_sobj_harmony,
+        group.by = "orig.ident",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+DimPlot(merged_sobj_harmony,
+        group.by = "batch",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+```
+
+## Activity2
+In this activity, we will run harmony integration with different parameters/batch.
+Use orig.ident as batch variable and see how the integration works.
+```{r activity2}
+
+#simply use the same code as above but change the batch variable to orig.ident
+merged_sobj_harmony <-
+    merged_sobj %>%
+    RunHarmony(group.by.vars = "orig.ident") %>%
+    RunUMAP(reduction = "harmony", dims = 1:30) %>%
+    FindNeighbors(reduction = "harmony", dims = 1:30) %>%
+    FindClusters()
+qs::qsave(merged_sobj_harmony,
+    "workshop_data/rdata/merged_sobj_harmony_sample.qs")
+
+
+# check the integration using dimplot
+DimPlot(merged_sobj_harmony,
+        group.by = "orig.ident",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+
+DimPlot(merged_sobj_harmony,
+        group.by = "batch",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+
+# run Harmony integration with orig.ident as batch variable and theta value of your preference
+merged_sobj_harmony <-
+    merged_sobj %>%
+    RunHarmony(group.by.vars = "orig.ident",
+               theta = 5) %>%
+    RunUMAP(reduction = "harmony", dims = 1:30) %>%
+    FindNeighbors(reduction = "harmony", dims = 1:30) %>%
+    FindClusters()
+qs::qsave(merged_sobj_harmony,
+    "workshop_data/rdata/merged_sobj_harmony_sample_theta.qs")
+
+# check the integration
+DimPlot(merged_sobj_harmony,
+        group.by = "orig.ident",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+
+DimPlot(merged_sobj_harmony,
+        group.by = "batch",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+
+```
+
+
+# run harmony integration with different parameters like multiple batches
+Harmony intergration can also be done with multiple batches. Most of the other integration methods
+like Seurat and Scanpy can only do one batch at a time. But Harmony can do multiple batches at once.
+
+```{r two_batch_variables}
+# run Harmony integration with multiple batch variables
+merged_sobj_harmony <-
+    merged_sobj %>%
+    RunHarmony(group.by.vars = c("batch", "orig.ident")) %>%
+    RunUMAP(reduction = "harmony", dims = 1:30) %>%
+    FindNeighbors(reduction = "harmony", dims = 1:30) %>%
+    FindClusters()
+qs::qsave(merged_sobj_harmony,
+    "workshop_data/rdata/merged_sobj_harmony_sample_batch.qs")
+
+# check the integration
+DimPlot(merged_sobj_harmony,
+        group.by = "orig.ident",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+
+DimPlot(merged_sobj_harmony,
+        group.by = "orig.ident",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+
+# change theta
+merged_sobj_harmony <-
+    merged_sobj %>%
+    RunHarmony(group.by.vars = c("batch", "orig.ident"),
+               theta = c(10, 10)) %>%
+    RunUMAP(reduction = "harmony", dims = 1:30) %>%
+    FindNeighbors(reduction = "harmony", dims = 1:30) %>%
+    FindClusters()
+qs::qsave(merged_sobj_harmony,
+    "workshop_data/rdata/merged_sobj_harmony_sample_batch_theta.qs")
+
+# check the integration
+DimPlot(merged_sobj_harmony,
+        group.by = "orig.ident",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+
+DimPlot(merged_sobj_harmony,
+        group.by = "batch",
+        label = T,
+        repel = T,
+        label.box = T) +
+    NoLegend()
+
+# there are opportunities to explore more of the harmony parameters such as lambda and tau.
+# you can also try using multiple theta each time, low and high and see how it works.
+# you can also try using multiple lambda each time, low and high and see how it works.
+
+# Clean up a bit to save ram
+ls()
+rm(f1_sobj, GSE232482_sobj_list, GSE252772_sobj, GSE252772_sobj_list, merged_GSE232482_sobj, merged_GSE252772_sobj, merged_sobj, merged_sobj_harmony)
+gc()
+```
+
+
+## RPCA and CCA integration. 
+
+We are going to go back to the merged object with batch effects and test two other integration methods, RPCA, and CCA, which are supported by Seurat v5, i.e. you don't need a separate package to run them. RPCA stands for reciprocal PCA (principal component analysis). CCA strands for canonical correlation analysis. You can read more about these methods here. https://satijalab.org/seurat/articles/seurat5_integration. 
+To use these methods, we will need to go back to the merged object that contains 20 samples (with a batch effect). 
+
+```{r}
+# Read in the merged object
+merged <- qread("workshop_data/rdata/merged_sobj_before_harmony.qs")
+```
+
+# Let's remind ourselves what that object looks like. We will make a DimPlot. 
+
+```{r}
+# We can group the DimPlot by clusters. 
+DimPlot(merged, 
+        group.by = "seurat_clusters",
+        label = T,
+        repel = T,
+        label.box = T) +
+  NoLegend() 
+
+# We can also group the DimPlot based on the sample. 
+DimPlot(merged, 
+        group.by = "orig.ident")
+```
+
+# We are going to start by using the RPCA integration. 
+
+Out of the two methods, RPCA is faster and more conservative, meaning that in results in smaller batch effect correction. It also runs faster than CCA. 
+
+```{r}
+# Lets downsample a bit so it runs quicker
+Idents(merged) <- merged$orig.ident
+merged <- subset(merged, downsample = 500)
+
+DimPlot(merged,
+        group.by = "orig.ident")
+
+# First, we need to split the layers of the merged object to allow for integration to happen. 
+
+merged[["RNA"]] <- split(merged[["RNA"]], f = merged$orig.ident)
+
+# Then, we can perform the actual integration. 
+
+rpca <- IntegrateLayers(
+  object = merged, 
+  method = RPCAIntegration,
+  orig.reduction = "pca", 
+  new.reduction = "integrated.rpca",
+  verbose = FALSE)
+```
+
+# After performing the actual integration, we need to run PCA, UMAP, FindNeighbors() and FindClusters(). 
+
+```{r}
+rpca <- 
+  rpca%>%
+  RunPCA(verbose = FALSE)%>%
+  RunUMAP(reduction = "integrated.rpca", dims = 1:30)%>%
+  FindNeighbors(dims = 1:30, reduction = "integrated.rpca")%>%
+  FindClusters(resolution = 0.1)
+
+qs::qsave(rpca,
+    "workshop_data/rdata/merged_sobj_rpca.qs")
+```
+
+# Visualize the integrated dataset and compare it to the merged object.
+
+```{r}
+# We can group the DimPlot by clusters. 
+
+p1 <-
+DimPlot(merged, 
+        group.by = "seurat_clusters",
+        label = T,
+        repel = T,
+        label.box = T) +
+  NoLegend() 
+
+p2 <-
+DimPlot(rpca, 
+        group.by = "seurat_clusters",
+        label = T,
+        repel = T,
+        label.box = T) +
+  NoLegend() 
+
+p1 + p2
+
+# We can also group the DimPlot based on the sample. 
+
+p1 <-
+DimPlot(merged, 
+        group.by = "orig.ident")
+
+p2 <-
+DimPlot(rpca, 
+        group.by = "orig.ident")
+
+p1 + p2
+```
+
+# Activity 3. CCA integration. 
+
+Comparing to the RPCA integration, CCA is less conservative, i.e. it results in a greater level of batch correction. It also takes a longer time to run. 
+
+```{r}
+# Using the code above, run CCA integration. Hint: you only need to change the method's name in the code for running rpca. If needed, use https://satijalab.org/seurat/articles/seurat5_integration, run CCA integration. 
+
+cca <- IntegrateLayers(
+  object = merged, 
+  method = CCAIntegration,
+  orig.reduction = "pca", 
+  new.reduction = "integrated.cca",
+  verbose = FALSE)
+
+cca <- cca %>%
+  RunPCA(verbose = FALSE)%>%
+  RunUMAP(reduction = "integrated.cca", dims = 1:30)%>%
+  FindNeighbors(dims = 1:30, reduction = "integrated.cca")%>%
+  FindClusters(resolution = 0.1)
+
+qs::qsave(cca,
+    "workshop_data/rdata/merged_sobj_cca.qs")
+
+
+# Make dimplots to check the integration
+p1 <-
+DimPlot(merged, 
+        group.by = "seurat_clusters",
+        label = T,
+        repel = T,
+        label.box = T) +
+  NoLegend() 
+
+p2 <-
+DimPlot(cca, 
+        group.by = "seurat_clusters",
+        label = T,
+        repel = T,
+        label.box = T) +
+  NoLegend() 
+
+# We can also group the DimPlot based on the sample. 
+
+p1 <-
+DimPlot(merged, 
+        group.by = "orig.ident")
+
+p2 <-
+DimPlot(cca, 
+        group.by = "orig.ident")
+
+p1 + p2
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
