@@ -1,6 +1,6 @@
 ---
-title: "Coder Upgrade 2025: Cell Cell interaction analysis"
-author: "Matt Cannon and Xin Wang"
+title: "Coder Upgrade 2026: Cell Cell interaction analysis"
+author: "Matt Cannon"
 date: "`r format(Sys.time(), '%m/%d/%Y')`"
 output:
     html_document:
@@ -44,22 +44,15 @@ CellphoneDB
 
 ## Get data to work with
 
-Lets use the mouse brain data
+Lets use the mouse kidney data
 
 ```{r}
-brain_data <-
-    qs::qread("~/data/output/rdata_premade/brain_scRNA_combined.qs")
-
-brain_data$age <-
-    if_else(
-        grepl("OX", brain_data$orig.ident),
-        "Old",
-        "Young"
-    )
+kidney_data <-
+    qs::qread("workshop_data/rdata/merged_sobj_harmony_sample_batch_theta.qs")
 
 DimPlot(
-    brain_data,
-    group.by = "cell_type",
+    kidney_data,
+    group.by = "anchor_cell_types",
     label = TRUE,
     label.box = TRUE,
     repel = TRUE
@@ -67,8 +60,8 @@ DimPlot(
     NoLegend()
 
 DimPlot(
-    brain_data,
-    group.by = "age",
+    kidney_data,
+    group.by = "sex",
     shuffle = TRUE,
     label = TRUE,
     label.box = TRUE,
@@ -85,7 +78,7 @@ Then we'll do pseudobulked DE analysis to find DE genes for each cell type betwe
 min_cells <- 200
 
 cell_type_counts <-
-    table(brain_data$cell_type) %>%
+    table(kidney_data$anchor_cell_types) %>%
     as.list()
 
 keep_cell_types <-
@@ -99,7 +92,7 @@ de_list <-
         mc.cores = 5,
         mc.preschedule = FALSE,
         function(this_cell_type) {
-            sub_data <- subset(brain_data, cell_type == this_cell_type)
+            sub_data <- subset(kidney_data, anchor_cell_types == this_cell_type)
 
             pseudobulked_data <-
                 sub_data %>%
@@ -111,9 +104,7 @@ de_list <-
 
             design <-
                 data.frame(
-                    condition = colnames(pseudobulked_data) %>%
-                        str_remove(".+\\.") %>%
-                        str_remove("X.+") %>%
+                    sex = ifelse(str_detect(pattern = "F", string = colnames(pseudobulked_data)),"F","M") %>%
                         as.factor(),
                     row.names = colnames(pseudobulked_data)
                 )
@@ -122,10 +113,10 @@ de_list <-
                 DESeqDataSetFromMatrix(
                     countData = pseudobulked_data,
                     colData = design,
-                    design = ~condition
+                    design = ~sex
                 ) %>%
                 DESeq(quiet = TRUE) %>%
-                results(contrast = c("condition", "O", "Y")) %>%
+                results(contrast = c("sex", "F", "M")) %>%
                 as.data.frame() %>%
                 rownames_to_column("gene") %>%
                 arrange(padj) %>%
@@ -139,16 +130,20 @@ de_list
 
 ## Look at cell type counts and which ones change most
 ```{r cell_cell_top_cells}
+# add in sex information since it doesn't look like it's in there yet...
+kidney_data$sex <-
+  ifelse(str_detect(pattern = "F", string = kidney_data$orig.ident),"female","male")
+
 # Lets count how many cells are in each cell type
-table(brain_data$cell_type, brain_data$age) %>%
+table(kidney_data$anchor_cell_types, kidney_data$sex) %>%
     as.data.frame() %>%
     filter(Var1 %in% keep_cell_types) %>%
-    dplyr::rename(cell_type = Var1) %>%
+    dplyr::rename(anchor_cell_types = Var1) %>%
     pivot_wider(
         names_from = "Var2",
         values_from = "Freq"
     ) %>%
-    arrange(Young)
+    arrange(male)
 
 # Lets look at how many DE genes we had per cell type
 de_genes_by_celltype <-
@@ -179,7 +174,7 @@ second_diff_cell_type <-
     names()
 
 second_diff_cell_type
-# vascular leptomeningeal cells
+# "plasma cell"
 
 de_list[[most_diff_cell_type]] %>%
     ggplot(
@@ -221,11 +216,11 @@ if you have mouse data get:
 I already downloaded these for us and it is in ~/data/input/nichenetr
 ```{r}
 ligand_target_matrix <-
-    readRDS("~/data/input/nichenetr/ligand_target_matrix_mouse.rds")
+    readRDS("workshop_data/nichenetr/ligand_target_matrix_mouse.rds")
 ligand_target_matrix[1:10, 1:10]
 
 lr_network <-
-    readRDS("~/data/input/nichenetr/lr_network_mouse.rds")
+    readRDS("workshop_data/nichenetr/lr_network_mouse.rds")
 
 lr_network_strict <-
     lr_network %>%
@@ -249,13 +244,13 @@ weighted_networks_lr[1:10, ]
 ## Define sender and reciever cells
 Also get lists of genes expressed in receiver cells
 ```{r}
-Idents(brain_data) <- brain_data$cell_type
+Idents(kidney_data) <- kidney_data$cell_type
 ## receiver
 receiver <- most_diff_cell_type
 expressed_genes_receiver <-
     get_expressed_genes(
         receiver,
-        brain_data,
+        kidney_data,
         pct = 0.10
     )
 
@@ -273,7 +268,7 @@ sender_celltypes
 expressed_genes_sender <-
     sender_celltypes %>%
     # lapply to get expressed genes of every sender cell type separately here
-    lapply(get_expressed_genes, brain_data, 0.10) %>%
+    lapply(get_expressed_genes, kidney_data, 0.10) %>%
     unlist() %>%
     unique()
 ```
@@ -364,7 +359,7 @@ We need:
 - ligand_target_matrix          - Matrix of ligand-receptor interactions
 - potential_ligands             - List of ligands that are expressed in the sender cells
 
-## Use the brain_data that we've been using
+## Use the kidney_data that we've been using
 
 For the activity, repeat what I did above but use the second_diff_cell_type cell type
 
@@ -505,7 +500,7 @@ ggsave(
 ## Make dotplots of expression of ligands in sender cell types
 ```{r}
 sender_dotplot <-
-    brain_data %>%
+    kidney_data %>%
     subset(cell_type %in% sender_celltypes) %>%
     DotPlot(
         features = colnames(vis_ligand_receptor_network),
@@ -521,7 +516,7 @@ sender_dotplot <-
     )
 
 receiver_dotplot <-
-    brain_data %>%
+    kidney_data %>%
     subset(cell_type %in% receiver) %>%
     DotPlot(
         features = rownames(vis_ligand_receptor_network),
@@ -617,7 +612,7 @@ You have little control over what's happening in the analysis
 ```{r}
 nichenet_easy_output <-
     nichenet_seuratobj_aggregate(
-        seurat_obj = brain_data,                      # Your Seurat object
+        seurat_obj = kidney_data,                      # Your Seurat object
         receiver = most_diff_cell_type,               # String of one cell type
         condition_colname = "age",                    # Column name to split data by
         condition_oi = "Old",                         # One group

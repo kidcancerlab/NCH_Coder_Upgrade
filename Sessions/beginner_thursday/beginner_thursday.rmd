@@ -15,7 +15,7 @@ After completion, you should be able to perform DE and GSEA analysis using scRNA
 
 # Section 1: Prepare for Differential Expression Testing
 
-* Load in integrated aging murine brain Seurat object from Wednesday
+* Load in integrated aging murine kidney Seurat object from Wednesday
 * Visualize data as a UMAP grouped by cell type and split by condition
 * Tally the number of cells in each cell type per condition
 * Tally the number of cells in each cell type per condition and sample
@@ -43,7 +43,7 @@ After completion, you should be able to perform DE and GSEA analysis using scRNA
   * Visualize select genes as a VlnPlot
   * Finding DEGs in a for-loop
 * **Activity 2**
-  * Find genes that are differentially expressed between oligodendrocytes between old and young mice
+  * Find genes that are differentially expressed between oligodendrocytes between old and male mice
   * Explore results and save as a .csv file
   * Visualize top 3 most significantly different genes using VlnPlot
 * Pseudobulked Differential Gene Expression
@@ -67,7 +67,7 @@ After completion, you should be able to perform DE and GSEA analysis using scRNA
   * Save GSEA results as a .csv file
   * Visualize data as a bubble plot
 * **Activity 4**
-  * Perform GSEA analysis on the astrocytes old vs. young DEGs using the Gene Ontology Biological Processes geneset
+  * Perform GSEA analysis on the fibroblasts female vs. male DEGs using the Gene Ontology Biological Processes geneset
   * Visualize GSEA results as a bubble plot
 
 ------------------------------------------------------------------------------------
@@ -92,18 +92,18 @@ library(qs)
 set.seed(888)
 
 # set directories
-session_path <- "Sessions/beginner_thursday/"
-data_path <- "~/data/output"
+session_path <- "~/Sessions/beginner_thursday/"
+data_path <- "~/workshop_data/rdata"
 setwd(session_path)
 ```
 
 # Section 1: Prepare for Differential Expression Testing
 
-Load in integrated aging murine brain Seurat object from Wednesday
+Load in integrated aging murine kidney Seurat object from Wednesday
 
 ```{r load_data}
 data <- 
-  qread(file = paste0(data_path, "/rdata_premade/brain_scRNA_combined.qs"))
+  qread("workshop_data/rdata/merged_sobj_harmony_sample_batch_theta.qs")
 
 # First, make sure that our data layers are joined
 data@assays$RNA@layers %>% 
@@ -122,22 +122,25 @@ data@meta.data %>%
   head()
 
 # if not, add it in
-## add in an age variable
-data$age <-
-  ifelse(test = str_detect(string = data$orig.ident, pattern = "OX"),
-         yes = "Old",
-         no = "Young")
-## add in a mouse variable
-data$mouse <-
-  str_split_fixed(string = data$orig.ident,
-                  pattern = "_",
-                  n = 2)[,2]
-data@meta.data %>%
-  head()
+## add in an sex variable
+females <-
+  c("GSM7337031_mouse_scRNA-seq_P0_F2","GSE252772_20210419-NMK3F",
+    "GSE252772_20220129-NMK0F")
+data$sex <-
+  ifelse(test = data$orig.ident %in% females,
+         yes = "female",
+         no = "male")
+
+# add in a mouse annotation
+ids <- paste0("mouse",1:7)
+names(ids) <- unique(data$orig.ident)
+Idents(data) <- "orig.ident"
+data <- RenameIdents(data, ids)
+data$mouse <- Idents(data)
 
 # set identity for the dataset
 Idents(data) <- 
-  "cell_type"
+  "anchor_cell_types"
 ```
 
 Look at the distribution of cells in each cell type when grouped by age or mouse
@@ -145,21 +148,21 @@ Look at the distribution of cells in each cell type when grouped by age or mouse
 ```{r visualize_data}
 # plot UMAP separated by cell type, age, and mouse
 DimPlot(object = data,
-        group.by = c("cell_type", "age", "mouse"))
+        group.by = c("anchor_cell_types", "sex", "mouse"))
 ```
 
 Tally the number of cells in each cell type per age group
 
 ```{r tally_cells}
 # how many cells do we have per age group?
-table(data$cell_type, data$age)
+table(data$anchor_cell_types, data$sex)
 ```
 
 Tally the number of cells in each cell type per condition and sample
 
 ```{r tally_cells_2}
 # how many cells do we have per mouse?
-table(data$cell_type, data$age, data$mouse)
+table(data$anchor_cell_types, data$sex, data$mouse)
 ```
 
 --------------------------------------------------------------------------------
@@ -180,7 +183,7 @@ GetAssayData(object = data,
 
 We can use any slot in the metadata for performing DE testing. We will start with clusters.
 
-### Find markers that define clusters with FindAllMarkers
+### Find markers that define cell types with FindAllMarkers
 
 First, we will confirm that our identity is set to our rpca_cluster metadata slot. We will then perform DE testing for all clusters in our data using the FindAllMarkers function which will identify genes that are differentially expressed in each identity group by comparing it to all of the others. Note that this method does not identify markers that are specific to a single group, and thus, closely-related groups may have overlapping markers.
 
@@ -239,7 +242,8 @@ DefaultAssay(data) <- "RNA"
 # scale data for visualization
 data <-
   ScaleData(object = data,
-            assay = "RNA")
+            assay = "RNA",
+            features = genes)
 
 # make heatmap
 small <-
@@ -282,28 +286,20 @@ We can use FindConservedMarkers to identify genes that are conserved between the
 conserved <- 
   FindConservedMarkers(data,
                        ident.1 = "0",
-                       grouping.var = "age")
+                       grouping.var = "sex")
 ```
 
 --------------------------------------------------------------------------------
 
 ## Activity 1
 
-### Change the identity class to *cell type* and make a UMAP colored by cell type and split by age
+### Change the identity class to *anchor_cell_types* and make a UMAP colored by cell type and split by age
 ```{r}
-
-
-
-
 
 ```
 
 ### Use FindAllMarkers to identify genes defining each cell type
 ```{r}
-
-
-
-
 
 ```
 
@@ -311,10 +307,6 @@ conserved <-
 
 Why might a dot plot be useful for showing scRNA-seq data?
 ```{r}
-
-
-
-
 
 ```
 
@@ -326,10 +318,10 @@ If we have two conditions, we likely want to compare them! To do that, we can us
 
 ### Find genes differentially expressed in one cluster between conditions
 
-Here we will find the genes that are differentially expressed between a cluster shared between young and old mouse brains. We want genes that are expressed in at least 10% of the cells in each identity and have a log2FC cut-off as 0.25 (1.2X).
+Here we will find the genes that are differentially expressed between a cluster shared between male and female mouse kidney. We want genes that are expressed in at least 10% of the cells in each identity and have a log2FC cut-off as 0.25 (1.2X).
 ```{r}
 # how many cells do we have per condition?
-table(data$seurat_clusters, data$age)
+table(data$seurat_clusters, data$sex)
 
 # change identity class
 Idents(data) <- "seurat_clusters"
@@ -340,9 +332,9 @@ DefaultAssay(data) <- "RNA"
 # Find DEGs for cluster 0
 degs <- 
   FindMarkers(object = data,
-              ident.1 = "Old",
-              ident.2 = "Young",
-              group.by = "age",
+              ident.1 = "female",
+              ident.2 = "male",
+              group.by = "sex",
               subset.ident = "0",
               min.pct = 0.1,
               logfc.threshold = 0.25)
@@ -375,7 +367,7 @@ a .csv file is a great way to do that.
 
 ```{r}
 write.csv(x = degs, 
-          file = "cluster_0_old_vs_young_degs.csv")
+          file = "cluster_0_female_vs_male_degs.csv")
 ```
 
 ### Visualize data as a volcano plot
@@ -412,7 +404,7 @@ volcano <-
                    aes(label = rownames(labels)),
                    max.overlaps = 20,
                    show.legend = FALSE) +
-  ggtitle("Cluster 0 Differentially Expressed Genes\nOld vs. Young Mouse") +
+  ggtitle("Cluster 0 Differentially Expressed Genes\nFemale vs. Male Mouse") +
   ylab("-log(padj)") +
   xlab("log2FC") +
   theme_bw() +
@@ -429,8 +421,8 @@ split it based on a slot in the metadata, such as treatment.
 ```{r}
 # make feature plot of one down-regulated and two up-regulated genes from volcano plot
 FeaturePlot(object = data,
-            features = c("Malat1", "Ogt"),
-            split.by = "age",
+            features = c("Pgam1", "Cirbp"),
+            split.by = "sex",
             label = T,
             order = T) & # pulls positive cells to the front
   scale_color_continuous(type = "viridis")
@@ -443,8 +435,8 @@ A violin plot allows us to see gene expression levels within each identity.
 ```{r}
 # make violin plot
 VlnPlot(object = data,
-        features = c("Malat1"),
-        split.by = "age",
+        features = c("Cirbp"),
+        split.by = "sex",
         group.by = "seurat_clusters",
         cols = c("#0072B2","#CC79A7"),
         ncol = 1,
@@ -478,16 +470,17 @@ We could also find DEGs for several clusters at a time using a for-loop
 # select only clusters that have >3 cells in both groups
 cells_per_group <- 
   table(data$seurat_clusters, 
-        data$age) %>%
+        data$sex) %>%
   as.data.frame() %>%
   pivot_wider(names_from = Var2,
               values_from = Freq) %>%
-  as.data.frame()
+  as.data.frame() %>%
+  rename("Var1" = "cluster")
 head(cells_per_group)
 clusters <-
   cells_per_group %>%
-  filter(Old >= 3 & Young >= 3) %>%
-  pull(Var1) %>%
+  filter(female >= 3 & male >= 3) %>%
+  pull(cluster) %>%
   as.character()
 
 # Find DEGs for each cluster
@@ -495,16 +488,16 @@ for (cell in clusters){
     # Find the markers
     markers <- 
       FindMarkers(object = data,
-                  ident.1 = "Old",
-                  ident.2 = "Young",
-                  group.by = "age",
+                  ident.1 = "female",
+                  ident.2 = "male",
+                  group.by = "sex",
                   subset.ident = cell,
                   min.pct = 0.1,
                   logfc.threshold = 0.25)
   
     # make a variable for a filename
     filename <- 
-      paste0("cluster_",cell, "_old_vs_young_degs.csv")
+      paste0("cluster_",cell, "_female_vs_male_degs.csv")
     
     # save our DEGs
     write.csv(markers, 
@@ -516,13 +509,9 @@ for (cell in clusters){
 
 ## Activity 2
 
-### Find genes that are differentially expressed between oligodendrocytes between old and young mice
+### Find genes that are differentially expressed between fibroblasts between female and male mice
 
 ```{r}
-
-
-
-
 
 ```
 
@@ -530,19 +519,11 @@ for (cell in clusters){
 
 ```{r}
 
-
-
-
-
 ```
 
 ### Visualize top 3 most significantly different genes in oligodendrocytes by p_val_adj using VlnPlot (hint: how did we subset to get a small dataset? instead of downsample, what could we use?)
 
 ```{r}
-
-
-
-
 
 ```
 
@@ -571,43 +552,43 @@ pb_data <-
   AggregateExpression(object = data, 
                       assays = "RNA", 
                       return.seurat = T, 
-                      group.by = c("age", 
+                      group.by = c("sex", 
                                    "mouse", 
                                    "seurat_clusters"))
 
 # what do our cells look like after pseudobulking?
 Cells(pb_data) %>%
   head()
-# cage_mouse_cluster
+# sex_mouse_cluster
 
 # add a column to the metadata that is cluster_age
-pb_data$cluster_age <- 
+pb_data$cluster_sex <- 
   paste(pb_data$seurat_clusters,
-        pb_data$age,
+        pb_data$sex,
         sep = "_")
-pb_data$cluster_age %>%
+pb_data$cluster_sex %>%
   head()
 
 # how many samples do we have at each level?
-pb_data$cluster_age %>%
+pb_data$cluster_sex %>%
   table()
 
 # set default assay to RNA
 DefaultAssay(pb_data) <- "RNA"
 
 # perform DE testing on pseudbulked data for same cluster as above
-Idents(pb_data) <- "cluster_age"
+Idents(pb_data) <- "cluster_sex"
 pseudobulked_degs <- 
   FindMarkers(object = pb_data, 
-              ident.1 = "0_Old",
-              ident.2 = "0_Young",
+              ident.1 = "0_female",
+              ident.2 = "0_male",
               test.use = "DESeq2")
 pseudobulked_degs %>%
   head(n = 10)
 
 # how many significant DEGs do we have?
-pseudobulked_degs[pseudobulked_degs$p_val_adj <= 0.05,] %>%
-  nrow()
+sum(pseudobulked_degs$p_val_adj <= 0.05, 
+    na.rm=T)
 ```
 
 ### Visualize data as volcano plots
@@ -640,7 +621,7 @@ volcano <-
                    aes(label = rownames(labels)),
                    max.overlaps = 20,
                    show.legend = FALSE) +
-  ggtitle("Cluster 0 Differentially Expressed Genes\nOld vs. Young Mice") +
+  ggtitle("Cluster 0 Differentially Expressed Genes\nFemale vs. Male Mice") +
   ylab("-log(padj)") +
   xlab("log2FC") +
   theme_bw() +
@@ -651,30 +632,18 @@ volcano
 
 ## Activity 3:
 
-### Create a pseudobulk dataset for *cell types*
+### Create a pseudobulk dataset for *anchor_cell_types*
 ```{r}
-
-
-
-
 
 ```
 
-### Find differentially expressed genes for oligodendrocytes using the pseudobulk method.
+### Find differentially expressed genes for fibroblasts using the pseudobulk method
 ```{r}
-
-
-
-
 
 ```
 
 ### How many FEWER DEGs do we have with the pseudobulk method? Compare a gene that is changed in the same direction in both and a gene that is only in the pseudobulk method visually. How do they compare?
 ```{r}
-
-
-
-
 
 ```
 
@@ -690,12 +659,11 @@ Gene set enrichment analysis (GSEA) helps us to see if several genes in a partic
 Idents(data) <- "seurat_clusters"
 degs <- 
   FindMarkers(object = data,
-              ident.1 = "Old",
-              ident.2 = "Young",
-              group.by = "age",
-              subset.ident = "0",
-              min.pct = 0.1,
-              logfc.threshold = 0.25)
+              ident.1 = "female",
+              ident.2 = "male",
+              group.by = "sex",
+              subset.ident = "0")
+# note: removed cut-offs
 
 # look at genesets available
 View(msigdbr_collections())
@@ -711,12 +679,14 @@ go_mf <-
 View(go_mf)
 
 # arrange DEGs for GSEA 
-degs$gene <- 
-  row.names(degs)
+degs <-
+  degs %>%
+  rownames_to_column(var = "gene") %>%
+  mutate(qvalue = (1-p_val_adj)*avg_log2FC)
 deg <- 
   degs %>%
-  arrange(desc(avg_log2FC)) %>% 
-  select(gene, avg_log2FC)
+  arrange(desc(qvalue)) %>% 
+  select(gene, qvalue)
 
 # convert to named list 
 ranks <- 
@@ -736,7 +706,7 @@ fgsea_res <-
 head(fgsea_res)
 
 # save results as a .csv file (use fwrite to handle leadingEdge list)
-fwrite(fgsea_res, "cluster0_old_vs_young_GOMF_GSEA.csv")
+fwrite(fgsea_res, "cluster0_female_vs_male_GOMF_GSEA.csv")
 ```
 
 The GSEA results dataframe has the following columns:
@@ -771,65 +741,41 @@ ggplot(fgsea_plot,
                         low = "#0513d8",
                         midpoint = 0.05) +
   theme_bw() +
-  ggtitle("Cluster 0 Old vs. Young\nGene Ontology Molecular Function GSEA")+
+  ggtitle("Cluster 0 Female vs. Male\nGene Ontology Molecular Function GSEA")+
   theme(plot.title = element_text(hjust = 0.5))
 ```
 
 ## Activity 4
 
-Perform GSEA on the genes that are differentially expressed in the astrocytes between young and old mice
+Perform GSEA on the genes that are differentially expressed in the macrophages between female and male mice
 
-### Find genes differentially expressed in astrocytes between old and young mice
+### Find genes differentially expressed in macrophages between female and male mice
 ```{r}
-
-
-
-
 
 ```
 
 ### Explore the results and save as a .csv file
 ```{r}
 
-
-
-
-
 ```
 
 ### Visualize top 3 most significantly different genes using a VlnPlot
 ```{r}
-
-
-
-
 
 ```
 
 ### Visualize top 3 most significantly different genes using VlnPlot
 ```{r}
 
-
-
-
-
 ```
 
-## Perform GSEA analysis on the astrocyte young vs. old DEGs using the GO:BP geneset
+## Perform GSEA analysis on the macrophage female vs. male DEGs using the GO:BP geneset
 ```{r}
-
-
-
-
 
 ```
 
 ### Visualize GSEA results as a bubble plot
 ```{r}
-
-
-
-
 
 ```
 
