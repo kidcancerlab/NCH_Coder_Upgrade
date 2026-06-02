@@ -99,7 +99,8 @@ needed_packages_cran <-
         "tidyverse",
         "terra",
         "anndata",
-        "scatterpie"
+        "scatterpie",
+        "qs2"
     )
 
 #Doing this one at a time so I can see which one fails
@@ -136,7 +137,7 @@ github_packages <-
 
 for (this_pkg in github_packages) {
   message("Now installing: ", this_pkg)
-  
+
   pak::pkg_install(
     this_pkg,
     lib = pkg_install_dir
