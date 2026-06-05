@@ -10,8 +10,8 @@ output: html_document
 1) "f1_sobj.qs" : Seurat object made from /workshop_data/raw/GSE232482/GSM7337030_mouse_scRNA-seq_P0_F1/filtered_feature_bc_matrix
 
 ```{r}
-f1_raw <- 
-  Read10X("workshop_data/raw/GSE232482/GSM7337030_mouse_scRNA-seq_P0_F1/filtered_feature_bc_matrix")
+f1_raw <-
+  Read10X("~/workshop_data/raw/GSE232482/GSM7337030_mouse_scRNA-seq_P0_F1/filtered_feature_bc_matrix")
 f1_sobj <-
     CreateSeuratObject(
         counts = f1_raw,
@@ -19,14 +19,17 @@ f1_sobj <-
         min.features = 200,
     )
 f1_sobj$orig.ident <- "GSM7337030_mouse_scRNA-seq_P0_F1"
-qsave(f1_sobj, "workshop_data/rdata/f1_sobj.qs") #save to data/output/rdata directory
+f1_sobj$sex <- "female"
+qs_save(f1_sobj, "~/workshop_data/rdata/f1_sobj.qs2") #save to data/output/rdata directory
+
+rm(f1_raw, f1_sobj)
 ```
 
 2) "m5_sobj.qs" : Seurat object made from /workshop_data/raw/GSE232482/GSM7337034_mouse_scRNA-seq_P0_M5/filtered_feature_bc_matrix
 
 ```{r}
-m5_raw <- 
-  Read10X("workshop_data/raw/GSE232482/GSM7337034_mouse_scRNA-seq_P0_M5/filtered_feature_bc_matrix")
+m5_raw <-
+  Read10X("~/workshop_data/raw/GSE232482/GSM7337034_mouse_scRNA-seq_P0_M5/filtered_feature_bc_matrix")
 m5_sobj <-
     CreateSeuratObject(
         counts = m5_raw,
@@ -34,14 +37,17 @@ m5_sobj <-
         min.features = 200,
     )
 m5_sobj$orig.ident <- "GSM7337034_mouse_scRNA-seq_P0_M5"
-qsave(m5_sobj, "workshop_data/rdata/m5_sobj.qs") #save to data/output/rdata directory
+m5_sobj$sex <- "male"
+qs_save(m5_sobj, "~/workshop_data/rdata/m5_sobj.qs2") #save to data/output/rdata directory
+
+rm(m5_raw, m5_sobj)
 ```
 
 3) "f1_sobj_processed_annotated.qs" : Seurat object processed and annotated
 
 ```{r}
 sobj <-
-  qs::qread("workshop_data/rdata/f1_sobj.qs")
+  qs_read("~/workshop_data/rdata/f1_sobj.qs2")
 
 sobj[["percent.mt"]] <- 
   PercentageFeatureSet(sobj, pattern = "^mt-")
@@ -66,10 +72,10 @@ sobj <-
   RunTSNE(dims = 1:20,
           metric = "euclidean")
 
-qsave(sobj, "workshop_data/rdata/f1_sobj_processed.qs")
+qs_save(sobj, "~/workshop_data/rdata/f1_sobj_processed.qs2")
 
 kidney_ref_data <- 
-    readRDS("workshop_data/rdata/tabula_muris_senis_kidney.rds")
+    readRDS("~/workshop_data/rdata/tabula_muris_senis_kidney.rds")
 
 # singleR annotation
 annotation <-
@@ -94,14 +100,14 @@ Idents(kidney_ref_data) <- "cell_type"
 # Find anchors between reference and query datasets
 anchors <-
     FindTransferAnchors(reference = kidney_ref_data,
-                      query = sobj,
-                      dims = 1:30,
-                      reference.reduction = "pca")
+                        query = sobj,
+                        dims = 1:30,
+                        reference.reduction = "pca")
 
 # Transfer anchors from reference dataset
 predictions <-
     TransferData(anchorset = anchors,
-               refdata = kidney_ref_data$cell_type,
+                 refdata = kidney_ref_data$cell_type,
                dims = 1:30)
 
 # Add query to metadata of Seurat object
@@ -111,20 +117,22 @@ sobj <- AddMetaData(sobj,
 # Rename "predicted.id" to "cell_types"
 sobj$anchor_cell_types <- sobj$predicted.id
 
-qsave(sobj, "workshop_data/rdata/f1_sobj_processed_annotated.qs") 
+qs_save(sobj, "~/workshop_data/rdata/f1_sobj_processed_annotated.qs2")
+
+rm(sobj, predictions, kidney_ref_data, annotation)
 ```
 
 # For Tuesday:
 
 4) "tabula_muris_senis_kidney.rds" : reference data
 
-5) "f1_sobj_processed.qs" : processed from Monday ** generated above **
+5) "f1_sobj_processed.qs2" : processed from Monday ** generated above **
 
-6) "W3_F_Kidney.qs" : Visium object
+6) "W3_F_Kidney.qs2" : Visium object
 
 ```{r}
 W3_F_Kidney <-
-  Load10X_Spatial(data.dir = paste0("workshop_data/raw/GSE252772/GSM8704839_20201201-NMK-F-Fc1U4Z1B1"),
+  Load10X_Spatial(data.dir = paste0("~/workshop_data/raw/GSE252772/GSM8704839_20201201-NMK-F-Fc1U4Z1B1"),
                   slice = "W3_F_Kidney")
 # add % of reads mapping to mitochondrial genes as a measure of cell health
 W3_F_Kidney[["percent.mt"]] <-
@@ -150,14 +158,16 @@ W3_F_Kidney_clustered <-
   FindNeighbors(k.parm = 30) %>%
   FindClusters(resolution = 0.5)
 
-qsave(W3_F_Kidney_clustered, "workshop_data/rdata/W3_F_Kidney.qs") 
+qs_save(W3_F_Kidney_clustered, "~/workshop_data/rdata/W3_F_Kidney.qs2") 
+
+rm(W3_F_Kidney_clustered)
 ```
 
-7) "W3_M_Kidney.qs" : Visium object
+7) "W3_M_Kidney.qs2" : Visium object
 
 ```{r}
 W3_M_Kidney <-
-  Load10X_Spatial(data.dir = paste0("workshop_data/raw/GSE252772/GSM8704840_20201201-NMK-M-Fc1U1Z1B1/"),
+  Load10X_Spatial(data.dir = paste0("~/workshop_data/raw/GSE252772/GSM8704840_20201201-NMK-M-Fc1U1Z1B1/"),
                   slice = "W3_M_Kidney")
 W3_M_Kidney$age <- "w3"
 W3_M_Kidney$sex <- "male"
@@ -177,10 +187,12 @@ W3_M_Kidney_clustered <-
   FindNeighbors(k.parm = 30) %>%
   FindClusters(resolution = 0.5)
 
-qsave(W3_M_Kidney_clustered, "workshop_data/rdata/W3_M_Kidney.qs") 
+qs_save(W3_M_Kidney_clustered, "~/workshop_data/rdata/W3_M_Kidney.qs2") 
+
+rm(W3_M_Kidney_clustered)
 ```
 
-8) "spatial_obj_list.qs" : Visium object list ** didn't make **
+8) "spatial_obj_list.qs2" : Visium object list ** didn't make **
 
 9) "spatial_merged" : W3_F_Kidney.qs and W3_M_Kidney.qs merged Visium object 
 
@@ -219,7 +231,7 @@ spatial <-
 
 # load in reference data
 ref <-
-  readRDS(file = paste0("workshop_data/rdata/tabula_muris_senis_kidney.rds"))
+  readRDS(file = paste0("~/workshop_data/rdata/tabula_muris_senis_kidney.rds"))
 
 # spacexr doesn't like labels with "/" in it, so let's change that
 ref$cell_type <-
@@ -272,25 +284,33 @@ spatial <-
   AddMetaData(object = spatial, 
               metadata = norm_weights)
 
-qsave(spatial, "workshop_data/rdata/spatial_merged.qs") 
+qs_save(spatial, "~/workshop_data/rdata/spatial_merged.qs2")
+
+
+rm(spatial, rctd_out, norm_weights, rctd_obj, my_data, coords, spacexr_reference, obj_list, var_feats, Q_mat, S_mat, SQ_mat, W3_F_Kidney, W3_M_Kidney, K_val, N_X, X_vals)
 ```
-
-
 
 # For Wednesday: 
 
-10) "GSE232482_object_list_processed_annotated.qs" : processed data from GSE232482 with 1 female and 2 male
+10) "GSE232482_object_list_processed_annotated.qs2" : processed data from GSE232482 with 1 female and 2 male
 
 ```{r}
-samples <- 
+samples <-
   c("GSM7337031_mouse_scRNA-seq_P0_F2",
     "GSM7337034_mouse_scRNA-seq_P0_M5",
     "GSM7337035_mouse_scRNA-seq_P0_M6")
 
+sample_sex <- list(
+  "GSM7337031_mouse_scRNA-seq_P0_F2" = "female",
+  "GSM7337034_mouse_scRNA-seq_P0_M5" = "male",
+  "GSM7337035_mouse_scRNA-seq_P0_M6" = "male"
+)
+
+
 object_list <- list()
 for (smp in samples) {
   raw <- 
-    Read10X(paste0("workshop_data/raw/GSE232482/", smp, "/filtered_feature_bc_matrix"))
+    Read10X(paste0("~/workshop_data/raw/GSE232482/", smp, "/filtered_feature_bc_matrix"))
   obj <-
     CreateSeuratObject(counts = raw,
                        min.cells = 3,
@@ -298,6 +318,7 @@ for (smp in samples) {
   obj$orig.ident <- smp
   obj[["percent.mt"]] <- 
     PercentageFeatureSet(obj, pattern = "^mt-")
+  obj$sex <- sample_sex[[smp]]
   obj <- 
     subset(obj,
          subset = nCount_RNA < 20000 &
@@ -334,11 +355,13 @@ for (smp in samples) {
   object_list[[smp]] <- obj
 }
 
-qsave(object_list, "workshop_data/rdata/GSE232482_object_list_processed_annotated.qs")
+qs_save(object_list, "~/workshop_data/rdata/GSE232482_object_list_processed_annotated.qs2")
+
+rm(obj, anchors, predictions, samples, sample_sex, raw)
 ```
 
 
-11) "merged_GSE232482_sobj.qs" : merged and processed GSE232482 data 
+11) "merged_GSE232482_sobj.qs2" : merged and processed GSE232482 data 
 
 ```{r}
 merged <-
@@ -346,10 +369,12 @@ merged <-
         y = object_list[2:length(object_list)],
         add.cell.ids = names(object_list))
 
-qsave(merged, "workshop_data/rdata/merged_GSE232482_sobj.qs")
+qs_save(merged, "~/workshop_data/rdata/merged_GSE232482_sobj.qs2")
+
+rm(merged, object_list)
 ```
 
-12) "GSE252772_object_list_processed_annotated_small.qs" : merged and processed snRNA-seq data from GSE252772 with 1 p0 females, 1 p0 males, 1 w3 female, and 1 w3 male
+12) "GSE252772_object_list_processed_annotated_small.qs2" : merged and processed snRNA-seq data from GSE252772 with 1 p0 females, 1 p0 males, 1 w3 female, and 1 w3 male
 
 ```{r}
 samples <- 
@@ -358,10 +383,17 @@ samples <-
     "GSE252772_20220129-NMK0F",
     "GSE252772_20220129-NMK0M")
 
+sample_sex <- list(
+  "GSE252772_20210419-NMK3F" = "female",
+  "GSE252772_20210419-NMK3M" = "male",
+  "GSE252772_20220129-NMK0F" = "male",
+  "GSE252772_20220129-NMK0M" = "male"
+)
+
 object_list <- list()
 for (smp in samples) {
   raw <- 
-    Read10X(paste0("/igm/home/cnh008/ref/GSE252772/snrna_inputs/", smp, "/filtered_feature_bc_matrix"))
+    Read10X(paste0("~/workshop_data/raw/GSE252772/snrna/", smp, "/filtered_feature_bc_matrix"))
   obj <-
     CreateSeuratObject(counts = raw$`Gene Expression`,
                        min.cells = 3,
@@ -369,6 +401,7 @@ for (smp in samples) {
   obj$orig.ident <- smp
   obj[["percent.mt"]] <- 
     PercentageFeatureSet(obj, pattern = "^mt-")
+  obj$sex <- sample_sex[[smp]]
   obj <- 
     subset(obj,
          subset = nCount_RNA < 20000 &
@@ -402,21 +435,23 @@ for (smp in samples) {
                  refdata = ref$cell_type,
                  dims = 1:20)
   obj <- AddMetaData(obj,
-                      metadata = predictions) 
-  
+                      metadata = predictions)
+
   obj$anchor_cell_types <- obj$predicted.id
   object_list[[smp]] <- obj
 }
 
-qsave(object_list, "workshop_data/rdata/GSE252772_object_list_processed_annotated_small.qs")
+qs_save(object_list, "~/workshop_data/rdata/GSE252772_object_list_processed_annotated_small.qs2")
+
+rm(object_list, obj, anchors, predictions, raw, smp, samples, sample_sex)
 ```
 
-13) "merged_sobj_before_harmony.qs" : merged, processed, annotated, GSE232482 and GSE252772 object before harmony integration
+13) "merged_sobj_before_harmony.qs2" : merged, processed, annotated, GSE232482 and GSE252772 object before harmony integration
 
 ```{r}
 # read in the second object list
 GSE252772_sobj_list <-
-    qs::qread("workshop_data/rdata/GSE252772_object_list_processed_annotated_small.qs")
+    qs_read("~/workshop_data/rdata/GSE252772_object_list_processed_annotated_small.qs2")
 
 # merge the second object list
 merged_GSE252772_sobj <-
@@ -429,7 +464,7 @@ merged_GSE252772_sobj$batch <- "GSE252772"
 
 # save the batch information in the merged_sobj as well
 merged_GSE232482_sobj <-
-    qs::qread("workshop_data/rdata/merged_GSE232482_sobj.qs")
+    qs_read("~/workshop_data/rdata/merged_GSE232482_sobj.qs2")
 merged_GSE232482_sobj$batch <- "GSE232482"
 
 # merge the two objects and process it together unto plotting dimplot
@@ -451,11 +486,14 @@ merged_sobj <-
     FindNeighbors(dims = 1:30) %>%
     FindClusters(resolution = 0.5)
 
-qs::qsave(merged_sobj,
-          "workshop_data/rdata/merged_sobj_before_harmony.qs")
+qs_save(merged_sobj,
+          "~/workshop_data/rdata/merged_sobj_before_harmony.qs2")
+
+rm(merged_GSE232482_sobj, merged_GSE252772_sobj)
+
 ```
 
-14) "merged_sobj_harmony_batch.qs"
+14) "merged_sobj_harmony_batch.qs2"
 ```{r}
 merged_sobj_harmony <-
     merged_sobj %>%
@@ -464,11 +502,11 @@ merged_sobj_harmony <-
     FindNeighbors(reduction = "harmony", dims = 1:30) %>%
     FindClusters(resolution = 0.5) 
 
-qs::qsave(merged_sobj,
-          "workshop_data/rdata/merged_sobj_harmony_batch.qs")
+qs_save(merged_sobj,
+          "~/workshop_data/rdata/merged_sobj_harmony_batch.qs2")
 ```
 
-15) "merged_sobj_harmony_theta.qs" : harmony integration with theta = 5
+15) "merged_sobj_harmony_theta.qs2" : harmony integration with theta = 5
 
 ```{r}
 # run Harmony integration with different parameters
@@ -479,11 +517,11 @@ merged_sobj_harmony <-
     RunUMAP(reduction = "harmony", dims = 1:30) %>%
     FindNeighbors(reduction = "harmony", dims = 1:30) %>%
     FindClusters()
-qs::qsave(merged_sobj_harmony,
-    "workshop_data/rdata/merged_sobj_harmony_theta.qs")
+qs_save(merged_sobj_harmony,
+    "~/workshop_data/rdata/merged_sobj_harmony_theta.qs2")
 ```
 
-16) "merged_sobj_harmony_sample.qs" : sample as batch variable in harmony integration
+16) "merged_sobj_harmony_sample.qs2" : sample as batch variable in harmony integration
 
 ```{r}
 merged_sobj_harmony <-
@@ -493,11 +531,11 @@ merged_sobj_harmony <-
     FindNeighbors(reduction = "harmony", dims = 1:30) %>%
     FindClusters(resolution = 0.5) 
 
-qs::qsave(merged_sobj,
-          "workshop_data/rdata/merged_sobj_harmony_sample.qs")
+qs_save(merged_sobj,
+          "~/workshop_data/rdata/merged_sobj_harmony_sample.qs2")
 ```
 
-17) "merged_sobj_harmony_sample_theta.qs" : harmony integration with theta = 5 and sample as batch variable
+17) "merged_sobj_harmony_sample_theta.qs2" : harmony integration with theta = 5 and sample as batch variable
 
 ```{r}
 merged_sobj_harmony <-
@@ -508,11 +546,11 @@ merged_sobj_harmony <-
     FindNeighbors(reduction = "harmony", dims = 1:30) %>%
     FindClusters(resolution = 0.5) 
 
-qs::qsave(merged_sobj,
-          "workshop_data/rdata/merged_sobj_harmony_sample_theta.qs")
+qs_save(merged_sobj,
+          "~/workshop_data/rdata/merged_sobj_harmony_sample_theta.qs2")
 ```
 
-18) "merged_sobj_harmony_sample_batch.qs" : harmony integration with sample AND seq batch as batch variables
+18) "merged_sobj_harmony_sample_batch.qs2" : harmony integration with sample AND seq batch as batch variables
 
 ```{r}
 merged_sobj_harmony <-
@@ -521,11 +559,12 @@ merged_sobj_harmony <-
     RunUMAP(reduction = "harmony", dims = 1:30) %>%
     FindNeighbors(reduction = "harmony", dims = 1:30) %>%
     FindClusters()
-qs::qsave(merged_sobj_harmony,
-    "workshop_data/rdata/merged_sobj_harmony_sample_batch.qs")
+
+qs_save(merged_sobj_harmony,
+    "~/workshop_data/rdata/merged_sobj_harmony_sample_batch.qs2")
 ```
 
-19) "merged_sobj_harmony_sample_batch_theta.qs" : harmony integration with sample AND seq batch as batch variables and theta = 10
+19) "merged_sobj_harmony_sample_batch_theta.qs2" : harmony integration with sample AND seq batch as batch variables and theta = 10
 
 ```{r}
 merged_sobj_harmony <-
@@ -535,13 +574,15 @@ merged_sobj_harmony <-
     RunUMAP(reduction = "harmony", dims = 1:30) %>%
     FindNeighbors(reduction = "harmony", dims = 1:30) %>%
     FindClusters()
-qs::qsave(merged_sobj_harmony,
-    "workshop_data/rdata/merged_sobj_harmony_sample_batch_theta.qs")
+
+qs_save(merged_sobj_harmony,
+    "~/workshop_data/rdata/merged_sobj_harmony_sample_batch_theta.qs2")
 ```
 
-20) "merged_sobj_rpca.qs" : RPCA integration
+20) "merged_sobj_rpca.qs2" : RPCA integration
 
 ```{r}
+
 # Lets downsample a bit so it runs quicker
 Idents(merged_sobj) <- merged_sobj$orig.ident
 merged_sobj <- subset(merged_sobj, downsample = 500)
@@ -565,11 +606,13 @@ rpca <- rpca%>%
   FindNeighbors(dims = 1:30, reduction = "integrated.rpca")%>%
   FindClusters(resolution = 0.1)
 
-qs::qsave(rpca,
-    "workshop_data/rdata/merged_sobj_rpca.qs")
+qs_save(rpca,
+    "~/workshop_data/rdata/merged_sobj_rpca.qs2")
+
+rm(rpca)
 ```
 
-20) "merged_sobj_cca.qs" : CCA integration
+20) "merged_sobj_cca.qs2" : CCA integration
 ```{r}
 cca <- IntegrateLayers(
   object = merged_sobj, 
@@ -584,13 +627,13 @@ cca <- cca%>%
   FindNeighbors(dims = 1:30, reduction = "integrated.cca")%>%
   FindClusters(resolution = 0.1)
 
-qs::qsave(cca,
-    "workshop_data/rdata/merged_sobj_cca.qs")
+qs_save(cca,
+    "~/workshop_data/rdata/merged_sobj_cca.qs2")
+rm(cca, merged_sobj, merged_sobj_harmony, GSE252772_sobj_list)
 ```
-
 # For Thursday:
 
-21) "annotations.qs" : annotated atac data
+21) "annotations.qs2" : annotated atac data
 
 ```{r}
 
