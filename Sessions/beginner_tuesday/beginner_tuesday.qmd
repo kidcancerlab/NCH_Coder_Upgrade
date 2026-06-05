@@ -29,7 +29,7 @@ library(tidyverse) # This package contains ggplot2 and dplyr
 library(patchwork)
 library(ggplot2) # For plotting
 library(rrrSingleCellUtils) # For plotting an processing
-library(qs) # For reading and writing .qs files
+library(qs2) # For reading and writing .qs files
 library(SingleR) # For cell type annotation
 library(biomaRt) # For gene annotation
 # Set the random generator seed so that results are reproducible.
@@ -76,7 +76,7 @@ gene names begin. "^mt-" for mice gene pattern.
 ```{r load}
 # read in the object
 sobj <-
-    qs::qread("workshop_data/rdata/f1_sobj.qs")
+    qs_read("~/workshop_data/rdata/f1_sobj.qs2")
 
 # check the object
 sobj
@@ -107,12 +107,8 @@ hist(sobj$percent.mt,
 # subset the dataset to remove the low quality cells
 sobj <- 
     subset(sobj,
-           subset = nCount_RNA < 20000 &
+           subset = nCount_RNA < 25000 &
                     percent.mt < 20)
-
-sobj1 <-
-    process_seurat(sobj)
-DimPlot(sobj1) 
 
 # check the substetting
 hist(sobj$nCount_RNA,
@@ -325,7 +321,7 @@ DimPlot(sobj,
         reduction = "tsne")
 
 # save processed object
-qsave(sobj, "workshop_data/rdata/f1_sobj_processed.qs") 
+qs_save(sobj, "~/workshop_data/rdata/f1_sobj_processed.qs2") 
 ```
 
 ## Practice Activity 3
@@ -368,6 +364,11 @@ DotPlot(sobj,
 
 FeaturePlot(sobj,
             features = "Dcn")
+
+
+FeaturePlot(sobj,
+            features = "Dcn") +
+  DimPlot(sobj)
 
 VlnPlot(sobj,
         features = "Dcn",
@@ -424,7 +425,7 @@ sobj$cell_type <-
                     "^3$" = "Endothelial cell",
                     "^4$" = "Fibroblast",
                     "^5$" = "Fibroblast",
-                    "^6$" = "Unknown",
+                    "^6$" = "Epithelial cell",
                     "^7$" = "Mesangial cell",
                     "^8$" = "Plasmatocyte",
                     "^9$" = "Macrophage",
@@ -484,7 +485,7 @@ SingleR or Mapquery. These methods use the reference data to annotate the cells.
 ```{r singleR}
 # reference data
 kidney_ref_data <- 
-    readRDS("workshop_data/rdata/tabula_muris_senis_kidney.rds")
+    readRDS("~/workshop_data/rdata/tabula_muris_senis_kidney.rds")
 DefaultAssay(kidney_ref_data) <- "RNA"
 
 # check the object labels that will be used for annotation
@@ -497,7 +498,7 @@ DimPlot(kidney_ref_data,
 
 # singleR annotation
 annotation <-
-    SingleR(test = as.SingleCellExperiment(sobj),
+    SingleR::SingleR(test = as.SingleCellExperiment(sobj),
             ref = GetAssayData(kidney_ref_data),
             labels = kidney_ref_data$cell_type,
             aggr.ref = TRUE)
@@ -529,14 +530,14 @@ This object has several different levels of granularity. For the examples, we wi
 ```{r annotate_seurat}
 # Read in the reference Seurat object
 kidney_ref_data <- 
-    readRDS("workshop_data/rdata/tabula_muris_senis_kidney.rds")
+    readRDS("~/workshop_data/rdata/tabula_muris_senis_kidney.rds")
 DefaultAssay(kidney_ref_data) <- "RNA"
 
 # Set the idents to cell_type so that we can examine which cell types are present in the dataset
 Idents(kidney_ref_data) <- "cell_type"
 
 # Visualize the reference dataset
-DimPlot(kidney_ref_data)
+DimPlot(kidney_ref_data, label = T) +NoLegend()
 
 # Find anchors between reference and query datasets
 anchors <-
@@ -564,12 +565,12 @@ DimPlot(sobj,
         reduction = "umap",
         label = T,
         label.box = T,
-        repel = T)
+        repel = T) + NoLegend()
 # Tally number of cells in each cell type 
 table(sobj$anchor_cell_types)
 
 # save
-qsave(sobj, "workshop_data/rdata/f1_sobj_processed_annotated.qs") 
+qs_save(sobj, "~/workshop_data/rdata/f1_sobj_processed_annotated.qs2") 
 
 ```
 
