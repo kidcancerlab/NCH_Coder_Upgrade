@@ -377,7 +377,7 @@ rm(merged, object_list)
 12) "GSE252772_object_list_processed_annotated_small.qs2" : merged and processed snRNA-seq data from GSE252772 with 1 p0 females, 1 p0 males, 1 w3 female, and 1 w3 male
 
 ```{r}
-samples <- 
+samples <-
   c("GSE252772_20210419-NMK3F",
     "GSE252772_20210419-NMK3M",
     "GSE252772_20220129-NMK0F",
@@ -386,7 +386,7 @@ samples <-
 sample_sex <- list(
   "GSE252772_20210419-NMK3F" = "female",
   "GSE252772_20210419-NMK3M" = "male",
-  "GSE252772_20220129-NMK0F" = "male",
+  "GSE252772_20220129-NMK0F" = "female",
   "GSE252772_20220129-NMK0M" = "male"
 )
 
@@ -621,7 +621,7 @@ cca <- IntegrateLayers(
   new.reduction = "integrated.cca",
   verbose = FALSE)
 
-cca <- cca%>%
+cca <- cca %>%
   RunPCA(verbose = FALSE)%>%
   RunUMAP(reduction = "integrated.cca", dims = 1:30)%>%
   FindNeighbors(dims = 1:30, reduction = "integrated.cca")%>%
