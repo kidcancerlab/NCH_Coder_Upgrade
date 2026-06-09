@@ -1,7 +1,7 @@
 ---
 title: "Thursday.rmd"
 author: "Corinne Strawser & Matt Gust"
-date: "2025-05-08"
+date: "2026-05-08"
 output: html_document
 ---
 
@@ -138,17 +138,22 @@ Idents(data) <- "orig.ident"
 data <- RenameIdents(data, ids)
 data$mouse <- Idents(data)
 
+# add in an age annotation
+data$age <-
+  ifelse(data$orig.ident %in% c("GSE252772_20210419-NMK3M","GSE252772_20210419-NMK3F"),
+         "w3","p0")
+
 # set identity for the dataset
 Idents(data) <- 
   "anchor_cell_types"
 ```
 
-Look at the distribution of cells in each cell type when grouped by age or mouse
+Look at the distribution of cells in each cell type when grouped by sex, mouse, or age
 
 ```{r visualize_data}
 # plot UMAP separated by cell type, age, and mouse
 DimPlot(object = data,
-        group.by = c("anchor_cell_types", "sex", "mouse"))
+        group.by = c("anchor_cell_types", "sex", "mouse", "age"))
 ```
 
 Tally the number of cells in each cell type per age group
@@ -296,10 +301,16 @@ conserved <-
 ### Change the identity class to *anchor_cell_types* and make a UMAP colored by cell type and split by age
 ```{r}
 
+
+
+
 ```
 
 ### Use FindAllMarkers to identify genes defining each cell type
 ```{r}
+
+
+
 
 ```
 
@@ -307,6 +318,9 @@ conserved <-
 
 Why might a dot plot be useful for showing scRNA-seq data?
 ```{r}
+
+
+
 
 ```
 
@@ -509,9 +523,12 @@ for (cell in clusters){
 
 ## Activity 2
 
-### Find genes that are differentially expressed between fibroblasts between female and male mice
+### Find genes that are differentially expressed between fibroblasts between p0 and 3 wk old mice
 
 ```{r}
+
+
+
 
 ```
 
@@ -519,11 +536,17 @@ for (cell in clusters){
 
 ```{r}
 
+
+
+
 ```
 
-### Visualize top 3 most significantly different genes in oligodendrocytes by p_val_adj using VlnPlot (hint: how did we subset to get a small dataset? instead of downsample, what could we use?)
+### Visualize top 3 most significantly different genes in fibroblasts by p_val_adj using VlnPlot (hint: how did we subset to get a small dataset? instead of downsample, what could we use?)
 
 ```{r}
+
+
+
 
 ```
 
@@ -632,18 +655,27 @@ volcano
 
 ## Activity 3:
 
-### Create a pseudobulk dataset for *anchor_cell_types*
+### Create a pseudobulk dataset for *anchor_cell_types* and *age* (note: you might have to explore the help page for FindMarkers to see how to navigate the error message)
 ```{r}
+
+
+
 
 ```
 
 ### Find differentially expressed genes for fibroblasts using the pseudobulk method
 ```{r}
 
+
+
+
 ```
 
 ### How many FEWER DEGs do we have with the pseudobulk method? Compare a gene that is changed in the same direction in both and a gene that is only in the pseudobulk method visually. How do they compare?
 ```{r}
+
+
+
 
 ```
 
@@ -747,35 +779,47 @@ ggplot(fgsea_plot,
 
 ## Activity 4
 
-Perform GSEA on the genes that are differentially expressed in the macrophages between female and male mice
+Perform GSEA on the genes that are differentially expressed in the macrophages between p0 and w3 mice
 
-### Find genes differentially expressed in macrophages between female and male mice
+### Find genes differentially expressed in macrophages between p0 and w3 old mice
 ```{r}
+
+
 
 ```
 
 ### Explore the results and save as a .csv file
 ```{r}
 
+
+
 ```
 
 ### Visualize top 3 most significantly different genes using a VlnPlot
 ```{r}
+
+
 
 ```
 
 ### Visualize top 3 most significantly different genes using VlnPlot
 ```{r}
 
+
+
 ```
 
 ## Perform GSEA analysis on the macrophage female vs. male DEGs using the GO:BP geneset
 ```{r}
 
+
+
 ```
 
 ### Visualize GSEA results as a bubble plot
 ```{r}
+
+
 
 ```
 
