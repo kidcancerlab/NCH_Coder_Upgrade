@@ -25,6 +25,7 @@ Load libraries
 library(tidyverse)
 library(Seurat)
 library(CellChat)
+library(qs2)
 ```
 
 --------------------------------------------------------------------------------
@@ -40,51 +41,61 @@ https://htmlpreview.github.io/?https://github.com/jinworks/CellChat/blob/master/
 ## Load in the data
 
 ```{r}
-brain_data <-
-    qs::qread("~/data/output/rdata_premade/brain_scRNA_combined.qs")
+kidney_data <-
+  qs_read("~/workshop_data/rdata/merged_sobj_harmony_sample_batch_theta.qs2") %>%
+  subset(batch == "GSE252772") %>%
+  process_seurat()
 
-brain_data$age <-
-    if_else(
-        grepl("OX", brain_data$orig.ident),
-        "Old",
-        "Young"
-    )
+kidney_data$age <-
+  kidney_data$orig.ident %>%
+  str_extract("NMK(.)[MF]$", group = TRUE) %>%
+  str_c(" wk")
 
-brain_data$cell_sample <-
+DimPlot(
+  kidney_data,
+  group.by = "predicted.id",
+  label = TRUE,
+  label.box = TRUE,
+  label.size = 2.5,
+  repel = TRUE
+) +
+  NoLegend()
+
+kidney_data$cell_sample <-
     paste(
-        brain_data$cell_type,
-        brain_data$orig.ident,
+        kidney_data$anchor_cell_types,
+        kidney_data$orig.ident,
         sep = "_"
     )
 
 # CellChat requires your metadata to have this column
-brain_data$samples <- as.factor(brain_data$orig.ident)
+kidney_data$samples <- as.factor(kidney_data$orig.ident)
 ```
 
 ## Filter down to just prominent cell types
 ```{r}
-min_cells <- 200
+min_cells <- 50
 
 cell_type_counts <-
-    table(brain_data$cell_type) %>%
+    table(kidney_data$anchor_cell_types) %>%
     as.list()
 
 keep_cell_types <-
     cell_type_counts[cell_type_counts > min_cells] %>%
     names()
 
-brain_data <-
-    subset(brain_data, cell_type %in% keep_cell_types)
+kidney_data <-
+    subset(kidney_data, cell_type %in% keep_cell_types)
 
-Idents(brain_data) <-
-    brain_data$cell_sample
+Idents(kidney_data) <-
+    kidney_data$cell_sample
 ```
 
 ## Downsample to reduce memory usage and speed things up
 This keeps 50 cells per cell type per sample because our Idents() are cell_sample
 ```{r}
-brain_data <-
-    subset(brain_data, downsample = 50)
+kidney_data <-
+    subset(kidney_data, downsample = 50)
 gc() # reduce ram usage from old object
 ```
 
@@ -92,8 +103,8 @@ gc() # reduce ram usage from old object
 ```{r}
 cellchat_obj <-
     createCellChat(
-        object = brain_data,
-        group.by = "cell_type",
+        object = kidney_data,
+        group.by = "anchor_cell_types",
         assay = "RNA"
     )
 
@@ -135,7 +146,7 @@ Populates the cellchat_obj@net slot with interaction probability and pvalues.
 
 This takes about two minutes
 ```{r}
-cellchat_obj <- computeCommunProb(cellchat_obj, type = "triMean")
+cellchat_obj <- computeCommunProb(object = cellchat_obj, type = "triMean")
 ```
 
 ## Lets look at the interaction probability
@@ -150,12 +161,25 @@ dimnames(cellchat_obj@net$prob)[[3]] %>%
 third_d_names <- dimnames(cellchat_obj@net$prob)[[3]]
 third_d_names
 
-interaction_index <- grep("^PSAP_GPR37L1$", third_d_names)
+matts_cell_type <- "kidney proximal convoluted tubule epithelial cell"
 
-cellchat_obj@net$prob[, , interaction_index] %>%
+apply(
+  cellchat_obj@net$prob,
+  MARGIN = 3,
+  function(x) {
+    x %>%
+      as.data.frame() %>%
+      .[matts_cell_type] %>%
+      max()
+  }
+) %>%
+  sort() %>%
+  tail()
+
+cellchat_obj@net$prob[, , "EGF_EGFR"] %>%
     pheatmap::pheatmap(
         display_numbers = TRUE,
-        main = third_d_names[interaction_index]
+        main = "EGF_EGFR"
     )
 ```
 
@@ -171,10 +195,23 @@ cellchat_obj@netP$pathways
 
 third_d_names <- dimnames(cellchat_obj@netP$prob)[[3]]
 
-cellchat_obj@netP$prob[, , 1:4]
+apply(
+  cellchat_obj@netP$prob,
+  MARGIN = 3,
+  function(x) {
+    x %>%
+      as.data.frame() %>%
+      .[matts_cell_type] %>%
+      max()
+  }
+) %>%
+  sort() %>%
+  tail()
+
+cellchat_obj@netP$prob[, , "EGF"]
 
 # Look at "MK" pathway
-cellchat_obj@netP$prob[, , 4] %>%
+cellchat_obj@netP$prob[, , "EGF"] %>%
     pheatmap::pheatmap(display_numbers = TRUE)
 ```
 
@@ -194,7 +231,9 @@ cellchat_obj@net$weight %>%
 cellchat_obj@net$count %>%
     pheatmap::pheatmap(
         display_numbers = TRUE,
-        main = "Number of interactions"
+        main = "Number of interactions",
+        number_format = "%.0f",
+        fontsize_number = 15
     )
 ```
 
@@ -202,28 +241,30 @@ cellchat_obj@net$count %>%
 This gets the data in a more friendly format (long format)
 ```{r}
 cc_results <-
-    subsetCommunication(cellchat_obj) %>%
-    as_tibble()
+  subsetCommunication(cellchat_obj) %>%
+  as_tibble()
 cc_results
 
 cc_results_pathway <-
-    subsetCommunication(cellchat_obj, slot.name = "netP") %>%
-    as_tibble()
+  subsetCommunication(cellchat_obj, slot.name = "netP") %>%
+  as_tibble()
 cc_results_pathway
 
 cc_results_pathway %>%
-    filter(prob >= 0.1) %>%
-    arrange(desc(prob))
+  filter(prob >= 0.1) %>%
+  filter(target == matts_cell_type) %>%
+  arrange(desc(prob))
 ```
 
 ## Visualize the results
 CellChat makes very pretty plots
 ```{r}
 png(
-    filename = "output/figures/cc_num_interactions_plot.png",
-    width = 2000,
-    height = 2000,
-    res = 300
+    filename = "output/ccc/figures/cc_num_interactions_plot.png",
+    width = 3000,
+    height = 3000,
+    res = 300,
+    type = "cairo"
 )
 netVisual_circle(
     cellchat_obj@net$count,
@@ -235,10 +276,11 @@ netVisual_circle(
 dev.off()
 
 png(
-    filename = "output/figures/cc_weights_plot.png",
-    width = 2000,
-    height = 2000,
-    res = 300
+    filename = "output/ccc/figures/cc_weights_plot.png",
+    width = 3000,
+    height = 3000,
+    res = 300,
+    type = "cairo"
 )
 netVisual_circle(
     cellchat_obj@net$weight,
@@ -248,26 +290,15 @@ netVisual_circle(
     title.name = "Number of interactions"
 )
 dev.off()
-
-netVisual_aggregate(cellchat_obj, signaling = "MK", layout = "chord")
 ```
 
 ## Look at the composition of pathways
 ```{r}
 cellchat_db$interaction %>%
-    filter(pathway_name == "MK") %>%
+            filter(pathway_name == "EGF") %>%
     head()
 
 cellchat_db$interaction %>%
-    filter(pathway_name == "MK") %>%
-    pull(ligand.keyword) %>%
-    head(n = 1)
-```
-
-## See what genes are in the pathway
-```{r}
-cellchat_db$interaction %>%
-    filter(pathway_name == "MK") %>%
+    filter(pathway_name == "EGF") %>%
     select(ligand.symbol, receptor.symbol)
 ```
-
