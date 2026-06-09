@@ -86,7 +86,7 @@ library(data.table)
 library(RColorBrewer)
 library(ggrepel)
 library(DESeq2)
-library(qs)
+library(qs2)
 
 # set seed for reproducibility
 set.seed(888)
@@ -103,7 +103,7 @@ Load in integrated aging murine kidney Seurat object from Wednesday
 
 ```{r load_data}
 data <- 
-  qread("workshop_data/rdata/merged_sobj_harmony_sample_batch_theta.qs")
+  qs_read("~/workshop_data/rdata/merged_sobj_harmony_sample_batch_theta.qs2")
 
 # First, make sure that our data layers are joined
 data@assays$RNA@layers %>% 
