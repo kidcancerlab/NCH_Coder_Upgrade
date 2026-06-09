@@ -32,15 +32,15 @@ library(Seurat)
 
 Run a data check to make sure that you are ready to go and load the pre-processed Seurat object
 ```{r data_check}
-if (dir.exists("~/data/input/scRNA/GSM6925133_OX1X")) {
+if (dir.exists("~/workshop_data/raw/GSE232482/GSM7337030_mouse_scRNA-seq_P0_F1/filtered_feature_bc_matrix")) {
   message("The raw data has been downloaded and is available...")
-  sobj <- Read10X("~/data/input/scRNA/GSM6925133_OX1X") %>%
+  sobj <- Read10X("~/workshop_data/raw/GSE232482/GSM7337030_mouse_scRNA-seq_P0_F1/filtered_feature_bc_matrix") %>%
     CreateSeuratObject(min.cells = 3, min.features = 200)
   if (class(sobj) == "Seurat") {
     message("and the Seurat object was created successfully.")
     rm(sobj)
-    if(file.exists("~/data/output/rdata_premade/brain_scRNA_combined.qs")) {
-      pre_sobj <- qs::qread("~/data/output/rdata_premade/brain_scRNA_combined.qs")
+    if(file.exists("~/workshop_data/rdata/f1_sobj_processed_annotated.qs2")) {
+      pre_sobj <- qs_read("~/workshop_data/rdata/f1_sobj_processed_annotated.qs2")
       message("The pre-processed Seurat object was found and loaded successfully. You're good to go!")
     } else {
       warning("Couldn't find the premade Seurat object for the demo. Please check paths.")
