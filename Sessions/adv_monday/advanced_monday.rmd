@@ -28,6 +28,7 @@ Load libraries
 library(rrrSingleCellUtils)
 library(tidyverse)
 library(Seurat)
+library(qs2)
 ```
 
 Run a data check to make sure that you are ready to go and load the pre-processed Seurat object
@@ -353,6 +354,11 @@ This list is structured to make pulling out specific commands easier
 -  This in turn is a named list of arguments
 
 ```{r}
+rm(example)
+gc()
+
+
+
 pre_sobj@commands$FindVariableFeatures.RNA$nfeatures
 ```
 
@@ -485,9 +491,15 @@ pre_sobj_borked
 
 ```
 
+```{r}
+rm(pre_sobj_borked, raw_counts, bad_normalization)
+gc()
+```
+
 ## Subset a Seurat object
 Can subset by cells, idents, features, gene expression, etc...
 ```{r}
+Idents(pre_sobj) <- "seurat_clusters"
 # Note that there is only one equal sign here
 just_0 <- subset(pre_sobj, idents = "0")
 
@@ -499,6 +511,11 @@ cells_0 <- WhichCells(pre_sobj, idents = "0")
 just_0 <- subset(pre_sobj, cells = cells_0)
 
 fgfr_pos <- subset(pre_sobj, subset = Fgfr1 > 1)
+```
+
+```{r}
+rm(just_0, cells_0, fgfr_os)
+gc()
 ```
 
 ## Calculate average expression per group
@@ -551,6 +568,12 @@ head(umap_data)
 pca_data <- Embeddings(pre_sobj, reduction = "pca")
 as_tibble(pca_data)
 ```
+
+```{r}
+rm(umap_data, pca_data)
+gc()
+```
+
 
 ## Get cell names for specific cells
 ```{r}
