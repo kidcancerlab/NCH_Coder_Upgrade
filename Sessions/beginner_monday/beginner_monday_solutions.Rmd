@@ -23,7 +23,7 @@ We need to load the Seurat library and the tidyverse library which contains ggpl
 ```{r}
 library(Seurat)
 library(tidyverse)  # This package contains ggplot2 and dplyr
-library(qs) # For reading/saving objects
+library(qs2) # For reading/saving objects
 ```
 
 #Check and set working directory
@@ -39,7 +39,7 @@ First, read in the filtered feature matrix output files via the Read10X Seurat f
 We will start with reading in just one sample, GSM7337030_mouse_scRNA-seq_P0_F1, and call it f1_raw
 ```{r}
 f1_raw <- 
-  Read10X("workshop_data/raw/GSE232482/GSM7337030_mouse_scRNA-seq_P0_F1/filtered_feature_bc_matrix")
+  Read10X("~/workshop_data/raw/GSE232482/GSM7337030_mouse_scRNA-seq_P0_F1/filtered_feature_bc_matrix")
 ```
 
 #Make Seurat object
@@ -82,7 +82,7 @@ View(f1_sobj)
 #Save Seurat object
 We will now save our newly made Seurat object usign the qsave function. The object name you want to save is listed first and then the output file path and name you want to save the object as is listed in quotes. By default, the object will save in your current working directory (important to know what that is at all times!). If you want to save it in a subfolder within your current working directory, you can add the file path before the final name of the saved object. Use .qs to save the final object. 
 ```{r}
-qsave(f1_sobj, "workshop_data/rdata/f1_sobj.qs") #save to data/output/rdata directory
+qs_save(f1_sobj, "~/workshop_data/rdata/f1_sobj.qs2") #save to data/output/rdata directory
 ```
 
 #Remove data and Seurat object
@@ -94,7 +94,7 @@ rm(f1_raw, f1_sobj)
 #We can read in a saved object any time for additional analyses using the qread function. 
 ```{r}
 f1_sobj <-
-    qread("workshop_data/rdata/f1_sobj.qs") #read in premade object 
+    qs_read("~/workshop_data/rdata/f1_sobj.qs2") #read in premade object 
 
 #challenge - read in your own made object (hint: give it a unique name so you don't overwrite the premade object that's already loaded):
 
@@ -106,7 +106,7 @@ Make a Seurat object from an additional sample in our data set, GSM7337034_mouse
 Write and run your code here:
 ```{r}
 m5_raw <- 
-  Read10X("workshop_data/raw/GSE232482/GSM7337034_mouse_scRNA-seq_P0_M5/filtered_feature_bc_matrix")
+  Read10X("~/workshop_data/raw/GSE232482/GSM7337034_mouse_scRNA-seq_P0_M5/filtered_feature_bc_matrix")
 
 m5_sobj <-
   CreateSeuratObject(
@@ -117,6 +117,6 @@ m5_sobj <-
 
 m5_sobj$orig.ident <- "GSM7337034_mouse_scRNA-seq_P0_M5"
 
-qsave(m5_sobj, "workshop_data/rdata/m5_sobj.qs")
+qs_save(m5_sobj, "~/workshop_data/rdata/m5_sobj.qs2")
 ```
 
