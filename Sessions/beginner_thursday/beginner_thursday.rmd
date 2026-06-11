@@ -92,7 +92,7 @@ library(qs2)
 set.seed(888)
 
 # set directories
-session_path <- "~/Sessions/beginner_thursday/"
+session_path <- "~/NCH_Coder_Upgrade/Sessions/beginner_thursday/"
 data_path <- "~/workshop_data/rdata"
 setwd(session_path)
 ```
@@ -605,7 +605,8 @@ pseudobulked_degs <-
   FindMarkers(object = pb_data, 
               ident.1 = "0_female",
               ident.2 = "0_male",
-              test.use = "DESeq2")
+              test.use = "DESeq2",
+              min.cells.group = 2)
 pseudobulked_degs %>%
   head(n = 10)
 
