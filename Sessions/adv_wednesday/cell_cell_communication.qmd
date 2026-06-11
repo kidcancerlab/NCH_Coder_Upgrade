@@ -35,6 +35,7 @@ library(DESeq2)
 library(qs2)
 
 dir.create("output/ccc", recursive = TRUE, showWarnings = FALSE)
+dir.create("output/figures", showWarnings = FALSE)
 ```
 
 ## Functions
@@ -79,8 +80,11 @@ Lets use the mouse kidney data
 
 ```{r}
 kidney_data <-
-  qs_read("~/workshop_data/rdata/merged_sobj_harmony_sample_batch_theta.qs2") %>%
-  subset(batch == "GSE252772") %>%
+  qs_read("~/workshop_data/rdata/GSE252772_object_list_processed_annotated_small.qs2")
+
+kidney_data <-
+  merge(kidney_data[[1]], kidney_data[-1]) %>%
+  JoinLayers() %>%
   process_seurat()
 
 kidney_data$age <-
@@ -159,7 +163,7 @@ de_list <-
     mc.preschedule = FALSE,
     function(this_cell_type) {
       sub_data <- subset(kidney_data, anchor_cell_types == this_cell_type)
-      
+
       pseudobulked_data <-
         sub_data %>%
         AggregateExpression(
@@ -167,7 +171,7 @@ de_list <-
           slot = "counts"
         ) %>%
         as.data.frame()
-      
+
       design <-
         data.frame(
           age = colnames(pseudobulked_data) %>%
@@ -176,7 +180,7 @@ de_list <-
             factor(levels = c("0_wk", "3_wk")),
           row.names = colnames(pseudobulked_data)
         )
-      
+
       de_res <-
         DESeqDataSetFromMatrix(
           countData = pseudobulked_data,
@@ -189,7 +193,7 @@ de_list <-
         rownames_to_column("gene") %>%
         arrange(padj) %>%
         as_tibble()
-      
+
       return(de_res)
     }
   )
@@ -237,8 +241,7 @@ Lets find which genes change in the kidney proximal convoluted tubule epithelial
 tubule_cells <-
   subset(
     kidney_data,
-    anchor_cell_types == matts_cell_type &
-      batch == "GSE252772"
+    anchor_cell_types == matts_cell_type
   ) %>%
   process_seurat()
 
@@ -264,12 +267,12 @@ tubule_de <-
   )
 
 write_tsv(
-  de_genes,
-  "output/ccc/de_output.tsv"
+  tubule_de,
+  "output/ccc/tubule_de_output.tsv"
 )
 
 volc_plot(
-  de_genes,
+  tubule_de,
   title = "Kidney proximal convoluted tubule epithelial cells",
   pval = "pvalue",
   padj = "padj",
