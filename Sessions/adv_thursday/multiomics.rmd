@@ -27,8 +27,8 @@ library(Seurat)
 library(Signac)
 library(patchwork)
 library(ensembldb)
-dyn.load("/igm/apps/hdf5/hdf5-1.12.1/lib/libhdf5_hl.so.200")
 library(hdf5r)
+library(qs2)
 ```
 
 --------------------------------------------------------------------------------
@@ -132,7 +132,7 @@ The GEX data can be analyzed like normal
 I'm not going to walk through the GEX analysis as that's been covered in previous sessions
 
 ```{r}
-data_path <- "workshop_data/rstudio-workshop/data/raw/"
+data_path <- "~/workshop_data/raw/"
 session_path <- "Sessions/adv_thursday/"
 
 h5_data <-
@@ -252,7 +252,7 @@ seqlevels(annotations) <- paste0("chr", seqlevels(annotations))
 genome(annotations) <- "mm10"
 
 # This takes ~45 minutes, so I'll just read in a pre-processed object
-annotations <- qs2::qs_read("workshop_data/rstudio-workshop/data/rdata/annotations.qs2")
+annotations <- qs2::qs_read("~/workshop_data/rdata/annotations.qs2")
 
 Annotation(seurat_obj) <- annotations
 ```
@@ -962,9 +962,9 @@ small_obj <-
     )
 # Ignore the warnings about the junk contigs
 
-qs::qsave(
+qs_save(
     small_obj,
-    "Sessions/adv_thursday/small_obj_linked.qs"
+    "Sessions/adv_thursday/small_obj_linked.qs2"
 )
 
 links <-
@@ -1007,10 +1007,10 @@ freq_matrix <-
             all_versions = FALSE
         )
     )
-qs2::qs_save(freq_matrix, "workshop_data/rstudio-workshop/data/rdata/freq_matrix.qs2")
+qs_save(freq_matrix, "~/workshop_data/rdata/freq_matrix.qs2")
 # This takes a while, so lets read in the pre-made object
 
-freq_matrix <- qs2::qs_read("workshop_data/rstudio-workshop/data/rdata/freq_matrix.qs2")
+freq_matrix <- qs2::qs_read("~/workshop_data/rdata/freq_matrix.qs2")
 
 small_obj <-
     AddMotifs(
@@ -1019,11 +1019,11 @@ small_obj <-
         pfm = freq_matrix
     )
 
-qs2::qs_save(small_obj, "workshop_data/rstudio-workshop/data/rdata/multiomics_small_obj_motifs.qs2")
+qs2::qs_save(small_obj, "~/workshop_data/rdata/multiomics_small_obj_motifs.qs2")
 # This takes a while, so lets read in the pre-made object
 
 small_obj <-
-    qs2::qs_read("workshop_data/rstudio-workshop/data/rdata/multiomics_small_obj_motifs.qs2")
+    qs2::qs_read("~/workshop_data/rdata/multiomics_small_obj_motifs.qs2")
 
 matching_motifs <-
     FindMotifs(

@@ -7,7 +7,7 @@ We have another dataset for mouse kidney nuclei. They were aligned to the same g
 Read in the gene expression and chromatin accessibility matrices using Read10X_h5()*.
 
 ```{r activity-1-1}
-data_path <- "workshop_data/rstudio-workshop/data/raw/"
+data_path <- "~/workshop_data/data/raw/"
 session_path <- "Sessions/adv_thursday/"
 
 my_h5_data <-
@@ -130,7 +130,7 @@ Create a coverage plot of these regions. Note you'll have to go through the step
 new_obj <- 
   AddMotifs(
         object = new_obj,
-        genome = BSgenome.Mmusculus.UCSC.mm10::BSgenome.Mmusculus.UCSC.mm10,
+        genome = BSgenome.Mmusculus.UCSC.mm39::BSgenome.Mmusculus.UCSC.mm39,
         pfm = freq_matrix
     )
 
@@ -200,7 +200,7 @@ Find what motifs are enriched in our differentially accessible peaks.
 new_obj <-
     AddMotifs(
         object = new_obj,
-        genome = BSgenome.Mmusculus.UCSC.mm10::BSgenome.Mmusculus.UCSC.mm10,
+        genome = BSgenome.Mmusculus.UCSC.mm39::BSgenome.Mmusculus.UCSC.mm39,
         pfm = freq_matrix
     )
 
