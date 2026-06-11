@@ -137,7 +137,7 @@ same tissue. The actvity is to merge the two objects and check for batch effect.
 # read in the second object list
 
 GSE252772_sobj_list <-
-    qs_read("workshop_data/rdata/GSE252772_object_list_processed_annotated_small.qs2")
+    qs_read("~/workshop_data/rdata/GSE252772_object_list_processed_annotated_small.qs2")
 
 # merge the second object list
 
@@ -145,7 +145,7 @@ merged_GSE252772_sobj <-
     merge(x= GSE252772_sobj_list[[1]],
           y = GSE252772_sobj_list[[2]])
 
-#save the batch information
+ #save the batch information
 
 merged_GSE252772_sobj$batch <- "GSE252772"
 

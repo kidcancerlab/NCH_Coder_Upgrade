@@ -86,13 +86,13 @@ library(data.table)
 library(RColorBrewer)
 library(ggrepel)
 library(DESeq2)
-library(qs)
+library(qs2)
 
 # set seed for reproducibility
 set.seed(888)
 
 # set directories
-session_path <- "~/Sessions/beginner_thursday/"
+session_path <- "~/NCH_Coder_Upgrade/Sessions/beginner_thursday/"
 data_path <- "~/workshop_data/rdata"
 setwd(session_path)
 ```
@@ -102,16 +102,16 @@ setwd(session_path)
 Load in integrated aging murine kidney Seurat object from Wednesday
 
 ```{r load_data}
-data <- 
-  qread("workshop_data/rdata/merged_sobj_harmony_sample_batch_theta.qs")
+data <-
+  qs_read("~/workshop_data/rdata/merged_sobj_harmony_sample_batch_theta.qs2")
 
 # First, make sure that our data layers are joined
-data@assays$RNA@layers %>% 
+data@assays$RNA@layers %>%
   names()
 # if it's not joined you'll have several counts and data layers
 
-# join layers after integration if not 
-# data[["RNA"]] <- 
+# join layers after integration if not
+# data[["RNA"]] <-
 #   JoinLayers(data[["RNA"]])
 
 # check / set default assay
@@ -660,7 +660,8 @@ pseudobulked_degs <-
   FindMarkers(object = pb_data, 
               ident.1 = "0_female",
               ident.2 = "0_male",
-              test.use = "DESeq2")
+              test.use = "DESeq2",
+              min.cells.group = 2)
 pseudobulked_degs %>%
   head(n = 10)
 

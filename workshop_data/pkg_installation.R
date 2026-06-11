@@ -195,7 +195,8 @@ warning(
 #     "load_workspace": false,
 #     "knit_working_dir": "project",
 #     "rmd_chunk_output_inline": false,
-#     "graphics_backend": "ragg"
+#     "graphics_backend": "ragg",
+#     "auto_save_idle_ms": 5000
 # }
 
 # Remember to chmod 644 on the file so user's instances can read it
