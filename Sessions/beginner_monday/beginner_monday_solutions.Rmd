@@ -117,6 +117,6 @@ m5_sobj <-
 
 m5_sobj$orig.ident <- "GSM7337034_mouse_scRNA-seq_P0_M5"
 
-qs_save(m5_sobj, "~/workshop_data/rdata/m5_sobj.qs2")
+qs_save(m5_sobj, "./workshop_data/rdata/m5_sobj.qs2")
 ```
 
