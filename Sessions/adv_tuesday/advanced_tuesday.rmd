@@ -205,7 +205,7 @@ Let's look at the same slice from a male mouse
 
 ```
 
-## Does the male brain have a similar distribution of reads and percent of molecules mapping to mitochondrial genes?
+## Does the male kidney have a similar distribution of reads and percent of molecules mapping to mitochondrial genes?
 
 ```{r qc_male}
 
@@ -415,6 +415,10 @@ rctd_out <-
   spacexr::run.RCTD(RCTD = rctd_obj, 
                     doublet_mode = "full") # default is "doublet" which fits at most two cell types per pixel, full is any number
 
+# qs_save(rctd_out, "~/workshop_data/rdata/rctd_out.qs2")
+
+# rctd_out <- qs_read("~/workshop_data/rdata/rctd_out.qs2")
+
 # normalize the cell type proportions to sum to 1
 norm_weights <- 
   spacexr::normalize_weights(weights = rctd_out@results$weights)
@@ -427,6 +431,12 @@ spatial <-
               metadata = norm_weights)
 
 head(spatial@meta.data)
+
+# qs_save(spatial, "~/workshop_data/rdata/merged_spatial_post_deconv.qs2")
+
+
+## Read in here to save time
+spatial <- qs_read("~/workshop_data/rdata/merged_spatial_post_deconv.qs2")
 ```
 
 ```{r}
@@ -438,7 +448,7 @@ gc()
 
 Use some of the spatial plotting functions to look at the deconvolution weight of some of the reference cell types in the kidney. Are any of them spatially-conserved?
 
-Does the male mouse brain have more of any of the cell types compared to the female brain?
+Does the male mouse kidney have more of any of the cell types compared to the female kidney?
 
 ```{r deconvolution_visualization}
 
