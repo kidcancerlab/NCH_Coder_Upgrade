@@ -32,7 +32,6 @@ downstream analysis, such as dimensionality reduction, clustering, and
 differential expression analysis.
 
 ```{r test}
-
 # read in one object
 f1_sobj <-
     qs_read("~/workshop_data/rdata/f1_sobj_processed_annotated.qs2")
@@ -258,7 +257,7 @@ merged_sobj_harmony <-
     RunUMAP(reduction = "harmony", dims = 1:30) %>%
     FindNeighbors(reduction = "harmony", dims = 1:30) %>%
     FindClusters()
-qs::qsave(merged_sobj_harmony,
+qs_save(merged_sobj_harmony,
     "~/workshop_data/rdata/merged_sobj_harmony_theta.qs2")
 
 # check the integration
