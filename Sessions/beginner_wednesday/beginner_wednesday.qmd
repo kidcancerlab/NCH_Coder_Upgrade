@@ -7,7 +7,7 @@ library(tidyverse) # This package contains ggplot2 and dplyr
 library(patchwork)
 library(ggplot2) # For plotting
 library(rrrSingleCellUtils) # For plotting an processing
-library(qs) # For reading and writing .qs files
+library(qs2) # For reading and writing .qs files
 library(harmony) # For Harmony integration
 library(crescendo)
 
@@ -32,14 +32,13 @@ downstream analysis, such as dimensionality reduction, clustering, and
 differential expression analysis.
 
 ```{r test}
-
 # read in one object
 f1_sobj <-
-    qs::qread("workshop_data/rdata/f1_sobj_processed_annotated.qs")
+    qs_read("~/workshop_data/rdata/f1_sobj_processed_annotated.qs2")
 f1_sobj
 #list of Seurat objects from the same experiment (GSE232482)
 GSE232482_sobj_list <-
-    qs::qread("workshop_data/rdata/GSE232482_object_list_processed_annotated.qs")
+    qs_read("~/workshop_data/rdata/GSE232482_object_list_processed_annotated.qs2")
 GSE232482_sobj_list
 
 # merge the Seurat objects
@@ -122,8 +121,8 @@ DimPlot(merged_GSE232482_sobj,
 # looks like there is no batch effect
 
 #save the object
-qs::qsave(merged_GSE232482_sobj,
-          "workshop_data/rdata/merged_GSE232482_sobj.qs")
+qs_save(merged_GSE232482_sobj,
+          "~/workshop_data/rdata/merged_GSE232482_sobj.qs2")
 
 ```
 
@@ -137,7 +136,7 @@ same tissue. The actvity is to merge the two objects and check for batch effect.
 # read in the second object list
 
 GSE252772_sobj_list <-
-    qs::qread("workshop_data/rdata/GSE252772_object_list_processed_annotated_small.qs")
+    qs_read("~/workshop_data/rdata/GSE252772_object_list_processed_annotated_small.qs2")
 
 # merge the second object list
 
@@ -181,7 +180,7 @@ Harmony integration to remove the batch effect.
 ```{r harmony_integration}
 # read in the second object list
 GSE252772_sobj_list <-
-    qs::qread("workshop_data/rdata/GSE252772_object_list_processed_annotated_small.qs")
+    qs_read("~/workshop_data/rdata/GSE252772_object_list_processed_annotated_small.qs2")
 
 # merge the second object list
 merged_GSE252772_sobj <-
@@ -193,7 +192,7 @@ merged_GSE252772_sobj$batch <- "GSE252772"
 
 # save the batch information in the merged_sobj as well
 merged_GSE232482_sobj <-
-    qs::qread("workshop_data/rdata/merged_GSE232482_sobj.qs")
+    qs_read("~/workshop_data/rdata/merged_GSE232482_sobj.qs2")
 merged_GSE232482_sobj$batch <- "GSE232482"
 
 # merge the two objects and process it together unto plotting dimplot
@@ -215,8 +214,8 @@ merged_sobj <-
     FindNeighbors(dims = 1:30) %>%
     FindClusters(resolution = 0.5)
 
-qs::qsave(merged_sobj,
-          "workshop_data/rdata/merged_sobj_before_harmony.qs")
+qs_save(merged_sobj,
+          "~/workshop_data/rdata/merged_sobj_before_harmony.qs2")
 
 # assess the batch effect
 DimPlot(merged_sobj,
@@ -258,8 +257,8 @@ merged_sobj_harmony <-
     RunUMAP(reduction = "harmony", dims = 1:30) %>%
     FindNeighbors(reduction = "harmony", dims = 1:30) %>%
     FindClusters()
-qs::qsave(merged_sobj_harmony,
-    "workshop_data/rdata/merged_sobj_harmony_theta.qs")
+qs_save(merged_sobj_harmony,
+    "~/workshop_data/rdata/merged_sobj_harmony_theta.qs2")
 
 # check the integration
 DimPlot(merged_sobj_harmony,
@@ -309,8 +308,8 @@ merged_sobj_harmony <-
     RunUMAP(reduction = "harmony", dims = 1:30) %>%
     FindNeighbors(reduction = "harmony", dims = 1:30) %>%
     FindClusters()
-qs::qsave(merged_sobj_harmony,
-    "workshop_data/rdata/merged_sobj_harmony_sample_batch.qs")
+qs_save(merged_sobj_harmony,
+    "~/workshop_data/rdata/merged_sobj_harmony_sample_batch.qs2")
 
 # check the integration
 DimPlot(merged_sobj_harmony,
@@ -335,8 +334,8 @@ merged_sobj_harmony <-
     RunUMAP(reduction = "harmony", dims = 1:30) %>%
     FindNeighbors(reduction = "harmony", dims = 1:30) %>%
     FindClusters()
-qs::qsave(merged_sobj_harmony,
-    "workshop_data/rdata/merged_sobj_harmony_sample_batch_theta.qs")
+qs_save(merged_sobj_harmony,
+    "~/workshop_data/rdata/merged_sobj_harmony_sample_batch_theta.qs2")
 
 # check the integration
 DimPlot(merged_sobj_harmony,
@@ -371,7 +370,7 @@ To use these methods, we will need to go back to the merged object that contains
 
 ```{r}
 # Read in the merged object
-merged <- qread("workshop_data/rdata/merged_sobj_before_harmony.qs")
+merged <- qs_read("~/workshop_data/rdata/merged_sobj_before_harmony.qs2")
 ```
 
 # Let's remind ourselves what that object looks like. We will make a DimPlot. 
@@ -426,8 +425,8 @@ rpca <-
   FindNeighbors(dims = 1:30, reduction = "integrated.rpca")%>%
   FindClusters(resolution = 0.1)
 
-qs::qsave(rpca,
-    "workshop_data/rdata/merged_sobj_rpca.qs")
+qs_save(rpca,
+    "~/workshop_data/rdata/merged_sobj_rpca.qs2")
 ```
 
 # Visualize the integrated dataset and compare it to the merged object.
@@ -457,11 +456,13 @@ p1 + p2
 
 p1 <-
 DimPlot(merged, 
-        group.by = "orig.ident")
+        group.by = "orig.ident",
+        label = T) +NoLegend()
 
 p2 <-
 DimPlot(rpca, 
-        group.by = "orig.ident")
+        group.by = "orig.ident",
+        label = T) + NoLegend()
 
 p1 + p2
 ```

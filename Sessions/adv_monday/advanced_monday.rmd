@@ -28,19 +28,20 @@ Load libraries
 library(rrrSingleCellUtils)
 library(tidyverse)
 library(Seurat)
+library(qs2)
 ```
 
 Run a data check to make sure that you are ready to go and load the pre-processed Seurat object
 ```{r data_check}
-if (dir.exists("workshop_data/raw/GSE232482/GSM7337030_mouse_scRNA-seq_P0_F1/filtered_feature_bc_matrix")) {
+if (dir.exists("~/workshop_data/raw/GSE232482/GSM7337030_mouse_scRNA-seq_P0_F1/filtered_feature_bc_matrix")) {
   message("The raw data has been downloaded and is available...")
-  sobj <- Read10X("workshop_data/raw/GSE232482/GSM7337030_mouse_scRNA-seq_P0_F1/filtered_feature_bc_matrix") %>%
+  sobj <- Read10X("~/workshop_data/raw/GSE232482/GSM7337030_mouse_scRNA-seq_P0_F1/filtered_feature_bc_matrix") %>%
     CreateSeuratObject(min.cells = 3, min.features = 200)
   if (class(sobj) == "Seurat") {
     message("and the Seurat object was created successfully.")
     rm(sobj)
-    if(file.exists("workshop_data/rdata/f1_sobj_processed_annotated.qs")) {
-      pre_sobj <- qs::qread("workshop_data/rdata/f1_sobj_processed_annotated.qs")
+    if(file.exists("~/workshop_data/rdata/f1_sobj_processed_annotated.qs2")) {
+      pre_sobj <- qs_read("~/workshop_data/rdata/f1_sobj_processed_annotated.qs2")
       message("The pre-processed Seurat object was found and loaded successfully. You're good to go!")
     } else {
       warning("Couldn't find the premade Seurat object for the demo. Please check paths.")
@@ -299,7 +300,7 @@ Let's watch the sausage being made
 
 Create the Seurat object from the three matrices
 ```{r}
-example <- Read10X("workshop_data/raw/GSE232482/GSM7337030_mouse_scRNA-seq_P0_F1/filtered_feature_bc_matrix") %>%
+example <- Read10X("~/workshop_data/raw/GSE232482/GSM7337030_mouse_scRNA-seq_P0_F1/filtered_feature_bc_matrix") %>%
   CreateSeuratObject(min.cells = 3, min.features = 200)
 ```
 
@@ -353,6 +354,11 @@ This list is structured to make pulling out specific commands easier
 -  This in turn is a named list of arguments
 
 ```{r}
+rm(example)
+gc()
+
+
+
 pre_sobj@commands$FindVariableFeatures.RNA$nfeatures
 ```
 
@@ -485,9 +491,15 @@ pre_sobj_borked
 
 ```
 
+```{r}
+rm(pre_sobj_borked, raw_counts, bad_normalization)
+gc()
+```
+
 ## Subset a Seurat object
 Can subset by cells, idents, features, gene expression, etc...
 ```{r}
+Idents(pre_sobj) <- "seurat_clusters"
 # Note that there is only one equal sign here
 just_0 <- subset(pre_sobj, idents = "0")
 
@@ -499,6 +511,11 @@ cells_0 <- WhichCells(pre_sobj, idents = "0")
 just_0 <- subset(pre_sobj, cells = cells_0)
 
 fgfr_pos <- subset(pre_sobj, subset = Fgfr1 > 1)
+```
+
+```{r}
+rm(just_0, cells_0, fgfr_os)
+gc()
 ```
 
 ## Calculate average expression per group
@@ -552,6 +569,12 @@ pca_data <- Embeddings(pre_sobj, reduction = "pca")
 as_tibble(pca_data)
 ```
 
+```{r}
+rm(umap_data, pca_data)
+gc()
+```
+
+
 ## Get cell names for specific cells
 ```{r}
 high_col <- WhichCells(pre_sobj, expression = Col1a1 > 2)
@@ -597,7 +620,7 @@ This procedure can convert your large matrix objects to data streaming objects. 
 
 To activate on-disk processing, you first need to convert your count matrices to be streaming objects, then use those to create your object.
 ```{r}
-raw_matrix <- Read10X("workshop_data/raw/GSE232482/GSM7337030_mouse_scRNA-seq_P0_F1/filtered_feature_bc_matrix")
+raw_matrix <- Read10X("~/workshop_data/raw/GSE232482/GSM7337030_mouse_scRNA-seq_P0_F1/filtered_feature_bc_matrix")
 
 # Write the matrix to a directory
 BPCells::write_matrix_dir(

@@ -1,7 +1,7 @@
 ---
 title: "Thursday.rmd"
 author: "Corinne Strawser & Matt Gust"
-date: "2025-05-08"
+date: "2026-05-08"
 output: html_document
 ---
 
@@ -138,17 +138,22 @@ Idents(data) <- "orig.ident"
 data <- RenameIdents(data, ids)
 data$mouse <- Idents(data)
 
+# add in an age annotation
+data$age <-
+  ifelse(data$orig.ident %in% c("GSE252772_20210419-NMK3M","GSE252772_20210419-NMK3F"),
+         "w3","p0")
+
 # set identity for the dataset
 Idents(data) <- 
   "anchor_cell_types"
 ```
 
-Look at the distribution of cells in each cell type when grouped by age or mouse
+Look at the distribution of cells in each cell type when grouped by sex, mouse, or age
 
 ```{r visualize_data}
 # plot UMAP separated by cell type, age, and mouse
 DimPlot(object = data,
-        group.by = c("anchor_cell_types", "sex", "mouse"))
+        group.by = c("anchor_cell_types", "sex", "mouse", "age"))
 ```
 
 Tally the number of cells in each cell type per age group
@@ -301,7 +306,7 @@ levels(data)
 
 # make UMAP
 DimPlot(data,
-        split.by = "sex")
+        split.by = "age")
 ```
 
 ### Use FindAllMarkers to identify genes defining each cell type
@@ -545,11 +550,11 @@ for (cell in clusters){
 
 ## Activity 2
 
-### Find genes that are differentially expressed between fibroblasts between female and male mice
+### Find genes that are differentially expressed between fibroblasts between p0 and 3 wk old mice
 
 ```{r}
 # how many cells do we have per condition?
-table(data$anchor_cell_types, data$sex)
+table(data$anchor_cell_types, data$age)
 
 # change identity class
 Idents(data) <- "anchor_cell_types"
@@ -560,9 +565,9 @@ DefaultAssay(data) <- "RNA"
 # Find DEGs for cluster fibroblasts
 degs <- 
   FindMarkers(object = data,
-              ident.1 = "female",
-              ident.2 = "male",
-              group.by = "sex",
+              ident.1 = "w3",
+              ident.2 = "p0",
+              group.by = "age",
               subset.ident = "fibroblast",
               min.pct = 0.1,
               logfc.threshold = 0.25)
@@ -575,14 +580,14 @@ head(degs,
      n = 20)
 
 write.csv(x = degs, 
-          file = "fibroblasts_female_vs_male_degs.csv")
+          file = "fibroblasts_w3_vs_p0_degs.csv")
 
 degs[degs$p_val_adj <= 0.05,] %>%
   nrow()
 # 494
 ```
 
-### Visualize top 3 most significantly different genes in oligodendrocytes by p_val_adj using VlnPlot (hint: how did we subset to get a small dataset? instead of downsample, what could we use?)
+### Visualize top 3 most significantly different genes in fibroblasts by p_val_adj using VlnPlot (hint: how did we subset to get a small dataset? instead of downsample, what could we use?)
 
 ```{r}
 genes <-
@@ -594,7 +599,7 @@ genes <-
 
 VlnPlot(subset(data, anchor_cell_types == "fibroblast"),
         features = genes,
-        split.by = "sex",
+        split.by = "age",
         group.by = "anchor_cell_types",
         cols = c("#0072B2","#CC79A7"),
         ncol = 3)
@@ -705,50 +710,51 @@ volcano
 
 ## Activity 3:
 
-### Create a pseudobulk dataset for *anchor_cell_types*
+### Create a pseudobulk dataset for *anchor_cell_types* and *age*
 ```{r}
-# create pseudobulked data for clusters across condition
+# create pseudobulked data for cells across condition
 pb_data <- 
   AggregateExpression(object = data, 
                       assays = "RNA", 
                       return.seurat = T, 
-                      group.by = c("sex", 
+                      group.by = c("age", 
                                    "mouse", 
                                    "anchor_cell_types"))
 
 # add a column to the metadata that is cell_type_age
-pb_data$cell_type_sex <- paste(pb_data$anchor_cell_types,
-                                   pb_data$sex,
+pb_data$cell_type_age <- paste(pb_data$anchor_cell_types,
+                                   pb_data$age,
                                    sep = "_")
-pb_data$cell_type_sex %>%
+pb_data$cell_type_age %>%
   head()
 ```
 
-### Find differentially expressed genes for fibroblasts using the pseudobulk method
+### Find differentially expressed genes for fibroblasts using the pseudobulk method (note: you might have to explore the help page for FindMarkers to see how to navigate the error message)
 ```{r}
 # set default assay to RNA
 DefaultAssay(pb_data) <- "RNA"
 
 # perform DE testing on pseudbulked data for same cell type as above
-Idents(pb_data) <- "cell_type_sex"
+Idents(pb_data) <- "cell_type_age"
 pseudobulked_degs <- 
   FindMarkers(object = pb_data, 
-              ident.1 = "fibroblast_female",
-              ident.2 = "fibroblast_male",
-              test.use = "DESeq2")
+              ident.1 = "fibroblast_w3",
+              ident.2 = "fibroblast_p0",
+              test.use = "DESeq2",
+              min.cells.group = 2)
 pseudobulked_degs %>%
   head(n = 10)
 
 # how many significant DEGs do we have?
 sum(pseudobulked_degs$p_val_adj <= 0.05, na.rm=T)
-# 6
+# 99
 ```
 
 ### How many FEWER DEGs do we have with the pseudobulk method? Compare a gene that is changed in the same direction in both and a gene that is only in the pseudobulk method visually. How do they compare?
 ```{r}
 # How many fewer?
 sum(degs$p_val_adj <= 0.05, na.rm=T) - sum(pseudobulked_degs$p_val_adj <= 0.05, na.rm=T)
-# 849
+# 4044
 
 intersect(rownames(degs), 
           rownames(pseudobulked_degs)) %>%
@@ -758,12 +764,12 @@ setdiff(rownames(pseudobulked_degs),
         rownames(degs)) %>%
   head()
 
-genes <- c("Cirbp", "Ngf")
+genes <- c("Spon1", "Pde7b")
 Idents(data) <- "anchor_cell_types"
 fibroblast <- subset(data, idents = "fibroblast")
 VlnPlot(object = fibroblast,
         features = genes,
-        group.by = "sex")
+        group.by = "age")
 ```
 
 ------------------------------------------------------------------------------------
@@ -866,23 +872,23 @@ ggplot(fgsea_plot,
 
 ## Activity 4
 
-Perform GSEA on the genes that are differentially expressed in the macrophages between female and male mice
+Perform GSEA on the genes that are differentially expressed in the macrophages between p0 and w3 mice
 
-### Find genes differentially expressed in macrophages between female and male mice
+### Find genes differentially expressed in macrophages between p0 and w3 old mice
 ```{r}
 Idents(data) <- "anchor_cell_types"
 degs <- 
   FindMarkers(object = data,
-              ident.1 = "female",
-              ident.2 = "male",
-              group.by = "sex",
+              ident.1 = "w3",
+              ident.2 = "p0",
+              group.by = "age",
               subset.ident = "macrophage")
 ```
 
 ### Explore the results and save as a .csv file
 ```{r}
 write.csv(degs,
-          "macrophages_female_vs_male_degs.csv")
+          "macrophages_w3_vs_p0_degs.csv")
 ```
 
 ### Visualize top 3 most significantly different genes using a VlnPlot
@@ -900,7 +906,7 @@ genes <-
 # make FeaturePlot
 FeaturePlot(object = data,
             features = genes,
-            split.by = "sex",
+            split.by = "age",
             order = T)
 ```
 
@@ -909,7 +915,7 @@ FeaturePlot(object = data,
 # make VlnPlot
 VlnPlot(object = subset(data, anchor_cell_types == "macrophage"),
         features = genes,
-        split.by = "sex")
+        split.by = "age")
 ```
 
 ## Perform GSEA analysis on the macrophage female vs. male DEGs using the GO:BP geneset
@@ -950,7 +956,7 @@ fgsea_res <-
 head(fgsea_res)
 
 # save results as a .csv file (use fwrite to handle leadingEdge list)
-fwrite(fgsea_res, "macrophage_female_vs_male_GSEA.csv")
+fwrite(fgsea_res, "macrophage_w3_vs_p0_GSEA.csv")
 ```
 
 ### Visualize GSEA results as a bubble plot
@@ -970,7 +976,7 @@ ggplot(fgsea_plot,
                         low = "#0513d8",
                         midpoint = 0.05) +
   theme_bw() +
-  ggtitle("Macrophage Female vs. Male\nGene Ontology Biological Processes GSEA")+
+  ggtitle("Macrophage 3 week vs. PN d0\nGene Ontology Biological Processes GSEA")+
   theme(plot.title = element_text(hjust = 0.5))
 ```
 

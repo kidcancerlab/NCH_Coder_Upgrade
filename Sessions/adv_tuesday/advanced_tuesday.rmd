@@ -19,10 +19,9 @@ knitr::opts_chunk$set(echo = TRUE,
 # load libraries
 library(Seurat)
 library(tidyverse)
-dyn.load("/igm/apps/hdf5/hdf5-1.12.1/lib/libhdf5_hl.so.200")
 library("hdf5r")
 library(patchwork)
-library(qs)
+library(qs2)
 library(SPOTlight)
 library(spacexr)
 library(fgsea)
@@ -33,7 +32,7 @@ library(data.table)
 addTaskCallback(function(...) {set.seed(999);TRUE})
 
 # load some colors
-colorset <- 
+colorset <-
   c("#0166d8", "#ec102f", "#3aa609", "#6524ff", "#f8d147", "#5ce8ef", "#fd6ca0",
     "#476ba5", "#fea27a", "#add465", "#b775e1", "#fe8f06", "#5cfdc4", "#feafda",
     "#00228b", "#fd5925", "#166d2a", "#a90aa1", "#f3c011", "#5ac7dc", "#c1c2f5",
@@ -73,7 +72,7 @@ Visium data can easily be loaded into Seurat using the spaceranger output direct
 ```{r load_female_data}
 # load data
 W3_F_Kidney <-
-  Load10X_Spatial(data.dir = "workshop_data/raw/GSE252772/GSM8704839_20201201-NMK-F-Fc1U4Z1B1",
+  Load10X_Spatial(data.dir = "~/workshop_data/raw/GSE252772/GSM8704839_20201201-NMK-F-Fc1U4Z1B1",
                   slice = "W3_F_Kidney")
 
 # look at data
@@ -119,7 +118,9 @@ VlnPlot(object = W3_F_Kidney,
 SpatialFeaturePlot(object = W3_F_Kidney,
                    features = c("nCount_Spatial",
                                 "nFeature_Spatial",
-                                "percent.mt"))
+                                "percent.mt"),
+                   pt.size.factor = 3000,
+                   image.alpha = 0)
 ```
 
 
@@ -159,28 +160,34 @@ DimPlot(object = W3_F_Kidney_clustered,
 # plot as a spatial plot
 a <- 
   SpatialDimPlot(object = W3_F_Kidney_clustered,
-                 cols = colors) &
+                 cols = colors,
+                   pt.size.factor = 3000,
+                   image.alpha = 0) &
   ggtitle("Default")
 
 # adjust point size parameter
 b <- 
   SpatialDimPlot(object = W3_F_Kidney_clustered,
-                 cols = colors,
-                 pt.size.factor = 2) &
+                 cols = colors,,
+                   pt.size.factor = 5000,
+                   image.alpha = 0) &
   ggtitle("pt.size.factor")
 
 # adjust image alpha parameter
 c <- 
   SpatialDimPlot(object = W3_F_Kidney_clustered,
                  cols = colors,
-                 image.alpha = 0.5) &
+                   pt.size.factor = 3000,
+                   image.alpha = 0.5) &
   ggtitle("image.alpha")
 
 # adjust spot alpha parameter
 d <-
   SpatialDimPlot(object = W3_F_Kidney_clustered,
                  cols = colors,
-                 alpha = 0.4) &
+                 alpha = 0.4,
+                   pt.size.factor = 3000,
+                   image.alpha = 0) &
   ggtitle("alpha")
 
 (a+b)/(c+d)
@@ -198,7 +205,7 @@ Let's look at the same slice from a male mouse
 
 ```
 
-## Does the male brain have a similar distribution of reads and percent of molecules mapping to mitochondrial genes?
+## Does the male kidney have a similar distribution of reads and percent of molecules mapping to mitochondrial genes?
 
 ```{r qc_male}
 
@@ -274,7 +281,13 @@ top1_gene <-
   unique()
 SpatialFeaturePlot(object = W3_F_Kidney_clustered,
                    features = top1_gene,
-                   pt.size.factor = 2)
+                   pt.size.factor = 3000,
+                   image.alpha = 0)
+```
+
+```{r}
+rm(W3_F_Kidney_clustered, W3_M_Kidney_clustered)
+gc()
 ```
 
 --------------------------------------------------------------------------------
@@ -303,6 +316,9 @@ var_feats <-
                             nfeatures = 4000)
 VariableFeatures(object = spatial) <- var_feats
 
+rm(obj_list, W3_F_Kidney, W3_M_Kidney)
+gc()
+
 # perform dimensionality reduction and clustering
 DefaultAssay(object = spatial) <- "Spatial"
 spatial <- 
@@ -327,7 +343,8 @@ names(cluster_colors) <-
 SpatialDimPlot(object = spatial,
                group.by = "seurat_clusters",
                cols = cluster_colors,
-               pt.size.factor = 1.5)
+               pt.size.factor = 3000,
+               image.alpha = 0)
 
 # do we have any batch effects?
 DimPlot(object = spatial,
@@ -348,7 +365,7 @@ head(spatial@meta.data)
 
 # load in reference data
 ref <-
-  readRDS("workshop_data/rdata/tabula_muris_senis_kidney.rds")
+  readRDS("~/workshop_data/rdata/tabula_muris_senis_kidney.rds")
 
 # take a look at the data
 head(ref@meta.data)
@@ -367,12 +384,16 @@ spacexr_reference <-
                                              layer = "counts"),
                        cell_types = as.factor(ref$cell_type))
 
+rm(ref)
+gc()
+
 # get x and y coordinates for our visium data
 coords <- 
   rbind(GetTissueCoordinates(object = spatial, 
                              image = "W3_F_Kidney"),
         GetTissueCoordinates(object = spatial, 
-                             image = "W3_M_Kidney"))
+                             image = "W3_M_Kidney")) %>%
+  select(-cell)
 
 # create the spacexr data object
 my_data <- 
@@ -394,6 +415,10 @@ rctd_out <-
   spacexr::run.RCTD(RCTD = rctd_obj, 
                     doublet_mode = "full") # default is "doublet" which fits at most two cell types per pixel, full is any number
 
+# qs_save(rctd_out, "~/workshop_data/rdata/rctd_out.qs2")
+
+# rctd_out <- qs_read("~/workshop_data/rdata/rctd_out.qs2")
+
 # normalize the cell type proportions to sum to 1
 norm_weights <- 
   spacexr::normalize_weights(weights = rctd_out@results$weights)
@@ -406,13 +431,24 @@ spatial <-
               metadata = norm_weights)
 
 head(spatial@meta.data)
+
+# qs_save(spatial, "~/workshop_data/rdata/merged_spatial_post_deconv.qs2")
+
+
+## Read in here to save time
+spatial <- qs_read("~/workshop_data/rdata/merged_spatial_post_deconv.qs2")
+```
+
+```{r}
+rm(spacexr_reference, rctd_obj, rctd_out, norm_weights)
+gc()
 ```
 
 # Activity 2:
 
 Use some of the spatial plotting functions to look at the deconvolution weight of some of the reference cell types in the kidney. Are any of them spatially-conserved?
 
-Does the male mouse brain have more of any of the cell types compared to the female brain?
+Does the male mouse kidney have more of any of the cell types compared to the female kidney?
 
 ```{r deconvolution_visualization}
 
@@ -447,7 +483,7 @@ for (sex in names(split)){
     rownames(spe@meta.data)
   DefaultAssay(spe) <- "Spatial"
   spe <- 
-    GetTissueCoordinates(spe)[,c("imagerow","imagecol")]
+    GetTissueCoordinates(spe)[,c("x","y")]
   dim <-
     spe %>%
     as.data.frame()
@@ -469,6 +505,11 @@ for (sex in names(split)){
 }
 
 wrap_plots(scatterpies)
+```
+
+```{r}
+rm(split)
+gc()
 ```
 
 --------------------------------------------------------------------------------
@@ -495,6 +536,11 @@ pheatmap::pheatmap(mat = deconv_mat,
                    scale = "row")
 ```
 
+```{r}
+rm(deconv_mat)
+gc()
+```
+
 --------------------------------------------------------------------------------
 
 # Section 11: Subset regions of interest
@@ -506,10 +552,11 @@ Let's look at the distribution of cells within the isocortex.
 SpatialDimPlot(object = spatial,
                group.by = "seurat_clusters",
                cols = cluster_colors,
-               pt.size.factor = 2,
                label = T,
                label.box = T,
-               repel = T)
+               repel = T,
+               image.alpha = 0,
+               pt.size.factor = 3000)
 
 # subset to those clusters
 Idents(spatial) <- "seurat_clusters"
@@ -552,15 +599,17 @@ brush_cells@meta.data %>%
 # other ways to pick spots:
 
 # interactive spatial plotting to pick coordinates
-Idents(spatial) <- "imagerow"
+Idents(spatial) <- "x"
 SpatialDimPlot(object = spatial,
-               pt.size.factor = 2,
                interactive = T,
-               images = "W3_F_Kidney")
+               images = "W3_F_Kidney",
+               image.alpha = 0,
+               pt.size.factor = 3000)
 SpatialDimPlot(object = spatial,
-               pt.size.factor = 2,
                interactive = T,
-               images = "W3_M_Kidney")
+               images = "W3_M_Kidney",
+               image.alpha = 0,
+               pt.size.factor = 3000)
 spatial <-
   AddMetaData(object = spatial,
               metadata = coords)
@@ -571,6 +620,11 @@ spots_to_keep <-
 
 # loupe browser
 
+```
+
+```{r}
+rm(spatial)
+gc()
 ```
 
 --------------------------------------------------------------------------------
@@ -591,7 +645,9 @@ brush_degs <-
 View(brush_degs)
 
 SpatialFeaturePlot(object = brush_cells,
-                   features = "Calr")
+                   features = "Calr",
+                   pt.size.factor = 3000,
+                   image.alpha = 0)
 ```
 
 --------------------------------------------------------------------------------
@@ -668,6 +724,7 @@ ggplot(gsea_res_small,
   theme(plot.title = element_text(hjust=0.5, 
                                   face="bmale"),
         strip.background = element_rect(fill = "white")) 
+```
 
 --------------------------------------------------------------------------------
 
