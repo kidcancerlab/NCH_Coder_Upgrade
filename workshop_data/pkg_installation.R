@@ -74,7 +74,8 @@ bioc_dependencies <-
     "biovizBase",
     "multtest",
     "BSgenome.Mmusculus.UCSC.mm10",
-    "BSgenome.Mmusculus.UCSC.mm39"
+    "BSgenome.Mmusculus.UCSC.mm39",
+    "EnsDb.Mmusculus.v79"
   )
 
 needed_packages_cran <-
