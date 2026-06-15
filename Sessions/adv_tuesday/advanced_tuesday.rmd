@@ -601,26 +601,6 @@ brush_cells@meta.data %>%
 
 # other ways to pick spots:
 
-# interactive spatial plotting to pick coordinates
-Idents(spatial) <- "x"
-SpatialDimPlot(object = spatial,
-               interactive = T,
-               images = "W3_F_Kidney",
-               image.alpha = 0,
-               pt.size.factor = 3000)
-SpatialDimPlot(object = spatial,
-               interactive = T,
-               images = "W3_M_Kidney",
-               image.alpha = 0,
-               pt.size.factor = 3000)
-spatial <-
-  AddMetaData(object = spatial,
-              metadata = coords)
-spots_to_keep <- 
-  WhichCells(spatial, 
-             expression = seurat_clusters == 5 & imagecol < 11000 & imagerow > 4000)
-  
-
 # loupe browser
 
 ```
@@ -725,7 +705,7 @@ ggplot(gsea_res_small,
   theme_bw(base_size = 11) +
   facet_grid(.~type) +
   theme(plot.title = element_text(hjust=0.5, 
-                                  face="bmale"),
+                                  face="male"),
         strip.background = element_rect(fill = "white")) 
 ```
 
