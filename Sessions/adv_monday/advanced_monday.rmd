@@ -70,11 +70,14 @@ R is mostly a "functional language"
 But it also has some "object oriented" features
 
 - Objects are a way to store data and functions together
-- Objects are intended to be "black boxes" that you can interact with
+- Objects are intended to be purpose-built containers that organize your data
+  and facilitate proper interactions with it
 - Methods or functions are used to interact with objects
 - Conceptually different than normal variables
     - Variables are meant to be directly manipulated
     - Objects are meant to be interacted with through methods
+- NOTE: in R, methods are sub-defined functions (distinct from other 
+  languages)
 
 Four main types of objects in R
 
@@ -207,7 +210,7 @@ Ends up looking really complex if you don't break it down by level
 - tools = 'list'
 
 --------------------------------------------------------------------------------
-
+> Emily
 # Activity 1:
 Explore the pre_sobj Seurat object
 
@@ -240,7 +243,7 @@ Pull the metadata out of the object and save it as a new variable
 What information is encoded by the rownames of the metadata?
 
 --------------------------------------------------------------------------------
-
+> Ryan
 # Section 2: Assay object structure
 
 The "@assay" slot of a Seurat object contains the actual gene expression data
@@ -418,6 +421,8 @@ Use the square bracket notation to randomly sub-sample your seurat object down t
 
 --------------------------------------------------------------------------------
 
+> Emily
+
 # Section 3: Interacting with Seurat objects
 ## The "right" way
 Use Seurat functions to interact with the object instead of diving into the object
@@ -474,6 +479,19 @@ LayerData(pre_sobj, layer = "data")[1:5, 1:5] %>%
 LayerData(pre_sobj, layer = "scale.data")[1:5, 1:5] %>%
   as.matrix()
 ```
+
+Pause and reflect: What do you notice is different in the three representations
+of this data?
+- Normalization assumes that each cell should have similar sequencing depth. It
+  makes total counts comparable between cells, then log-transforms to make both
+  high- and low-expressing transcripts detectable
+- Scaling assumes that each "feature" (gene) is of similar importance. It sets
+  mean expression for each feature at 0 and divides by the SD to create a
+  "Z-score" like expression metric
+- SCTransform uses statistical modeling to accomplish both tasks in an operation
+  that looks at variation relative to a predicted mean
+
+> Ryan
 
 ## Drop new data into an object
 ```{r}
@@ -574,7 +592,6 @@ rm(umap_data, pca_data)
 gc()
 ```
 
-
 ## Get cell names for specific cells
 ```{r}
 high_col <- WhichCells(pre_sobj, expression = Col1a1 > 2)
@@ -594,7 +611,7 @@ high_fgfr_data <-
 
 high_fgfr_data[1:5, 1:5]
 
-# Plot the percentage of astrocytes in each sample
+# Plot the percentage of fibroblasts in each sample
 FetchData(pre_sobj,
     vars = c("orig.ident", "anchor_cell_types"),
     cells = Cells(fgfr_pos)
@@ -612,9 +629,11 @@ pre_sobj$my_idents <- Idents(pre_sobj)
 head(pre_sobj$my_idents)
 ```
 
+> Emily
+
 ## A quick note about on-disk processing
 
-Newer versions of Seurat implements the BPCells procedure for on-disk processing
+Newer versions of Seurat implement the BPCells procedure for on-disk processing
 
 This procedure can convert your large matrix objects to data streaming objects. When streaming, rather than loading your data into memory to facilitate processing and manipulation, processing can be completed by pulling the data a little at a time and then storing all of the intermediate steps back to disk. On-disk processing frees you from the limitations of system memory (somewhat), letting you work on datasets much larger using systems much simpler than you could using conventional processing.
 
