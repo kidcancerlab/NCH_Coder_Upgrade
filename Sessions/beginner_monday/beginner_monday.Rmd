@@ -41,7 +41,7 @@ We will start with reading in just one sample, GSM7337030_mouse_scRNA-seq_P0_F1,
 f1_raw <-
   Read10X("~/workshop_data/raw/GSE232482/GSM7337030_mouse_scRNA-seq_P0_F1/filtered_feature_bc_matrix")
 ```
-
+.
 #Make Seurat object
 Now we will make a Seurat object via the CreateSeuratObject Seurat function from the data we just read in that we named f1_raw and call it f1_sobj
 We also set two standard filters:

@@ -378,6 +378,9 @@ ref$cell_type <-
        replacement = "-", 
        x = ref$cell_type)
 
+ref_cell_type_full <- ref$cell_type
+all_cell_types <- unique(ref$cell_type)
+
 # create the spacexr reference object
 spacexr_reference <-
     spacexr::Reference(counts = GetAssayData(object = ref, 
