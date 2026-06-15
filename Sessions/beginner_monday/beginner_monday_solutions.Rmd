@@ -82,7 +82,7 @@ View(f1_sobj)
 #Save Seurat object
 We will now save our newly made Seurat object usign the qsave function. The object name you want to save is listed first and then the output file path and name you want to save the object as is listed in quotes. By default, the object will save in your current working directory (important to know what that is at all times!). If you want to save it in a subfolder within your current working directory, you can add the file path before the final name of the saved object. Use .qs to save the final object. 
 ```{r}
-qs_save(f1_sobj, "~/workshop_data/rdata/f1_sobj.qs2") #save to data/output/rdata directory
+qs_save(f1_sobj, "./workshop_data/f1_sobj.qs2") #save to data/output/rdata directory
 ```
 
 #Remove data and Seurat object
@@ -117,6 +117,6 @@ m5_sobj <-
 
 m5_sobj$orig.ident <- "GSM7337034_mouse_scRNA-seq_P0_M5"
 
-qs_save(m5_sobj, "./workshop_data/rdata/m5_sobj.qs2")
+qs_save(m5_sobj, "./workshop_data/m5_sobj.qs2")
 ```
 
