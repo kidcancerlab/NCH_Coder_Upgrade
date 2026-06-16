@@ -732,62 +732,76 @@ Lets redo some of what we did in activity 2, but lets do it the "right" way
 
 Use the `LayerData()` method to pull the raw counts out of `rna_assay`, save it as a new variable named "rna_counts" and look at the first 6 rows. Why are there periods? How can you turn the periods into zeros?
 ```{r}
+# Option 1: 
+rna_counts <- LayerData(pre_sobj, layer = "counts") |>
+  as_tibble()
+
+# Option 2 (walk-through version):
 rna_counts <- LayerData(pre_sobj, layer = "counts")
 # get top 6 rows (and first 5 columns for easy viewing)
 rna_counts[1:6, 1:5]
-# turn periods into zeros
+# turn periods into zeros (could also convert to tibble like above)
 rna_counts[1:6, 1:5] %>% as.matrix()
 ```
 
 Use a Seurat function to make a vector that contains the names of the cells in the object
 ```{r}
-sobj_cells <- Cells(pre_sobj)
+cell_names <- Cells(pre_sobj)
 # to view:
 head(sobj_cells)
 ```
 
 What is the length of this vector? How many cells are in the object?
 ```{r}
-length(sobj_cells)
+length(cell_names)
 
 # also
 length(Cells(pre_sobj))
 ```
 
-Use the `subset()` function to sub-sample the sobj object down to those cells where nonsense == "A" - from metadata we added at line 567 (*corrected*)
+Use the `subset()` function to sub-sample the sobj object down to those cells where predicted.id == "macrophage" (*corrected*)
 ```{r}
-nonsense <- subset(pre_sobj, nonsense == "A")
+# table(pre_sobj$predicted.id)
+macs <- subset(pre_sobj, predicted.id == "macrophage")
+macs
 ```
 
-Use the `subset()` function to sub-sample your seurat object down to the 50 cells with the highest expression of the gene "Sat1" (*corrected*)
+Use the `subset()` function to sub-sample your seurat object down to the 50 cells with the highest expression of the gene "Runx1" (*corrected*)
 ```{r}
-# Option 1 - step-by-step walk-through (beginner option)
-## Get Sat1 expression for each cell
-sat1_expression <- FetchData(pre_sobj, vars = "Sat1")
+# Option 1: 
+runx_express <- FetchData(pre_sobj, vars = "Runx1") |>
+  slice_max(Runx1, n = 50) |>
+  rownames()
+
+high_runx1 <- subset(pre_sobj, cells = runx_express)
+high_runx1
+
+# Option 2 - step-by-step walk-through
+## Get Runx1 expression for each cell
+runx1_expression <- FetchData(pre_sobj, vars = "Runx1")
 # Add cell names as a column (easier to see what's happening)
 ## note: rownames are the cell ids
-sat1_expression$cell <- rownames(sat1_expression)
-## Sort cells by Sat1 expression (highest first)
-sat1_decr <- sat1_expression[order(sat1_expression$Sat1, decreasing = TRUE), ]
+runx1_expression$cell <- rownames(runx1_expression)
+## Sort cells by runx1 expression (highest first)
+runx1_decr <- runx1_expression[order(runx1_expression$Runx1, decreasing = TRUE), ]
 ## Take the top 50 cells
-top_cells <- sat1_decr$cell[1:50]
+top_cells <- runx1_decr$cell[1:50]
 ## Subset the Seurat object
-hi_sat1 <- subset(pre_sobj, cells = top_cells)
+hi_runx1 <- subset(pre_sobj, cells = top_cells)
 
-# Other (shorter, but similar) Options:
-# Option 2:
+# Option 3:
 ## same as above, but one line for ordering and selecting top 50
 ## Order cells by expression (descending) and select top 50
-top_cells2 <- rownames(sat1_expression)[order(-sat1_expression$Sat1)][1:50]
+top_cells2 <- rownames(runx1_expression)[order(-runx1_expression$Runx1)][1:50]
 # Subset the Seurat object based on cell ids
-hi_sat1_v2 <- subset(pre_sobj, cells = top_cells2)
+hi_runx1_v2 <- subset(pre_sobj, cells = top_cells2)
 
-## Option 3
-## Use GetAssayData and select only values for Sat1
+## Option 4:
+## Use GetAssayData and select only values for Runx1
 ## (rows are features and columns are cell ids)
-sat1_vals <- GetAssayData(pre_sobj, layer = "data")["Sat1", ]
-hi_sat1_v3 <- subset(pre_sobj,
-                     cells = names(sort(sat1_vals, decreasing = TRUE))[1:50]
+runx1_vals <- GetAssayData(pre_sobj, layer = "data")["Runx1", ]
+hi_runx1_v3 <- subset(pre_sobj,
+                     cells = names(sort(runx1_vals, decreasing = TRUE))[1:50]
 )
 ```
 
@@ -795,6 +809,36 @@ Advanced: Use `LayerData()` to pull data for 10 randomly selected features from 
 Calculate the range of values for each factor in each of the two tables
 How do the ranges compare from feature to feature in the different "layers"?
 ```{r}
+random_features <- rownames(pre_sobj[sample(VariableFeatures(pre_sobj), 10), ])
+
+random_normed <- LayerData(pre_sobj[random_features, ], layer = "data") |>
+  as_tibble()
+
+random_scaled <- LayerData(pre_sobj[random_features, ], layer = "scale.data") |>
+  as_tibble()
+
+ranges <- lapply(1:length(random_features), function(i) {
+  feature <- random_features[i]
+  range_normed <- range(random_normed[i, ]) |>
+    as.character()
+  range_scaled <- range(random_scaled[i, ])
+  return(tibble(feature,
+                range_normed[1],
+                range_normed[2],
+                range_scaled[1],
+                range_scaled[2]))
+}) |>
+  list_rbind()
+
+colnames(ranges) <- c("Feature",
+                      "Normalized Low",
+                      "Normalized High",
+                      "Scaled Low",
+                      "Scaled High")
+ranges
+
+
+# Alternative: 
 # Use LayerData() to isolate each layer
 data_layer  <- LayerData(pre_sobj, "data")
 scale_layer <- LayerData(pre_sobj, "scale.data")
