@@ -1,0 +1,864 @@
+---
+title: "Coder Upgrade 2026: Seurat Under the Hood"
+subtitle: "Adapted from 2023 code written largely by Matt Cannon"
+author: "Ryan Roberts"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+output:
+    html_document:
+        toc: true
+        toc_float: true
+        toc_depth: 5
+        number_sections: false
+        code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  cache = TRUE,
+  cache.lazy = FALSE
+)
+```
+
+# Preparation
+Run this first! (Start the download so that it's done by the time we start)
+
+Load libraries
+```{r libraries, cache=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+library(rrrSingleCellUtils)
+library(tidyverse)
+library(Seurat)
+library(qs2)
+```
+
+Run a data check to make sure that you are ready to go and load the pre-processed Seurat object
+```{r data_check}
+if (dir.exists("~/workshop_data/raw/GSE232482/GSM7337030_mouse_scRNA-seq_P0_F1/filtered_feature_bc_matrix")) {
+  message("The raw data has been downloaded and is available...")
+  sobj <- Read10X("~/workshop_data/raw/GSE232482/GSM7337030_mouse_scRNA-seq_P0_F1/filtered_feature_bc_matrix") %>%
+    CreateSeuratObject(min.cells = 3, min.features = 200)
+  if (class(sobj) == "Seurat") {
+    message("and the Seurat object was created successfully.")
+    rm(sobj)
+    if(file.exists("~/workshop_data/rdata/f1_sobj_processed_annotated.qs2")) {
+      pre_sobj <- qs_read("~/workshop_data/rdata/f1_sobj_processed_annotated.qs2")
+      message("The pre-processed Seurat object was found and loaded successfully. You're good to go!")
+    } else {
+      warning("Couldn't find the premade Seurat object for the demo. Please check paths.")
+    }
+  } else {
+    warning("The raw data was found, but the object could not be created. Check the raw data.")
+  }
+} else {
+  warning("The raw data was not successfully downloaded. Please try again")
+}
+```
+--------------------------------------------------------------------------------
+
+# Section 1: Objects in R and Seurat objects
+
+R has many variable types
+```{r}
+my_vector <- c(1, 2, 3, 4, 5)
+my_matrix <- matrix(1:9, nrow = 3)
+my_data_frame <- data.frame(x = 1:5, y = 6:10)
+my_list <- list(a = 1, b = 2, c = "stuff")
+```
+
+R is mostly a "functional language"
+
+But it also has some "object oriented" features
+
+- Objects are a way to store data and functions together
+- Objects are intended to be purpose-built containers that organize your data
+  and facilitate proper interactions with it
+- Methods or functions are used to interact with objects
+- Conceptually different than normal variables
+    - Variables are meant to be directly manipulated
+    - Objects are meant to be interacted with through methods
+- NOTE: in R, methods are sub-defined functions (distinct from other 
+  languages)
+
+Four main types of objects in R
+
+- S3
+    - The original object type in R
+    - Less strictly defined
+- S4
+    - More strictly defined
+    - More complicated to create
+    - Less prone to errors
+- S7
+    - Even more strictly defined
+    - Data type validation
+    - Very new
+- R6
+    - More traditional OO behavior
+    - Not super common
+
+## Seurat objects are S4 objects
+```{r}
+isS4(pre_sobj)
+class(pre_sobj)
+```
+
+This is the code that defines a Seurat object
+```{r eval=FALSE}
+Seurat <- setClass(
+  Class = "Seurat",
+  slots = c(
+    assays = "list",
+    meta.data = "data.frame",
+    active.assay = "character",
+    active.ident = "factor",
+    graphs = "list",
+    neighbors = "list",
+    reductions = "list",
+    images = "list",
+    project.name = "character",
+    misc = "list",
+    version = "package_version",
+    commands = "list",
+    tools = "list"
+  )
+)
+```
+
+Then methods/functions are created to work with Seurat objects
+
+Note that the function has a function name (merge), then ".", then the object type (Seurat)
+
+This tells R how to use the merge function on a Seurat object
+```{r eval=FALSE}
+merge.Seurat <- function(
+    x = NULL,
+    y = NULL,
+    add.cell.ids = NULL,
+    merge.data = TRUE,
+    merge.dr = NULL,
+    project = "SeuratProject",
+    ...) {
+  CheckDots(...)
+  objects <- c(x, y)
+  if (!is.null(x = add.cell.ids)) {
+    if (length(x = add.cell.ids) != length(x = objects)) {
+      stop("Please provide a cell identifier for each object provided to merge")
+    }
+    for (i in 1:length(x = objects)) {
+      objects[[i]] <- RenameCells(object = objects[[i]], add.cell.id = add.cell.ids[i])
+    }
+  }
+  # ensure unique cell names
+  objects <- CheckDuplicateCellNames(object.list = objects)
+  assays <- lapply(
+    X = objects,
+    FUN = FilterObjects,
+    classes.keep = "Assay"
+  )
+  #
+  # more stuff down here, but you get the idea
+  #
+}
+```
+
+## Why do it this way?
+
+- The structure of an object is defined and static
+- Can write functions that are "guaranteed" to work with objects of a certain type
+- Can extend base R functions to work with objects of a certain type
+
+```{r}
+str(pre_sobj)
+```
+
+> Show ppt slide with Seurat object structure
+
+## Seurat object slots:
+
+There are only a handful of slots in a Seurat object
+
+But, each slot can contain objects, which then have their own slots
+
+```{r}
+glimpse(pre_sobj)
+```
+
+Ends up looking really complex if you don't break it down by level
+
+- assays = 'list'
+    - list of assay objects containing the gene expression data
+- meta.data = 'data.frame'
+    - Metadata for each cell
+- active.assay = 'character'
+    - Which assay is currently active
+- active.ident = 'factor'
+    - Vector of default "idents" for each cell
+- graphs = 'list'
+    - Filled in by `FindNeighbors()`
+- neighbors = 'list'
+    - Filled in by `FindNeighbors()`
+- reductions = 'list'
+    - Dimensionality reduction results
+- images = 'list'
+    - Not really applicable to our type of data
+- project.name = 'character'
+    - Name of the project
+- misc = 'list'
+- version = 'package_version'
+- commands = 'list'
+    - **List of commands used to create the object**
+- tools = 'list'
+
+--------------------------------------------------------------------------------
+> Emily
+# Activity 1:
+Explore the pre_sobj Seurat object
+
+Type "pre_sobj@" in the console/terminal to see what slots are available in the pre-processed object
+```{r}
+
+```
+
+Type "pre_sobj$" in the console/terminal, then hit tab a few times to see the metadata column names
+```{r}
+
+```
+
+What commands were used to create the object?
+What resolution was used in `FindClusters()`?
+```{r}
+pre_sobj@commands
+pre_sobj@commands$FindClusters
+```
+
+What are the active assay and active identity of this object?
+```{r}
+pre_sobj@active.assay
+pre_sobj@active.ident
+```
+
+Pull the metadata out of the object and save it as a new variable
+```{r}
+meta <- pre_sobj@meta.data
+```
+
+What information is encoded by the rownames of the metadata?
+
+```{r}
+# look at rows and columns
+head(meta)
+# could also do:
+# View(meta)
+
+# Specifically look at rownames (cell ids)
+head(rownames(meta))
+```
+
+
+--------------------------------------------------------------------------------
+> Ryan
+# Section 2: Assay object structure
+
+The "@assay" slot of a Seurat object contains the actual gene expression data
+
+Each element of the list is an assay object
+
+> Show ppt of Assay object structure
+
+## Assay object slots:
+
+- counts = 'matrix' - usually a sparse matrix (dgCMatrix)
+    - Raw counts
+- data = 'matrix' - usually a sparse matrix (dgCMatrix)
+    - Normalized counts
+- scale.data = 'matrix'
+    - Scaled counts
+- key = 'character'
+    - Not used externally
+- assay.orig = 'character'
+    - Label for the assay
+- var.features = 'vector'
+    - Vector of variable genes
+- meta.features = 'data.frame'
+- misc = 'list'
+
+```{r}
+class(pre_sobj@assays[[1]])
+```
+
+## Navigating a Seurat object
+
+Key concepts:
+
+-  Start with object name
+-  Use "@" to access the slot you want
+-  If the slot contains a list, reference it by name
+-  If you are referencing an internal object, use "@" to access the slot you want
+-  Repeat all the way down to the bit you need
+
+> Show ppt of navigating Seurat object
+
+```{verbatim}
+obj          slot            list element     slot of "DimReduc" object
+pre_sobj     @reductions     $pca             @cell.embeddings
+```
+
+```{r}
+pca_stuff <- pre_sobj@reductions$pca@cell.embeddings
+pca_stuff[1:10, 1:3]
+```
+
+## Create a fully-formed Seurat object together
+
+Let's watch the sausage being made
+
+> Run together with next set of slides
+
+Create the Seurat object from the three matrices
+```{r}
+example <- Read10X("~/workshop_data/raw/GSE232482/GSM7337030_mouse_scRNA-seq_P0_F1/filtered_feature_bc_matrix") %>%
+  CreateSeuratObject(min.cells = 3, min.features = 200)
+```
+
+How many layers are present?
+```{r}
+example
+glimpse(example)
+glimpse(example@assays$RNA)
+```
+
+Normalize the data
+```{r}
+example <- NormalizeData(example)
+```
+
+How did layers change?
+```{r}
+example
+glimpse(example)
+glimpse(example@assays$RNA)
+```
+
+Now try the standard workflow step-by-step
+Pause after each step to explore the object and see what changed (like we did above)
+Where are the results of each step stored?
+What layer was used as input when you ran FindVariableFeatures? Why?
+Can you pull the list of variable genes selected by the algorithm?
+Can you pull the table of UMAP embeddings?
+How many rows are in this data frame?
+```{r}
+example <- ScaleData(example)
+example <- FindVariableFeatures(example)
+example <- RunPCA(example)
+example <- FindNeighbors(example, dims = 1:20)
+example <- FindClusters(example, resolution = 0.5)
+example <- RunUMAP(example, dims = 1:20)
+```
+
+BONUS: (if you think you're talented enough to be fancy)
+Using the extracted UMAP embeddings, create a custom ggplot that displays this data
+Incorporate an additional meaningful element (such as nFeatures, mt.percent, seurat.clusters, etc) using either color, shape, or size
+```{r}
+example$mt.percent <- PercentageFeatureSet(example, pattern = "^mt-")
+```
+
+## Fun with @commands
+
+This list is structured to make pulling out specific commands easier
+
+-  Each element of the list is named by the specific command run
+-  This in turn is a named list of arguments
+
+```{r}
+rm(example)
+gc()
+
+
+
+pre_sobj@commands$FindVariableFeatures.RNA$nfeatures
+```
+
+```{verbatim}
+obj         slot       command                     argument
+pre_sobj    @commands  $FindVariableFeatures.RNA   $nfeatures
+```
+
+## Other random manual bits
+Getting cell names and gene names
+
+```{r}
+genes <- rownames(pre_sobj)
+head(genes)
+
+cells <- colnames(pre_sobj)
+head(cells)
+```
+
+Subsetting a Seurat object by row/column numbers
+
+            genes        cells
+object_name[row_numbers, column_numbers]
+```{r}
+subset_data <- pre_sobj[1:50, 1:20]
+subset_data
+```
+
+--------------------------------------------------------------------------------
+
+# Activity 2:
+
+Pull the "RNA" assay out of the Seurat object and save it as a new variable named `rna_assay`
+```{r}
+rna_assay <- pre_sobj@assays$RNA
+```
+
+Pull the raw counts out of `rna_assay`, save it as a new variable named "rna_counts" and look at the first 6 rows
+```{r}
+rna_counts <- rna_assay$counts
+head(rna_counts)
+```
+
+Make a vector that contains the names of the cells in the object
+```{r}
+cells <- colnames(pre_sobj)
+```
+
+What is the length of this vector? How many cells are in the object?
+```{r}
+length(cells)
+```
+
+Use the square bracket notation to randomly sub-sample your seurat object down to 50 cells and 100 genes
+```{r}
+sub_obj <- pre_sobj[sample(rownames(pre_sobj), 100),
+                    sample(colnames(pre_sobj), 50)]
+```
+
+--------------------------------------------------------------------------------
+
+> Emily
+
+# Section 3: Interacting with Seurat objects
+## The "right" way
+Use Seurat functions to interact with the object instead of diving into the object
+
+Key functions
+https://satijalab.org/seurat/reference/index.html
+
+## Set active Idents
+
+The active idents is essentially the default metadata defining groups of cells
+
+Can specify either a metadata column name, or provide your own vector of values
+```{r}
+Idents(pre_sobj) <- "anchor_cell_types"
+table(Idents(pre_sobj))
+
+Idents(pre_sobj) <- "this_is_not_a_real_column_in_the_data"
+table(Idents(pre_sobj))
+
+Idents(pre_sobj) <- pre_sobj$anchor_cell_types
+table(Idents(pre_sobj))
+
+DimPlot(pre_sobj)
+```
+
+## Get list of cells
+```{r}
+cells <- Cells(pre_sobj)
+head(cells)
+```
+
+## Get expression data
+
+- counts - raw counts
+- data - normalized counts  *<- you most likely want this*
+- scale.data - scaled counts
+
+Returns sparse matrix
+Can convert to a matrix with `as.matrix()`
+Rownames are the gene names
+```{r}
+my_data <-
+  LayerData(pre_sobj,
+    assay = "RNA",
+    layer = "counts"
+  )
+
+LayerData(pre_sobj, layer = "counts")[1:5, 1:5] %>%
+  as.matrix()
+
+LayerData(pre_sobj, layer = "data")[1:5, 1:5] %>%
+  as.matrix()
+
+LayerData(pre_sobj, layer = "scale.data")[1:5, 1:5] %>%
+  as.matrix()
+```
+
+Pause and reflect: What do you notice is different in the three representations
+of this data?
+- Normalization assumes that each cell should have similar sequencing depth. It
+  makes total counts comparable between cells, then log-transforms to make both
+  high- and low-expressing transcripts detectable
+- Scaling assumes that each "feature" (gene) is of similar importance. It sets
+  mean expression for each feature at 0 and divides by the SD to create a
+  "Z-score" like expression metric
+- SCTransform uses statistical modeling to accomplish both tasks in an operation
+  that looks at variation relative to a predicted mean
+
+> Ryan
+
+## Drop new data into an object
+```{r}
+raw_counts <-
+  LayerData(pre_sobj, layer = "counts") %>%
+  as.matrix()
+
+bad_normalization <- raw_counts / colSums(raw_counts)
+pre_sobj_borked <-
+  SetAssayData(pre_sobj,
+    layer = "data",
+    new.data = bad_normalization
+  )
+pre_sobj_borked
+
+```
+
+```{r}
+rm(pre_sobj_borked, raw_counts, bad_normalization)
+gc()
+```
+
+## Subset a Seurat object
+Can subset by cells, idents, features, gene expression, etc...
+```{r}
+Idents(pre_sobj) <- "seurat_clusters"
+# Note that there is only one equal sign here
+just_0 <- subset(pre_sobj, idents = "0")
+
+# But two equal signs here
+just_0 <- subset(pre_sobj, seurat_clusters == "0")
+
+cells_0 <- WhichCells(pre_sobj, idents = "0")
+
+just_0 <- subset(pre_sobj, cells = cells_0)
+
+fgfr_pos <- subset(pre_sobj, subset = Fgfr1 > 1)
+```
+
+```{r}
+rm(just_0, cells_0, fgfr_os)
+gc()
+```
+
+## Calculate average expression per group
+```{r}
+ave_expr <- AverageExpression(pre_sobj,
+  assays = "RNA",
+  group.by = "seurat_clusters"
+)$RNA
+as_tibble(ave_expr)
+```
+
+## Add metadata
+If adding a dataframe of metadata, need rownames of cell names
+When adding with "$", or passing a vector to `AddMetaData`, it doesn't check if cells match
+```{r}
+pre_sobj$nonsense <-
+  sample(LETTERS[1:5],
+    ncol(pre_sobj),
+    replace = TRUE
+  )
+
+metadata_table <-
+  data.frame(
+    totally_true = sample(c("alive", "dead", "undead"),
+      ncol(pre_sobj),
+      replace = TRUE
+    ),
+    also_useful = sample(1:1000000,
+      ncol(pre_sobj),
+      replace = FALSE
+    ),
+    row.names = colnames(pre_sobj)
+  )
+
+pre_sobj_plus <- AddMetaData(pre_sobj, metadata_table)
+head(pre_sobj_plus@meta.data)
+
+pre_sobj_plus <- AddMetaData(pre_sobj_plus,
+  colnames(pre_sobj_plus),
+  col.name = "cell_ids"
+)
+head(pre_sobj_plus@meta.data)
+```
+
+## Get PCA/UMAP/TSNE values
+```{r}
+umap_data <- Embeddings(pre_sobj, reduction = "umap")
+head(umap_data)
+
+pca_data <- Embeddings(pre_sobj, reduction = "pca")
+as_tibble(pca_data)
+```
+
+```{r}
+rm(umap_data, pca_data)
+gc()
+```
+
+## Get cell names for specific cells
+```{r}
+high_col <- WhichCells(pre_sobj, expression = Col1a1 > 2)
+head(high_col)
+
+fibroblast <- Cells(subset(pre_sobj, subset = anchor_cell_types == "fibroblast"))
+length(fibroblast)
+```
+
+## Get data for specific cells
+```{r}
+high_fgfr_data <-
+  FetchData(pre_sobj,
+    vars = rownames(pre_sobj),
+    cells = Cells(fgfr_pos)
+  )
+
+high_fgfr_data[1:5, 1:5]
+
+# Plot the percentage of fibroblasts in each sample
+FetchData(pre_sobj,
+    vars = c("orig.ident", "anchor_cell_types"),
+    cells = Cells(fgfr_pos)
+  ) %>%
+  group_by(orig.ident) %>%
+  summarize(pct_fib = sum(anchor_cell_types == "fibroblast") / n() * 100) %>%
+  ggplot(aes(orig.ident, pct_fib)) +
+    geom_col() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+## Save your Idents
+```{r}
+pre_sobj$my_idents <- Idents(pre_sobj)
+head(pre_sobj$my_idents)
+```
+
+> Emily
+
+## A quick note about on-disk processing
+
+Newer versions of Seurat implement the BPCells procedure for on-disk processing
+
+This procedure can convert your large matrix objects to data streaming objects. When streaming, rather than loading your data into memory to facilitate processing and manipulation, processing can be completed by pulling the data a little at a time and then storing all of the intermediate steps back to disk. On-disk processing frees you from the limitations of system memory (somewhat), letting you work on datasets much larger using systems much simpler than you could using conventional processing.
+
+To activate on-disk processing, you first need to convert your count matrices to be streaming objects, then use those to create your object.
+```{r}
+raw_matrix <- Read10X("~/workshop_data/raw/GSE232482/GSM7337030_mouse_scRNA-seq_P0_F1/filtered_feature_bc_matrix")
+
+# Write the matrix to a directory
+BPCells::write_matrix_dir(
+  mat = raw_matrix,
+  dir = "~/matrices/example"
+)
+
+# Now that we have the matrix on disk, we can load it
+example.mat <- BPCells::open_matrix_dir(
+  dir = "~/matrices/example"
+)
+
+# Create Seurat Objects
+on_disk <- CreateSeuratObject(
+  counts = example.mat
+)
+standard <- CreateSeuratObject(
+  counts = raw_matrix
+)
+
+# Process the on-disk object (and track time for processing)
+system.time(
+  on_disk <- NormalizeData(on_disk) %>%
+    ScaleData() %>%
+    FindVariableFeatures() %>%
+    RunPCA() %>%
+    FindNeighbors(dims = 1:20) %>%
+    FindClusters(resolution = 0.5) %>%
+    RunUMAP(dims = 1:20)
+)
+
+# Process the conventional object (and track processing time)
+system.time(
+  standard <- NormalizeData(standard) %>%
+    ScaleData() %>%
+    FindVariableFeatures() %>%
+    RunPCA() %>%
+    FindNeighbors(dims = 1:20) %>%
+    FindClusters(resolution = 0.5) %>%
+    RunUMAP(dims = 1:20)
+)
+```
+
+Take a look at the changes to the object structure
+```{r}
+glimpse(on_disk@assays$RNA)
+```
+
+How much memory are the two objects consuming?
+```{r}
+format(object.size(on_disk), units = "Mb")
+format(object.size(standard), units = "Mb")
+```
+
+# Wrapup
+
+A Seurat object is an S4 object
+
+S4 objects function similar to a list of lists, except that the slots are accessed with "@" instead of "$"
+
+The authors of the software wrote a lot of functions to interact with the object, so you don't have to dive into the object manually
+
+But, if you need to, you can!
+
+This should make a lot more sense now!
+```{r}
+str(pre_sobj)
+```
+
+--------------------------------------------------------------------------------
+
+# Activity 3:
+
+Lets redo some of what we did in activity 2, but lets do it the "right" way
+
+Use the `LayerData()` method to pull the raw counts out of `rna_assay`, save it as a new variable named "rna_counts" and look at the first 6 rows. Why are there periods? How can you turn the periods into zeros?
+```{r}
+rna_counts <- LayerData(pre_sobj, layer = "counts")
+# get top 6 rows (and first 5 columns for easy viewing)
+rna_counts[1:6, 1:5]
+# turn periods into zeros
+rna_counts[1:6, 1:5] %>% as.matrix()
+```
+
+Use a Seurat function to make a vector that contains the names of the cells in the object
+```{r}
+sobj_cells <- Cells(pre_sobj)
+# to view:
+head(sobj_cells)
+```
+
+What is the length of this vector? How many cells are in the object?
+```{r}
+length(sobj_cells)
+
+# also
+length(Cells(pre_sobj))
+```
+
+Use the `subset()` function to sub-sample the sobj object down to those cells where nonsense == "A" - from metadata we added at line 567 (*corrected*)
+```{r}
+nonsense <- subset(pre_sobj, nonsense == "A")
+```
+
+Use the `subset()` function to sub-sample your seurat object down to the 50 cells with the highest expression of the gene "Sat1" (*corrected*)
+```{r}
+# Option 1 - step-by-step walk-through (beginner option)
+## Get Sat1 expression for each cell
+sat1_expression <- FetchData(pre_sobj, vars = "Sat1")
+# Add cell names as a column (easier to see what's happening)
+## note: rownames are the cell ids
+sat1_expression$cell <- rownames(sat1_expression)
+## Sort cells by Sat1 expression (highest first)
+sat1_decr <- sat1_expression[order(sat1_expression$Sat1, decreasing = TRUE), ]
+## Take the top 50 cells
+top_cells <- sat1_decr$cell[1:50]
+## Subset the Seurat object
+hi_sat1 <- subset(pre_sobj, cells = top_cells)
+
+# Other (shorter, but similar) Options:
+# Option 2:
+## same as above, but one line for ordering and selecting top 50
+## Order cells by expression (descending) and select top 50
+top_cells2 <- rownames(sat1_expression)[order(-sat1_expression$Sat1)][1:50]
+# Subset the Seurat object based on cell ids
+hi_sat1_v2 <- subset(pre_sobj, cells = top_cells2)
+
+## Option 3
+## Use GetAssayData and select only values for Sat1
+## (rows are features and columns are cell ids)
+sat1_vals <- GetAssayData(pre_sobj, layer = "data")["Sat1", ]
+hi_sat1_v3 <- subset(pre_sobj,
+                     cells = names(sort(sat1_vals, decreasing = TRUE))[1:50]
+)
+```
+
+Advanced: Use `LayerData()` to pull data for 10 randomly selected features from both the "data" and "scale.data" layers
+Calculate the range of values for each factor in each of the two tables
+How do the ranges compare from feature to feature in the different "layers"?
+```{r}
+# Use LayerData() to isolate each layer
+data_layer  <- LayerData(pre_sobj, "data")
+scale_layer <- LayerData(pre_sobj, "scale.data")
+
+# Randomly select features from the scale data layer
+# scale.data by default includes a subset of all features in data layer (2000 most variable)
+# set.seed(111) # could run for reproducibility
+features <- sample(rownames(scale_mat), 10)
+
+# compare the ranges for each feature
+range_df <- data.frame(
+  data_min = apply(data_mat[features, , drop = FALSE], 1, min),
+  data_max = apply(data_mat[features, , drop = FALSE], 1, max),
+  scale_min = apply(scale_mat[features, , drop = FALSE], 1, min),
+  scale_max = apply(scale_mat[features, , drop = FALSE], 1, max)
+)
+
+print(range_df)
+```
+
+--------------------------------------------------------------------------------
+
+# Session challenge
+
+Strangely, Seurat has no built in `summary` function, but you can write your own!
+Write a function named summary.seurat() that takes a Seurat object as an argument and prints out the following information:
+
+- Number of cells
+- Number of features
+- Current active idents
+- Current default assay
+- Print a DimPlot() of the object if the @reductions slot has something in it
+
+```{r}
+summary.seurat <- function(obj) {
+  # Number of cells
+  cat("Cells:", length(Cells(obj)), "\n")
+  # Number of features (from default assay)
+  cat("Features:", length(Features(obj)), "\n")
+  # Active identities
+  cat("Active identities:\n")
+  print(unique(Idents(obj)))
+  # Default assay
+  cat("Default assay:", DefaultAssay(obj), "\n")
+  # Plot if reductions exist
+  if (length(Reductions(obj)) > 0) {
+    print(DimPlot(obj))
+  }
+}
+
+summary.seurat(pre_sobj)
+```
+
+--------------------------------------------------------------------------------
+
+# Helpful references
+
+https://github.com/mojaveazure/seurat-object
+https://github.com/satijalab/seurat
+https://satijalab.org/seurat/reference/index.html
+https://satijalab.org/seurat/index.html
+
+
+Session info
+```{r}
+sessionInfo()
+```
