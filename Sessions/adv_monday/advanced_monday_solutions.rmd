@@ -748,7 +748,7 @@ Use a Seurat function to make a vector that contains the names of the cells in t
 ```{r}
 cell_names <- Cells(pre_sobj)
 # to view:
-head(sobj_cells)
+head(cell_names)
 ```
 
 What is the length of this vector? How many cells are in the object?
