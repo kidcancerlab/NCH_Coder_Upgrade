@@ -387,9 +387,6 @@ spacexr_reference <-
                                              layer = "counts"),
                        cell_types = as.factor(ref$cell_type))
 
-rm(ref)
-gc()
-
 # get x and y coordinates for our visium data
 coords <- 
   rbind(GetTissueCoordinates(object = spatial, 
@@ -606,7 +603,7 @@ brush_cells@meta.data %>%
 ```
 
 ```{r}
-rm(spatial)
+rm(spatial, ref)
 gc()
 ```
 
