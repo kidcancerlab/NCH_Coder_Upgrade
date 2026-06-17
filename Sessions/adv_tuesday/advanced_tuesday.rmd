@@ -384,9 +384,6 @@ spacexr_reference <-
                                              layer = "counts"),
                        cell_types = as.factor(ref$cell_type))
 
-rm(ref)
-gc()
-
 # get x and y coordinates for our visium data
 coords <- 
   rbind(GetTissueCoordinates(object = spatial, 
@@ -623,7 +620,7 @@ spots_to_keep <-
 ```
 
 ```{r}
-rm(spatial)
+rm(spatial, ref)
 gc()
 ```
 
