@@ -85,7 +85,7 @@ keep_cell_types <-
     names()
 
 kidney_data <-
-    subset(kidney_data, cell_type %in% keep_cell_types)
+    subset(kidney_data, anchor_cell_types %in% keep_cell_types)
 
 Idents(kidney_data) <-
     kidney_data$cell_sample

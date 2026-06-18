@@ -737,6 +737,22 @@ From this point, you can take your results and try to apply them to your biologi
 
 This sort of analysis should be viewed as a jumping off point for further analysis and experiments, not a definitive answer to your question.
 
+
+```{r}
+kidney_spatial <- qs_read("~/workshop_data/rdata/spatial_merged.qs2") %>%
+  subset(sex == "female")
+
+SpatialFeaturePlot(
+  kidney_spatial, 
+  features = c(
+    "kidney proximal convoluted tubule epithelial cell",
+    "brush cell"
+  ),
+  image.alpha = 0,
+  pt.size = 4000
+)
+```
+
 # Resources
 
 https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9184522/
